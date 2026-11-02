@@ -86,7 +86,7 @@ with sync_playwright() as p:
     pg.click("#step-w4-1"); pg.wait_for_timeout(200)
     check("tapping a locked lesson explains the plans ($39 a year shown)", "comes with a plan" in pg.inner_text("#lockedSheet") and "$39 a year" in pg.inner_text("#lockedSheet"))
     pg.click("#lockedClose")
-    seq = pg.evaluate("buildLesson(__alefba.lessons.find(l => l.id === 'w1-1')).map(x => x.type)")
+    seq = pg.evaluate("buildLessonCore(__alefba.lessons.find(l => l.id === 'w1-1')).map(x => x.type)")
     check("free family: a locked Speak preview in a words lesson", "sayPreview" in seq and "say" not in seq, seq)
     pg.evaluate("openAccount(); document.getElementById('acctGate').hidden = true; document.getElementById('acctBody').hidden = false; renderAccountBody(document.getElementById('acctBody'), document.getElementById('accountSheet'), null)")
     body = pg.inner_text("#acctBody")
@@ -97,7 +97,7 @@ with sync_playwright() as p:
     # 5. paying family: nothing locked; speaking with hear-yourself; mic in talks
     pg, errs = page(PAID, state())
     check("paying family: nothing locked", pg.evaluate("!__alefba.lessons.some(lessonLocked)"))
-    seq = pg.evaluate("buildLesson(__alefba.lessons.find(l => l.id === 'w1-1')).map(x => x.type)")
+    seq = pg.evaluate("buildLessonCore(__alefba.lessons.find(l => l.id === 'w1-1')).map(x => x.type)")
     check("paying family: real Speak cards in a words lesson", seq.count("say") >= 2, seq)
     pg.evaluate("startLesson({ id: 'x', title: 'x', practice: true }, [exSay(WORDS.find(W => W.tr === 'salâm'))])"); pg.wait_for_timeout(300)
     sent = []

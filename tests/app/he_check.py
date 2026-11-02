@@ -18,7 +18,7 @@ with sync_playwright() as p:
     check("new answers are still saved under the old key", pg.evaluate("exTrace(BY_GLYPH['ح']).key") == "trace:he jimi" and pg.evaluate("exLetterName(BY_GLYPH['ح'], LETTERS.slice(4,8)).key") == "letter:he jimi")
     check("a review question can be made from the old key", pg.evaluate("(() => { const e = exForKey('letter:he jimi'); return !!e && e.reveal.join('').includes('he'); })()"), pg.evaluate("(() => { const e = exForKey('letter:he jimi'); return e && e.reveal; })()"))
     q=pg.evaluate("exLetterName(BY_GLYPH['ح'], LETTERS.slice(4,8)).options.map(o=>o.t)")
-    check(f"the answers say he, not he jimi ({q})", "he" in q and "he jimi" not in q)
+    check(f"the answers say he, not he jimi ({q})", "he (h)" in q and not any("jimi" in x for x in q))
     check("emshab plays the trimmed recording", pg.evaluate("fileFor(wordAudio(SEASON_WORDS.find(W => W.tr === 'emshab')))") == "word_emshab.mp3")
     check("no page errors", not errs, errs)
     b.close()

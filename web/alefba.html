@@ -3715,7 +3715,51 @@ function shareButton(lv, label) {
 }
 
 // ================= LESSON BUILDERS =================
+// The very first lesson someone ever does is short: three letters (or three words), one letter to trace and a quick
+// match, about two minutes, so a first visit ends with something finished. What it leaves out comes at the start of
+// the next lesson in the same group (S.later), so nothing is skipped.
+const firstLessonEver = lesson => !lesson.practice && !Object.values(S.done).includes(true);
 function buildLesson(lesson) {
+  if (firstLessonEver(lesson) && (lesson.kind === "meet" || lesson.kind === "words")) return buildTaster(lesson);
+  const seq = buildLessonCore(lesson), later = S.later;
+  if (!later) return seq;
+  const front = [];
+  if (later.letters && lesson.unit && lesson.unit.index === later.unit && lesson.letters) {
+    const Ls = later.letters.map(g => BY_GLYPH[g]).filter(Boolean);
+    if (lesson.kind !== "meet") Ls.forEach(L => front.push({ type: "introLetter", L, audio: letterAudio(L) }, exNameLetter(L, lesson.letters), exTrace(L)));
+    seq.usedLater = true; // a "meet" lesson again already has them all
+  }
+  if (later.words && lesson.kind === "words" && lesson.level && lesson.level.index === later.level && (lesson.level.id || null) === (later.pack || null)) {
+    const own = new Set(lesson.words.map(W => W.tr)), levelWs = lesson.level.words;
+    later.words.filter(tr => !own.has(tr)).map(tr => levelWs.find(W => W.tr === tr)).filter(Boolean)
+      .forEach(W => front.push({ type: "introWord", W, audio: wordAudio(W) }, speakLevel() >= 2 ? exListenWord(W, levelWs, "word") : exWordMeaning(W, levelWs)));
+    seq.usedLater = true;
+  }
+  if (front.length) seq.unshift(...front);
+  return seq;
+}
+function buildTaster(lesson) {
+  const seq = [];
+  if (lesson.kind === "meet") {
+    const Ls = lesson.letters.slice(0, 3), seen = [];
+    Ls.forEach((L, k) => {
+      seq.push({ type: "introLetter", L, audio: letterAudio(L) });
+      seen.push(L);
+      seq.push(seen.length >= 2 ? exNameLetter(L, seen) : exLetterName(L, lesson.letters));
+      if (k === 0) seq.push(exTrace(L)); // one letter to write, not all of them
+    });
+    seq.push(matchLetters(shuffle(Ls)));
+    if (lesson.letters.length > 3) seq.later = { unit: lesson.unit.index, letters: lesson.letters.slice(3).map(L => L[0]) };
+  } else {
+    const Ws = lesson.words.slice(0, 3), levelWs = lesson.level.words, strong = speakLevel() >= 2;
+    Ws.forEach(W => { seq.push({ type: "introWord", W, audio: wordAudio(W) }); seq.push(strong ? exListenWord(W, levelWs, "word") : exWordMeaning(W, levelWs)); });
+    seq.push(matchWords(distinctWords(Ws, 3)));
+    const sp = Ws.find(spellable); if (sp) seq.push(exSpell(sp));
+    if (lesson.words.length > 3) seq.later = { level: lesson.level.index, pack: lesson.level.id || null, words: lesson.words.slice(3).map(W => W.tr) };
+  }
+  return seq;
+}
+function buildLessonCore(lesson) {
   const seq = [];
   if (lesson.kind === "meet") {
     const Ls = lesson.letters, seen = [];
@@ -4110,7 +4154,7 @@ function closeOverlay(id) {
 // queue is given for one-off practice (like writing a single letter from the Alphabet tab)
 function startLesson(lesson, queue, reviewName) {
   const q = queue || (lesson ? buildLesson(lesson) : buildReview());
-  R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "" };
+  R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "", later: q.later || null, usedLater: !!q.usedLater };
   if (lesson && !lesson.practice) count("lesson_start");
   openOverlay("lesson");
   showExercise();
@@ -4787,6 +4831,7 @@ function finishLesson() {
   const firstTime = R.lesson && !practice && !S.done[R.lesson.id];
   if (R.lesson && !practice) S.done[R.lesson.id] = true;
   count(practice ? "practice_done" : R.game ? "game_done" : R.lesson ? "lesson_done" : "review_done");
+  if (R.later) S.later = R.later; else if (R.usedLater) delete S.later; // the short first lesson's left-out letters or words: next time
   const newDay = practised();
   if (!practice) bumpToday();
   R.finish = true;
@@ -4824,6 +4869,8 @@ function finishLesson() {
     }
     const nx = nextLesson();
     if (nx) d.append(el("p", null, `Up next: ${nx.title}${nx.level ? ` (${nx.level.title})` : ` (${nx.unit.title})`}.`));
+    // after the very first lesson: put the app on the home screen (the icon is what brings people back)
+    if (R.lesson && firstTime && Object.values(S.done).filter(v => v === true).length === 1) { const ic = installCard(true); if (ic) d.append(ic); }
     // a daily reminder, offered once, after the second lesson (it's also in Settings)
     if (R.lesson && !S.prefs.remind && !S.prefs.remindAsked && Object.keys(S.done).length >= 2) {
       S.prefs.remindAsked = true; save();

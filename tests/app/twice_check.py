@@ -45,7 +45,7 @@ with sync_playwright() as p:
     check("no page errors (spelling)", not errs, errs); c.close()
     # ---------- writing twice ----------
     c, pg, errs = page(b, st())
-    q = pg.evaluate("buildLesson(LESSONS.find(l => l.id === 'a1-1')).map((e, i) => e.type === 'trace' ? { i, L: e.L[1], memory: e.memory } : null).filter(Boolean)")
+    q = pg.evaluate("buildLessonCore(LESSONS.find(l => l.id === 'a1-1')).map((e, i) => e.type === 'trace' ? { i, L: e.L[1], memory: e.memory } : null).filter(Boolean)")
     plain = [x for x in q if not x["memory"]]; mem = [x for x in q if x["memory"]]
     check(f"letters are written twice: traced, then from memory later ({q})", len(mem) == min(3, len(plain)) and min(x["i"] for x in mem) > max(x["i"] for x in plain) and set(x["L"] for x in mem) <= set(x["L"] for x in plain))
     def open_trace(memory, letter="be"):
