@@ -1,0 +1,19 @@
+{
+  "name": "Alefba: learn Persian",
+  "short_name": "Alefba",
+  "description": "Learn to read and speak Persian: the alphabet, everyday words with real voices, and practice conversations.",
+  "start_url": "./?source=home",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f6f7",
+  "theme_color": "#1c3780",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["education", "kids"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

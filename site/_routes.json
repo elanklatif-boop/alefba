@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "include": [
+    "/api/*",
+    "/parents",
+    "/parents.html",
+    "/adults",
+    "/adults.html",
+    "/teachers",
+    "/teachers.html"
+  ],
+  "exclude": []
+}

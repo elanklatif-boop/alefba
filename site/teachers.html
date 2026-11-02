@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Alefba for Persian teachers | Free class tools</title>
+<meta name="description" content="A free class page for Persian teachers: give students a code, assign Alefba lessons and see who's practising at home. Alphabet, everyday words, stories and games. Free for teachers.">
+<link rel="canonical" href="https://learnalefba.com/teachers">
+<meta property="og:title" content="Alefba for Persian teachers">
+<meta property="og:description" content="Make a free class, share its code, assign lessons and see who's practising Persian at home.">
+<meta property="og:url" content="https://learnalefba.com/teachers">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alefba">
+<meta property="og:image" content="https://learnalefba.com/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Alefba: learn to read and speak Persian">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://learnalefba.com/icons/og-image.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c3780'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f2b23c' font-family='Tahoma,sans-serif'%3E%D8%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* One readable column in the app's colors, like the parents page, with the three steps shown as phone screenshots. */
+:root {
+  --bg: #f2f6f7; --surface: #ffffff; --ink: #13293a; --muted: #5a7282; --line: #d8e3e7;
+  --band: #1c3780; --band-ink: #ffffff; --band-muted: #c3d0f0; --cta: #f2b23c; --lapis-text: #1f3d8a; --turq: #0a7170; --turq-soft: #dbeeed;
+  --font-ui: "Lexend", "Segoe UI", system-ui, sans-serif; --font-head: "Literata", "Iowan Old Style", Georgia, serif; --font-fa: "Vazirmatn", "Tahoma", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0b1820; --surface: #112430; --ink: #e4eef1; --muted: #8fa8b3; --line: #23404e; --band: #142a63; --band-muted: #aebde6; --lapis-text: #a3b8ff; --turq: #3bbfba; --turq-soft: #123a3c; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-ui); }
+.wrap { max-width: 46rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { background: var(--band); color: var(--band-ink); padding-top: env(safe-area-inset-top, 0px); }
+header .wrap { padding-block: 28px 28px; display: grid; gap: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand b { font-family: var(--font-head); font-size: 1.6rem; }
+.brand span { font-family: var(--font-fa); font-size: 1.8rem; color: var(--cta); }
+header h1 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.9rem; line-height: 1.2; text-wrap: balance; }
+header p { margin: 0; color: var(--band-muted); max-width: 60ch; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 6px; }
+header .actions a.alt { color: var(--band-ink); }
+main .wrap { padding-block: 24px 48px; display: grid; gap: 24px; }
+.short { background: var(--turq-soft); border-radius: 14px; padding: 16px 18px; }
+.short p { margin: 0; }
+section h2 { margin: 0 0 8px; font-family: var(--font-head); font-weight: 600; font-size: 1.3rem; text-wrap: balance; }
+section p, section ul, section ol { margin: 0 0 8px; max-width: 65ch; }
+section ul, section ol { padding-left: 1.3em; }
+section li + li { margin-top: 6px; }
+a { color: var(--lapis-text); font-weight: 600; }
+.cta { display: inline-block; background: var(--cta); color: #13293a; font-weight: 700; text-decoration: none; padding: 12px 20px; border-radius: 12px; }
+.cta:focus-visible, a:focus-visible { outline: 3px solid var(--cta); outline-offset: 2px; }
+.fa { font-family: var(--font-fa); }
+.shots { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 4px 0 0; padding: 0; list-style: none; }
+.shots li { margin: 0; display: grid; gap: 8px; align-content: start; }
+.shots img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.shots b { font-size: 0.95rem; line-height: 1.35; }
+.shots span { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+@media (max-width: 620px) {
+  .shots { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 72%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; }
+  .shots li { scroll-snap-align: start; }
+}
+.prices { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin: 4px 0 10px; }
+.price { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
+.price b { font-size: 1.02rem; }
+.price span { color: var(--muted); font-size: 0.92rem; }
+.contact { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+footer { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><b>Alefba</b><span lang="fa">الفبا</span></div>
+    <h1>For Persian teachers</h1>
+    <p>Give your students a fun way to practise Persian between classes. Make a free class, share its code, assign lessons and see who's practising.</p>
+    <div class="actions"><a class="cta" href="./?teach">Make a free class</a><a class="alt" href="./">Try a lesson first</a></div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="short"><p><strong>In short:</strong> teacher mode is free. Students join your class from any phone, tablet or computer with a code, and don't need an email address or an account. The alphabet and the first <!--v:freeLevels-->3<!--/v--> levels are free for every student, and a school plan (<!--v:schoolPrice-->$49<!--/v--> a year) opens all 16 levels for a whole class.</p></div>
+
+    <section>
+      <h2>How it works</h2>
+      <ol>
+        <li><strong>Make a class.</strong> Sign in with your email (we send you a code), then give the class a name, like <em>Saturday beginners</em>. You can have up to 20 classes, with up to 60 students in each.</li>
+        <li><strong>Share the code.</strong> Students open learnalefba.com, go to the Review tab, tap <em>Join a class</em> and type the code. The <em>Copy an invite message</em> button writes the message to send home for you.</li>
+        <li><strong>Assign lessons.</strong> Pick letters, word lessons, conversations or a whole level. Students see them at the top of their Lessons tab.</li>
+        <li><strong>See who's practising.</strong> For each student: how many of the last 7 days they practised, their streak, how many lessons they've done, and how many of your assigned lessons are finished.</li>
+        <li><strong>Open every level for the class (optional).</strong> With the school plan, everyone in the class gets all 16 levels for a year, so you can assign any lesson.</li>
+      </ol>
+      <ul class="shots">
+        <li><img src="img/teach-class.webp" width="390" height="760" alt="Teacher mode on a phone: the class Saturday beginners with its join code, three assigned lessons and a list of students with how often each one practised." loading="lazy"><b>Your class</b><span>The code to share, what you've assigned, and how each student is doing.</span></li>
+        <li><img src="img/teach-assign.webp" width="390" height="760" alt="The lesson picker in teacher mode, with lessons grouped by level and a Pick all button for each level." loading="lazy"><b>Assign lessons</b><span>Pick single lessons or a whole level in a few taps.</span></li>
+        <li><img src="img/teach-student.webp" width="390" height="760" alt="A student's Lessons tab on a phone, with a box at the top showing the lessons assigned by the teacher and how many are done." loading="lazy"><b>What students see</b><span>Your assignments come first, then their own lessons.</span></li>
+      </ul>
+    </section>
+
+    <p><a class="cta" href="./?teach">Make a free class</a></p>
+
+    <section>
+      <h2>What your students practise</h2>
+      <ul>
+        <li><strong>The alphabet:</strong> all 32 letters, one at a time, with each letter's shapes, a word that uses it, and tracing practice.</li>
+        <li><strong>252 everyday words in 16 levels:</strong> family, food, school, animals, colours, Nowruz and more, with sound for every word and an example sentence.</li>
+        <li><strong>Spoken and book Persian side by side:</strong> how people say a word at home (<span lang="fa" class="fa">خونه</span>, khune) and how books write it (<span lang="fa" class="fa">خانه</span>, khâne).</li>
+        <li><strong>Finglish as a support:</strong> words are also shown in English letters (like salâm) until students can read the script.</li>
+        <li><strong>16 short stories,</strong> one for every level, made from its words. Students tap any underlined word to see what it means.</li>
+        <li><strong>A free Shab-e Yalda pack:</strong> 15 Yalda words (watermelon, pomegranate, nuts, candles, Hafez), a story about Yalda night at Grandma's house and a game. It's free for every student, with or without a plan, and you can assign it like any lesson.</li>
+        <li><strong>Pictures and games for young learners:</strong> pictures for the words, a memory game and a balloon game in each level, and a sticker for every level finished.</li>
+        <li><strong>Practice conversations</strong> with friendly AI characters, at each student's level. Every family gets <!--v:free-->3<!--/v--> free talks; more come with a plan.</li>
+        <li><strong>Meanings in five languages:</strong> English, French, German, Swedish or Chinese.</li>
+      </ul>
+      <p>Alefba is made for children aged about 7 to 14, and it has an adult version too, with its own conversations, so teen and adult classes can use it as well.</p>
+    </section>
+
+    <section>
+      <h2>Privacy, for schools</h2>
+      <ul>
+        <li>Students don't need an email address or an account to do the lessons or join a class.</li>
+        <li>A class sees only the first name or nickname a student types when joining, and their progress: lessons done, days practised and streak. Nothing from the AI talks is ever shared with a class.</li>
+        <li>On a child's device, a grown-up says yes before the child joins a class.</li>
+        <li>Students can leave a class at any time, which deletes their progress from it straight away. Deleting a class deletes everything in it.</li>
+        <li>Alefba has no ads, no analytics and no tracking cookies.</li>
+      </ul>
+      <p>The <a href="parents">page for parents</a> has the full details, including how the AI talks work and are kept safe.</p>
+    </section>
+
+    <section>
+      <h2>What does it cost?</h2>
+      <p>Teacher mode is free, and so are the alphabet and the first <!--v:freeLevels-->3<!--/v--> levels for every student.</p>
+      <div class="prices">
+        <div class="price"><b>School plan: <!--v:schoolPrice-->$49<!--/v--> a year</b><span>One class, all 16 levels for every student in it (up to 60), on any device. Paid once; it doesn't renew by itself.</span></div>
+        <div class="price"><b>Family plan: from <!--v:basicPrice-->$5<!--/v--> a month</b><span>Or <!--v:yearlyPrice-->$39<!--/v--> a year. All 16 levels, plus the AI talks and speaking practice, for one family.</span></div>
+      </div>
+      <p>With the school plan, families don't need their own plan for the lessons. The AI talks and speaking practice aren't part of it, because they need a grown-up to sign in: families who want them can add a family plan. You get the school plan from your class in teacher mode, and you can add another year near the end.</p>
+      <p>Teachers can ask us for a free code to try everything themselves.</p>
+    </section>
+
+    <section class="contact">
+      <h2>Questions?</h2>
+      <!--contact--><p>If you have a question, please ask the person who shared Alefba with you.</p><!--/contact-->
+    </section>
+
+    <footer><p><a href="./">Back to Alefba</a> · <a href="parents">For parents</a> · <a href="learn-persian">Learn Persian for kids</a> · <a href="learn-persian-adults">For adults</a></p></footer>
+  </div>
+</main>
+</body>
+</html>
