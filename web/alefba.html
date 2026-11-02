@@ -498,6 +498,10 @@ button.msg-hint { background: none; border: 0; padding: 4px 0; font-family: inhe
 .ob-links { margin: -4px 0 0; font-size: 0.9rem; }
 .ob-links a { color: var(--lapis-text); }
 .ob-alt.as-btn { align-self: stretch; text-decoration: none; border: 1.5px solid var(--lapis); color: var(--lapis-text); border-radius: 12px; padding: 12px; font-size: 1rem; font-weight: 600; background: transparent; }
+/* a first visit: the short first lesson is the big button, the questions the smaller one under it */
+.ob-alt.as-btn.lead { order: -1; background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); padding: 14px; }
+.ob-alt.as-btn.lead:hover { filter: brightness(1.1); }
+#obNext.second { background: transparent; color: var(--lapis-text); border: 1.5px solid var(--lapis); }
 @media (max-width: 360px) { .ob-cards { grid-template-columns: 1fr; } }
 /* the heading gets focus for screen readers when a screen opens; no box drawn around it */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus { outline: none; }
@@ -6402,7 +6406,7 @@ function renderOB() {
   main.replaceChildren(); steps.replaceChildren();
   $("obBody").scrollTop = 0;
   next.hidden = false; next.disabled = false; next.onclick = null;
-  alt.hidden = true; alt.onclick = null; alt.classList.remove("as-btn");
+  alt.hidden = true; alt.onclick = null; alt.classList.remove("as-btn", "lead"); next.classList.remove("second");
   $("obBack").hidden = !OB_FLOW.includes(st);
   if (OB_FLOW.includes(st)) OB_FLOW.forEach((s, k) => steps.append(el("i", k <= OB_FLOW.indexOf(st) ? "on" : "")));
   if (st === "welcome") {
@@ -6418,7 +6422,8 @@ function renderOB() {
      ["گفتگو", "Conversations", "Chat with characters at your level, in writing or out loud."]]
       .forEach(([f, t, d]) => { const c = el("div", "ob-card"); c.append(fa("span", "ob-card-fa", f), el("b", null, t), el("span", null, d)); cards.append(c); });
     main.append(cards);
-    main.append(el("p", "ob-sub", "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place. Or jump straight into the first lesson."));
+    main.append(el("p", "ob-sub", S.profile ? "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."
+      : "Start with a 2-minute lesson right now. Or answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
     if (WEB && WEB.parentsUrl) {
       const links = el("p", "ob-links");
       [["For parents", WEB.parentsUrl], ["For adult learners", WEB.adultsUrl], ["For teachers", WEB.teachersUrl]].filter(x => x[1]).forEach(([t, h], k) => {
@@ -6440,8 +6445,9 @@ function renderOB() {
     alt.hidden = false;
     if (S.profile) { alt.textContent = "Not now"; alt.onclick = () => closeOnboarding(); }
     else {
-      // a real second choice for a first visit: straight into the first lesson, no questions
-      alt.textContent = "Try the first lesson"; alt.classList.add("as-btn");
+      // a first visit: straight into the short first lesson is the big button (most visitors want to try it, not
+      // answer questions); "Find my level" stays, as the smaller one under it
+      alt.textContent = "Start learning: 2 minutes"; alt.classList.add("as-btn", "lead"); next.classList.add("second");
       alt.onclick = () => { S.profile = { skipped: true, goal: 2, adult: false }; buildLevels(); save(); closeOnboarding(); const ls = nextLesson(); if (ls) openLesson(ls); };
     }
   } else if (st === "who") {

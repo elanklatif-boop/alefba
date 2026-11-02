@@ -32,7 +32,7 @@ with sync_playwright() as p:
     b=p.chromium.launch()
     # ---- a first visit, "Try the first lesson" ----
     c,pg,errs=ctx(b)
-    pg.click("text=Try the first lesson"); pg.wait_for_timeout(600)
+    pg.click("text=Start learning: 2 minutes"); pg.wait_for_timeout(600)
     q=pg.evaluate("R.queue.map(e => e.type)")
     check(f"the first lesson ever is short: {len(q)} steps {q}", 7 <= len(q) <= 10 and q.count("trace") == 1, q)
     check("it's Meet the letters, with the first 3 letters", pg.evaluate("R.lesson.id") == "a1-1" and pg.evaluate("R.queue.filter(e => e.type === 'introLetter').map(e => e.L[0]).join('')") == "ابپ")
