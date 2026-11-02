@@ -31,7 +31,7 @@ def run(b, state, then=None, reload=False):
 with sync_playwright() as p:
     b=p.chromium.launch()
     ev,sent,S,errs = run(b, None, reload=True)
-    check(f"a brand-new visitor: open, new, child, counted once even after a reload ({ev})", sorted(ev)==sorted(["open","new","open_child"]), ev)
+    check(f"a brand-new visitor: open, new, not chosen yet, counted once even after a reload ({ev})", sorted(ev)==sorted(["open","new","open_unset"]), ev)
     check("their first day is saved", S["firstDay"]==today.isoformat() and S["statDay"]==today.isoformat(), S)
     check("the date sent is the visitor's own", all(x["d"]==today.isoformat() for x in sent), sent)
     ev,_,_,_ = run(b, st(firstDay=ds(1), statDay=ds(1)))

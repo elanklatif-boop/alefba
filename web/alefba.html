@@ -2728,7 +2728,7 @@ function countOpen() {
     const d = Math.round((new Date(t + "T12:00") - new Date(first + "T12:00")) / 864e5);
     count(d <= 1 ? "back_1" : d <= 7 ? "back_2_7" : d <= 30 ? "back_8_30" : "back_31");
   }
-  count("open"); count(isAdult() ? "open_adult" : "open_child");
+  count("open"); count(!S.profile ? "open_unset" : isAdult() ? "open_adult" : "open_child"); // no profile: still in the welcome, not chosen yet
   save(true);
 }
 // save(true) is a quiet, automatic save: it doesn't count as the newest change when two devices' copies are merged

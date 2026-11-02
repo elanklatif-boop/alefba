@@ -203,7 +203,7 @@ async function api(request, env, url, ctx) {
 // How many people open the app each day, how many come back, and how many lessons are started and finished. Only
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
-const USAGE_EVENTS = ["open", "open_child", "open_adult", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start"];
+const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start"];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
   const body = await readJson(request, 2000), now = Date.now();
@@ -236,7 +236,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const rows = (await env.DB.prepare("SELECT day, name, n FROM usage WHERE day >= ? ORDER BY day DESC").bind(since).all()).results || [];
   const days = {}; rows.forEach(r => ((days[r.day] = days[r.day] || {})[r.name] = r.n));
   const cols = [["open", "Opened the app"], ["new", "New"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
-    ["open_child", "Children"], ["open_adult", "Adults"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"]];
+    ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
