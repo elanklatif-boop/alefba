@@ -2695,7 +2695,41 @@ function loadState() {
     S.prefs.lang = (LANGS.find(l => nav.startsWith(l.k)) || LANGS[0]).k;
   }
   applyLang();
+  countOpen();
   if (WEB && S.cls && S.cls.token) setTimeout(() => syncClass(true), 0); // the teacher's latest assignments, and today's progress
+}
+// ----- Usage totals (website only) -----
+// So we can see whether people come back, the app tells the server a few plain events: a learner opened it today
+// (once a day), whether they're new or how long since their first day, and lessons or talks started and finished.
+// Only daily totals are kept, with nothing that says who anyone is (see countUsage in the server).
+const USAGE = []; let usageTimer = null;
+function count(name) {
+  if (!WEB || !WEB.api) return;
+  USAGE.push(name); clearTimeout(usageTimer); usageTimer = setTimeout(sendUsage, 4000);
+}
+function sendUsage() {
+  clearTimeout(usageTimer);
+  if (!USAGE.length || !WEB || !WEB.api) return;
+  const e = USAGE.splice(0, 20);
+  try { fetch(WEB.api + "/usage", { method: "POST", keepalive: true, credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ e, d: todayStr() }) }).catch(() => {}); } catch (er) {}
+  if (USAGE.length) usageTimer = setTimeout(sendUsage, 1000);
+}
+try { document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") sendUsage(); }); } catch (e) {}
+function countOpen() {
+  if (!WEB) return;
+  const t = todayStr();
+  if (S.statDay === t) return;
+  // someone who used the app before the counting began: their first day is their first practice day
+  const first = S.firstDay || [...(S.days || [])].sort()[0] || null;
+  S.statDay = t;
+  if (!first || first === t) { if (!S.firstDay) { S.firstDay = t; count("new"); } }
+  else {
+    S.firstDay = first;
+    const d = Math.round((new Date(t + "T12:00") - new Date(first + "T12:00")) / 864e5);
+    count(d <= 1 ? "back_1" : d <= 7 ? "back_2_7" : d <= 30 ? "back_8_30" : "back_31");
+  }
+  count("open"); count(isAdult() ? "open_adult" : "open_child");
+  save(true);
 }
 // save(true) is a quiet, automatic save: it doesn't count as the newest change when two devices' copies are merged
 function save(quiet) { if (!quiet) S.updated = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (SYNC_LOADED) scheduleSync(); }
@@ -4077,6 +4111,7 @@ function closeOverlay(id) {
 function startLesson(lesson, queue, reviewName) {
   const q = queue || (lesson ? buildLesson(lesson) : buildReview());
   R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "" };
+  if (lesson && !lesson.practice) count("lesson_start");
   openOverlay("lesson");
   showExercise();
 }
@@ -4751,6 +4786,7 @@ function finishLesson() {
   const practice = !!(R.lesson && R.lesson.practice);
   const firstTime = R.lesson && !practice && !S.done[R.lesson.id];
   if (R.lesson && !practice) S.done[R.lesson.id] = true;
+  count(practice ? "practice_done" : R.game ? "game_done" : R.lesson ? "lesson_done" : "review_done");
   const newDay = practised();
   if (!practice) bumpToday();
   R.finish = true;
@@ -5118,7 +5154,7 @@ function updateTalkStart() {
 }
 function startTalk() {
   if (!TK || !AI || TK.started || !grownUpOK() || !canTalkNow()) return;
-  TK.started = true;
+  TK.started = true; count("talk_start");
   const st = $("startArea"); if (st) st.remove();
   const det = document.querySelector("#chat .example"); if (det) det.open = false;
   $("talkFoot").hidden = false;

@@ -173,6 +173,7 @@ async function api(request, env, url, ctx) {
   if (path === "/api/reminder.ics" && method === "GET") return reminderIcs(url);
   if (s.db) await ensureSchema(env);
   if (path === "/api/talk" && method === "GET") return reply({ ok: talksReady(s) });
+  if (path === "/api/stats" && method === "GET") return statsPage(request, env, url, s);
   if (path === "/api/me") return method === "GET" ? me(request, env, url, s) : reply({ error: "method_not_allowed" }, 405);
   const routes = {
     "/api/talk": talk, "/api/auth/start": authStart, "/api/auth/verify": authVerify, "/api/auth/signout": signOut,
@@ -182,6 +183,7 @@ async function api(request, env, url, ctx) {
     "/api/class/remove": classRemove, "/api/class/delete": classDelete,
     "/api/class/join": classJoin, "/api/class/mine": classMine, "/api/class/progress": classProgress, "/api/class/leave": classLeave,
     "/api/class/checkout": classCheckout,
+    "/api/usage": countUsage,
     "/api/sync": syncProgress, "/api/sync/on": syncOn, "/api/sync/off": syncOff, "/api/sync/remove": syncRemove,
   };
   const fn = routes[path];
@@ -191,6 +193,48 @@ async function api(request, env, url, ctx) {
   // old codes, signed-out devices and talks from months ago are cleared away now and then, by signed-in visits
   if (s.db && ctx && typeof ctx.waitUntil === "function" && res.status < 400 && Math.random() < 0.02) ctx.waitUntil(prune(env).catch(() => {}));
   return res;
+}
+
+// ---------- usage totals ----------
+// How many people open the app each day, how many come back, and how many lessons are started and finished. Only
+// daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
+// STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
+const USAGE_EVENTS = ["open", "open_child", "open_adult", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start"];
+async function countUsage(request, env, url, s) {
+  if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
+  const body = await readJson(request, 2000), now = Date.now();
+  const ev = Array.isArray(body && body.e) ? body.e.filter(x => USAGE_EVENTS.includes(x)).slice(0, 20) : [];
+  if (!ev.length) return reply({ ok: true });
+  // the visitor's own date, so an evening in New York isn't counted as tomorrow; it must be within a day of now
+  const d = String((body && body.d) || ""), near = [-1, 0, 1].map(k => dayKey(now + k * 864e5));
+  const day = near.includes(d) ? d : dayKey(now), tally = {};
+  ev.forEach(e => (tally[e] = (tally[e] || 0) + 1));
+  await env.DB.batch(Object.entries(tally).map(([k, n]) => env.DB.prepare("INSERT INTO usage (day, name, n) VALUES (?, ?, ?) ON CONFLICT(day, name) DO UPDATE SET n = n + excluded.n").bind(day, k, n)));
+  return reply({ ok: true });
+}
+async function statsPage(request, env, url, s) {
+  const want = String(env.STATS_KEY || "").trim(), got = String(url.searchParams.get("key") || "");
+  if (want.length < 12 || !s.db) return reply({ error: "not_found" }, 404);
+  if (tooMany(request, "stats", 10, 60)) return reply({ error: "too_many" }, 429);
+  const a = new TextEncoder().encode(await sha256(got)), b = new TextEncoder().encode(await sha256(want));
+  let diff = a.length ^ b.length; for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a[i] ^ b[i];
+  if (diff) return reply({ error: "not_found" }, 404);
+  const since = dayKey(Date.now() - 30 * 864e5);
+  const rows = (await env.DB.prepare("SELECT day, name, n FROM usage WHERE day >= ? ORDER BY day DESC").bind(since).all()).results || [];
+  const days = {}; rows.forEach(r => ((days[r.day] = days[r.day] || {})[r.name] = r.n));
+  const cols = [["open", "Opened the app"], ["new", "New"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
+    ["open_child", "Children"], ["open_adult", "Adults"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"]];
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
+  const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
+  const body = Object.keys(days).sort().reverse().map(d => `<tr><td>${esc(d)}</td>` + cols.map(c => `<td>${days[d][c[0]] || 0}</td>`).join("") + "</tr>").join("");
+  const foot = "<tr class=t><td>Last 30 days</td>" + cols.map(c => `<td>${total(c[0])}</td>`).join("") + "</tr>";
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Alefba usage</title>
+<style>body{font-family:system-ui,sans-serif;margin:16px;color:#13213f;background:#fbf7ef}h1{font-size:1.3rem}p{color:#4a5268;max-width:640px}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #d8d2c3;padding:6px 8px;text-align:right;white-space:nowrap}th{background:#efe9dc;position:sticky;top:0}td:first-child,th:first-child{text-align:left}.t td{font-weight:700;background:#f4efe4}
+@media (prefers-color-scheme:dark){body{background:#0b1820;color:#e4eef1}p{color:#a9bfca}th{background:#15303d}td,th{border-color:#23404e}.t td{background:#112430}}</style></head><body>
+<h1>Alefba: how the app is used</h1><p>Daily totals only, by each learner's own date. "Opened the app" counts each learner once a day. "Back" says how long since that learner first opened it. Nothing here identifies anyone.</p>
+<div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}</body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
 }
 
 // ---------- a daily reminder for the family's calendar ----------
@@ -1559,6 +1603,8 @@ function mergeProgress(a, b) {
   for (const [k, v] of Object.entries(obj(tests.done))) if (v === "test" && !done[k]) done[k] = "test";
   out.done = done;
   out.testAt = Math.max(num(A.testAt), num(B.testAt));
+  const firsts = [A.firstDay, B.firstDay].filter(d => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort(); // the day this learner first opened the app, on any device
+  if (firsts.length) out.firstDay = firsts[0];
   const items = {};
   for (const src of [obj(old.items), obj(neu.items)]) for (const [k, v] of Object.entries(src)) {
     const e = items[k] || { r: 0, w: 0 }, x = obj(v);
@@ -1583,7 +1629,7 @@ function mergeProgress(a, b) {
 
 // ---------- storage (D1) ----------
 // The tables are made the first time they're needed, and brought up to date if an earlier version made them.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS families (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, stripe_test TEXT, stripe_live TEXT, checkout_id TEXT, sub_id TEXT, plan TEXT, plan_status TEXT, plan_checked INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS free_ledger (h TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)",
@@ -1592,6 +1638,7 @@ const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS talks (id TEXT PRIMARY KEY, family_id TEXT NOT NULL, started_at INTEGER NOT NULL, month TEXT NOT NULL, kind TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 1, client_key TEXT)",
   "CREATE TABLE IF NOT EXISTS spend (k TEXT PRIMARY KEY, micro INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS counters (k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)",
+  "CREATE TABLE IF NOT EXISTS usage (day TEXT NOT NULL, name TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, name))", // daily totals only
   "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT)",
   "CREATE TABLE IF NOT EXISTS progress (family_id TEXT NOT NULL, sid TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (family_id, sid))",
@@ -1663,6 +1710,7 @@ async function prune(env) {
     env.DB.prepare("DELETE FROM progress WHERE updated_at < ?").bind(now - SESSION_DAYS * 864e5), // a learner not seen on any device for over a year
     env.DB.prepare("DELETE FROM spend WHERE k < ?").bind(weekAgo),
     env.DB.prepare("DELETE FROM counters WHERE k < ?").bind(dayKey(now - 2 * 864e5)), // daily counts, kept two days
+    env.DB.prepare("DELETE FROM usage WHERE day < ?").bind(dayKey(now - 400 * 864e5)), // usage totals, kept about a year
   ]);
 }
 
