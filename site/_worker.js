@@ -132,6 +132,10 @@ export default {
       try { return await api(request, env, url, ctx); }
       catch (e) { return reply({ error: "server_error" }, 500); }
     }
+    if (url.pathname === "/stats") { // the usage totals: a page with a password box
+      try { return await api(new Request(new URL("/api/stats", url), request), env, new URL("/api/stats", url), ctx); }
+      catch (e) { return reply({ error: "server_error" }, 500); }
+    }
     if (["/parents", "/parents.html", "/adults", "/adults.html", "/teachers", "/teachers.html"].includes(url.pathname)) {
       try { return await parentsPage(request, env); }
       catch (e) { /* fall back to the page as uploaded */ }
@@ -173,7 +177,7 @@ async function api(request, env, url, ctx) {
   if (path === "/api/reminder.ics" && method === "GET") return reminderIcs(url);
   if (s.db) await ensureSchema(env);
   if (path === "/api/talk" && method === "GET") return reply({ ok: talksReady(s) });
-  if (path === "/api/stats" && method === "GET") return statsPage(request, env, url, s);
+  if (path === "/api/stats") return statsPage(request, env, url, s);
   if (path === "/api/me") return method === "GET" ? me(request, env, url, s) : reply({ error: "method_not_allowed" }, 405);
   const routes = {
     "/api/talk": talk, "/api/auth/start": authStart, "/api/auth/verify": authVerify, "/api/auth/signout": signOut,
@@ -213,12 +217,21 @@ async function countUsage(request, env, url, s) {
   return reply({ ok: true });
 }
 async function statsPage(request, env, url, s) {
-  const want = String(env.STATS_KEY || "").trim(), got = String(url.searchParams.get("key") || "");
+  const want = String(env.STATS_KEY || "").trim();
   if (want.length < 12 || !s.db) return reply({ error: "not_found" }, 404);
-  if (tooMany(request, "stats", 10, 60)) return reply({ error: "too_many" }, 429);
+  const page = (inner, status = 200) => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Alefba usage</title>
+<style>body{font-family:system-ui,sans-serif;margin:16px;color:#13213f;background:#fbf7ef}h1{font-size:1.3rem}p{color:#4a5268;max-width:640px}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #d8d2c3;padding:6px 8px;text-align:right;white-space:nowrap}th{background:#efe9dc;position:sticky;top:0}td:first-child,th:first-child{text-align:left}.t td{font-weight:700;background:#f4efe4}
+form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:0;font:inherit;padding:10px 12px;border:1.5px solid #c9c1ae;border-radius:10px}button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:10px;background:#1f3d8a;color:#fff}.err{color:#a3262f}
+@media (prefers-color-scheme:dark){body{background:#0b1820;color:#e4eef1}p{color:#a9bfca}th{background:#15303d}td,th{border-color:#23404e}.t td{background:#112430}input{background:#112430;color:#e4eef1;border-color:#23404e}}</style></head><body>${inner}</body></html>`,
+    { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer", "x-frame-options": "DENY" } });
+  const form = msg => page(`<h1>Alefba: how the app is used</h1>${msg ? `<p class=err>${msg}</p>` : ""}<form method="post" action="/stats"><input type="password" name="key" autocomplete="current-password" placeholder="Your STATS_KEY password" aria-label="Password" required><button>Show the numbers</button></form>`, msg ? 403 : 200);
+  if (request.method !== "POST") return form("");
+  if (tooMany(request, "stats", 10, 60)) return form("Too many tries. Wait a minute, then try again.");
+  let got = "";
+  try { const f = await request.formData(); got = String(f.get("key") || "").trim().slice(0, 200); } catch (e) {}
   const a = new TextEncoder().encode(await sha256(got)), b = new TextEncoder().encode(await sha256(want));
   let diff = a.length ^ b.length; for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a[i] ^ b[i];
-  if (diff) return reply({ error: "not_found" }, 404);
+  if (diff) return form("That's not the password. It has to match STATS_KEY in Cloudflare exactly.");
   const since = dayKey(Date.now() - 30 * 864e5);
   const rows = (await env.DB.prepare("SELECT day, name, n FROM usage WHERE day >= ? ORDER BY day DESC").bind(since).all()).results || [];
   const days = {}; rows.forEach(r => ((days[r.day] = days[r.day] || {})[r.name] = r.n));
@@ -229,12 +242,8 @@ async function statsPage(request, env, url, s) {
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
   const body = Object.keys(days).sort().reverse().map(d => `<tr><td>${esc(d)}</td>` + cols.map(c => `<td>${days[d][c[0]] || 0}</td>`).join("") + "</tr>").join("");
   const foot = "<tr class=t><td>Last 30 days</td>" + cols.map(c => `<td>${total(c[0])}</td>`).join("") + "</tr>";
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Alefba usage</title>
-<style>body{font-family:system-ui,sans-serif;margin:16px;color:#13213f;background:#fbf7ef}h1{font-size:1.3rem}p{color:#4a5268;max-width:640px}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #d8d2c3;padding:6px 8px;text-align:right;white-space:nowrap}th{background:#efe9dc;position:sticky;top:0}td:first-child,th:first-child{text-align:left}.t td{font-weight:700;background:#f4efe4}
-@media (prefers-color-scheme:dark){body{background:#0b1820;color:#e4eef1}p{color:#a9bfca}th{background:#15303d}td,th{border-color:#23404e}.t td{background:#112430}}</style></head><body>
-<h1>Alefba: how the app is used</h1><p>Daily totals only, by each learner's own date. "Opened the app" counts each learner once a day. "Back" says how long since that learner first opened it. Nothing here identifies anyone.</p>
-<div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}</body></html>`;
-  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer" } });
+  return page(`<h1>Alefba: how the app is used</h1><p>Daily totals only, by each learner's own date. "Opened the app" counts each learner once a day. "Back" says how long since that learner first opened it. Nothing here identifies anyone.</p>
+<div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}`);
 }
 
 // ---------- a daily reminder for the family's calendar ----------
