@@ -347,6 +347,11 @@ a.btn { text-decoration: none; }
 .cell { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 4px 8px; text-align: center; direction: ltr; min-width: 0; }
 .cell .fa { font-family: var(--font-fa); font-size: 1.9rem; font-weight: 600; color: var(--turq); line-height: 1.3; display: block; direction: rtl; }
 .cell .pos { font-size: 0.7rem; color: var(--muted); }
+.read-cells { justify-content: center; }
+.read-cells .cell { transition: background 0.2s, border-color 0.2s, transform 0.2s; }
+.read-cells .cell .pos { font-size: 0.85rem; font-weight: 600; }
+.read-cells .cell.lit { background: var(--saffron-soft, #fff3d6); border-color: var(--saffron); transform: translateY(-3px); }
+.read-answer .facts { margin-top: 10px; }
 .play { align-self: center; display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--lapis); color: var(--lapis-text); background: var(--lapis-soft); border-radius: 999px; padding: 10px 18px; cursor: pointer; font-weight: 600; }
 .play svg { width: 22px; height: 22px; }
 .play.big { padding: 16px 26px; font-size: 1.05rem; }
@@ -2122,11 +2127,25 @@ const CHECK_TALK = {
 ALPHA_UNITS.forEach((u, ui) => {
   u.index = ui;
   u.L = Array.from(u.letters).map(g => BY_GLYPH[g]);
-  u.lessons = [["Meet the letters", "meet"], ["Shapes in words", "shapes"], ["Listen and review", "listen"]]
+  u.lessons = [["Meet the letters", "meet"], ["Shapes in words", "shapes"], ["Listen and review", "listen"], [ui ? "Read new words" : "Read your first words", "read"]]
     .map(([title, kind], k) => ({ id: `a${ui + 1}-${k + 1}`, title, kind, unit: u, letters: u.L }));
 });
 const UNIT_OF = {};
 ALPHA_UNITS.forEach(u => u.L.forEach(L => (UNIT_OF[L[0]] = u)));
+// Each unit ends with real words made only from the letters learned so far, so learners read a word themselves
+// before they move on. Recorded words only, spelled the way they sound (no silent vâv as in khâhar, no vowel marks),
+// the ones that use this unit's new letters first; earlier readable words fill in when a unit has too few new ones.
+const readLetters = u => ALPHA_UNITS.slice(0, u.index + 1).map(x => x.letters).join("") + "آ";
+function readWords(u) {
+  const known = readLetters(u);
+  const ok = W => !/[\s\u200c\u064b-\u0652]/.test(W.fa) && !W.two && !W.fa.includes("خوا") && hasAudio(wordAudio(W)) && Array.from(W.fa).every(ch => known.includes(ch));
+  const isNew = W => Array.from(W.fa).some(ch => u.letters.includes(ch));
+  const rank = W => (picOf(W) ? 0 : 10) + Math.abs(Array.from(W.fa).length - 3.5); // with a picture, three or four letters long
+  const pool = WORDS.filter(ok), byRank = list => list.slice().sort((a, b) => rank(a) - rank(b));
+  const fresh = byRank(pool.filter(isNew)).slice(0, 5);
+  const fill = byRank(pool.filter(W => !fresh.includes(W))).slice(0, Math.max(0, 4 - fresh.length));
+  return { words: [...fresh, ...fill], pool };
+}
 // >>> new content C
 // The new levels' extra conversations for children
 if (SHOW_NEW) SITUATIONS.push(
@@ -2861,7 +2880,10 @@ function pathLessons() {
 // "Up next" doesn't send them to it.
 const EXTRA_KINDS = ["story", "street", "game"];
 const extraInDoneLevel = l => EXTRA_KINDS.includes(l.kind) && !!l.level && !!S.done[`w${l.level.index + 1}-talk`];
-const nextLesson = () => { const open = pathLessons().filter(l => !S.done[l.id] && !extraInDoneLevel(l)); return open.find(l => !lessonLocked(l)) || open[0] || null; }; // a free lesson first; a locked one only when nothing free is left
+// The same for a unit's reading lesson when the learner had already gone on past that unit (the reading lessons
+// came later): it's offered with a "New" tag instead of sending them back.
+const passedRead = l => { if (l.kind !== "read" || S.done[l.id]) return false; const p = pathLessons(), i = p.indexOf(l); return i >= 0 && p.slice(i + 1).some(x => S.done[x.id]); };
+const nextLesson = () => { const open = pathLessons().filter(l => !S.done[l.id] && !extraInDoneLevel(l) && !passedRead(l)); return open.find(l => !lessonLocked(l)) || open[0] || null; }; // a free lesson first; a locked one only when nothing free is left
 // On the website, the alphabet and the first levels are free; the rest open with a plan. Inside Claude nothing is locked.
 const FREE_LEVELS = 3;
 const hasPlan = () => !!(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn && ACCT.plan);
@@ -3305,11 +3327,11 @@ function exListenWord(W, pool, keyKind) {
 function spellStage(W) { const r = (S.items["spell:" + W.tr] || {}).r || 0; return r === 0 ? "guided" : r === 1 ? "finglish" : "plain"; }
 // "again" is the second build of the same word later in a lesson, with one step less help than the first: after the
 // guided build, only the Finglish as a clue; after that, just the meaning.
-function exSpell(W, again) {
+function exSpell(W, again, only) {
   const letters = Array.from(W.fa), first = spellStage(W), stage = again ? (first === "guided" ? "finglish" : "plain") : first;
   // the first time, the spare letters never sound like one in the word (no second "z" next to ظ)
   const heardIn = new Set(letters.map(soundKey));
-  const extras = shuffle(ALL_GLYPHS.filter(g => !letters.includes(g) && (stage !== "guided" || !heardIn.has(soundKey(g))))).slice(0, 2);
+  const extras = shuffle(ALL_GLYPHS.filter(g => (!only || only.includes(g)) && !letters.includes(g) && (stage !== "guided" || !heardIn.has(soundKey(g))))).slice(0, 2);
   return { type: "spell", stage, title: `Build the word for “${W.m}”`, sub: stage === "guided" ? `First time: listen for each letter and tap it. It says ${W.tr}.` : stage === "finglish" || needsFinglish(W) ? `Say it: ${W.tr}` : "", word: W, target: letters, tiles: shuffle(letters.concat(extras)), key: "spell:" + W.tr, audio: wordAudio(W), reveal: [W.fa, ` (${W.tr}).`], again: !!again, redo: () => exSpell(W, again) };
 }
 // A letter's sound, short enough to fit under a tile: "a / â" becomes "a/â", and eyn shows as an apostrophe.
@@ -3548,7 +3570,7 @@ const BADGES = [
   { id: "words250", pic: "🌲", name: "250 words learned", got: () => WORDS.filter(knowsWord).length >= 250 },
   { id: "story1", pic: "📖", name: "First story read", got: () => storiesRead() >= 1 },
   { id: "story5", pic: "📚", name: "5 stories read", got: () => storiesRead() >= 5 },
-  { id: "alphabet", pic: "🔤", name: "The whole alphabet", got: () => ALPHA_UNITS.every(u => u.lessons.every(l => S.done[l.id])) },
+  { id: "alphabet", pic: "🔤", name: "The whole alphabet", got: () => ALPHA_UNITS.every(u => u.lessons.every(l => S.done[l.id] || l.kind === "read")) },
 ];
 // What's new since last time: stickers and badges are announced once, on the finish screen.
 function newRewards() {
@@ -3791,6 +3813,16 @@ function buildLessonCore(lesson) {
     seq.push(matchLetters(shuffle(Ls).slice(0, 4)));
     const pool = before.length ? before : Ls;
     shuffle(pool).slice(0, 3).forEach(L => seq.push(pick([exLetterName, exNameLetter, exForm])(L, pool)));
+  } else if (lesson.kind === "read") {
+    const u = lesson.unit, { words: Ws, pool } = readWords(u), only = readLetters(u);
+    seq.push({ type: "tip", title: u.index ? "More words you can read" : "You can read words now!", art: Ws[0].fa, text: u.index
+      ? "Your new letters make even more words. Sound each one out, letter by letter from right to left, then check yourself."
+      : "These words use only the letters you've just learned. Say each letter's sound, from right to left. Persian usually leaves out the short vowels (a, e, o), so once you've sounded it out, listen for the little vowels in between." });
+    Ws.forEach(W => seq.push({ type: "readWord", W, audio: wordAudio(W) }));
+    if (Ws.length >= 3) seq.push(matchWords(distinctWords(Ws, 4)));
+    shuffle(Ws).slice(0, 2).forEach(W => seq.push(exListenWord(W, pool)));
+    shuffle(Ws.filter(spellable)).slice(0, 2).forEach(W => seq.push(exSpell(W, false, only)));
+    seq.push(exWordMeaning(pick(Ws), pool));
   } else if (lesson.kind === "words") {
     // Good speakers already know what these words mean by ear, so their lessons practise reading and spelling them instead.
     const Ws = lesson.words, levelWs = lesson.level.words, strong = speakLevel() >= 2;
@@ -4387,6 +4419,36 @@ function showExercise() {
     if (hasAudio(ex.audio)) { box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
     return setMain("Continue", true);
   }
+  if (ex.type === "readWord") {
+    // Read it yourself: the word on its own, each letter with its sound lighting up from right to left as a pace for
+    // sounding it out, and "Show me" for the answer (the meaning, the picture and the voice).
+    const W = ex.W;
+    box.append(el("span", "ex-tag", "Read it yourself"));
+    const head = el("h2", "ex-title", "Can you read this word?");
+    box.append(head, fa("div", "glyph word", W.fa));
+    const letters = Array.from(W.fa), row = el("div", "cells read-cells");
+    row.style.gridTemplateColumns = `repeat(${letters.length}, minmax(0, 66px))`;
+    letters.forEach(g => { const L = BY_GLYPH[g]; const c = el("div", "cell"); c.append(fa("span", "fa", g), el("span", "pos", L ? tileSound(L) : "â")); row.append(c); });
+    box.append(el("p", "ex-sub letters-lbl", "Say each letter's sound, from right to left:"), row);
+    const cells = Array.from(row.children);
+    cells.forEach((c, k) => setTimeout(() => { cells.forEach(x => x.classList.remove("lit")); c.classList.add("lit"); }, 500 + k * 750));
+    setTimeout(() => cells.forEach(x => x.classList.remove("lit")), 500 + cells.length * 750);
+    const ans = el("div", "read-answer"); ans.hidden = true;
+    if (picOf(W)) ans.append(el("div", "pic", picOf(W)));
+    const facts = el("div", "facts");
+    [["Say it", W.tr], ["Means", W.m]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
+    ans.append(facts);
+    const after = () => sayMeaning(W);
+    if (hasAudio(ex.audio)) ans.append(playButton(ex.audio, false, "Hear it", after));
+    box.append(ans);
+    R.readReveal = () => {
+      ans.hidden = false; head.textContent = "You read: " + W.m;
+      if (isReal(ex.audio)) head.append(el("span", "rv", "real voice"));
+      if (hasAudio(ex.audio)) speak(ex.audio, after);
+      setMain("Continue", true);
+    };
+    return setMain("Show me", true);
+  }
   if (ex.type === "introWord") {
     const W = ex.W;
     const tag = el("span", "ex-tag", ex.tag || "New word");
@@ -4822,6 +4884,7 @@ function mainAction() {
   if (!R) return;
   if (R.finish) return closeLesson();
   const ex = current();
+  if (ex.type === "readWord" && R.readReveal) { const show = R.readReveal; R.readReveal = null; return show(); }
   if (R.phase === "answer" && ex.type === "spell") return checkSpell();
   if (R.phase === "answer" && ex.type === "trace") return R.trace && R.trace.hasInk() ? checkTrace() : undefined;
   if (R.phase === "answer" && (ex.type === "choice" || ex.type === "match" || ex.type === "say" || ex.type === "memory" || ex.type === "balloons")) return;
@@ -6788,7 +6851,7 @@ function stepButton(ls, isNext) {
   else if (ls.kind === "story") b.insertAdjacentHTML("beforeend", ICON.book);
   else if (ls.kind === "game") b.append(el("span", "step-emoji", "🎈"));
   b.append(document.createTextNode(ls.title));
-  if (!done && extraInDoneLevel(ls)) b.append(el("span", "new-tag", "New")); // added to a level they'd already finished
+  if (!done && (extraInDoneLevel(ls) || passedRead(ls))) b.append(el("span", "new-tag", "New")); // added to a level they'd already finished
   b.addEventListener("click", () => openLesson(ls));
   return b;
 }
@@ -6935,7 +6998,7 @@ function renderLessons() {
     return;
   }
   const p1 = el("section", "part"), h1 = el("div", "part-head");
-  h1.append(el("h2", null, "Part one: the letters"), el("p", null, "Seven short units, grouped by letters that look alike. Each has three lessons: meet and write the letters, see their shapes inside words, then listen and review."));
+  h1.append(el("h2", null, "Part one: the letters"), el("p", null, "Seven short units, grouped by letters that look alike. Each has four lessons: meet and write the letters, see their shapes inside words, listen and review, then read real words made only from the letters you know."));
   p1.append(h1);
   ALPHA_UNITS.forEach(u => p1.append(alphaCard(u, nx)));
   const p2 = el("section", "part"), h2 = el("div", "part-head");
