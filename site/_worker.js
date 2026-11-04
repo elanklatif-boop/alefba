@@ -29,6 +29,9 @@
 // shows on any device where they sign in. Turning it off deletes those copies. PRICE_SCHOOL (default 49) is the price of a
 // school plan: one class, every learner in it gets all the levels, for a year, paid once (it doesn't renew by itself).
 //
+// Reminder emails: after a lesson, a grown-up can ask for one email the next day when the next lesson is ready (see
+// "the next-day email" below). They come only the day after a lesson, and every one has a one-click way to stop them.
+//
 // Classes (teacher mode): a signed-in grown-up can make a class, which gets a 6-letter code. Learners join with the
 // code and a first name or nickname, after a grown-up says yes on the device. The class then keeps that name and a
 // summary of progress (which lessons are done, which days had practice, the streak), so the teacher can see it and
@@ -176,6 +179,7 @@ async function api(request, env, url, ctx) {
   }
   if (path === "/api/reminder.ics" && method === "GET") return reminderIcs(url);
   if (s.db) await ensureSchema(env);
+  if (path === "/api/nudge/stop" && (method === "GET" || url.searchParams.has("t"))) return nudgeStopPage(request, env, url, s); // the link in the email, and Gmail's one-click unsubscribe
   if (path === "/api/talk" && method === "GET") return reply({ ok: talksReady(s) });
   if (path === "/api/stats") return statsPage(request, env, url, s);
   if (path === "/api/me") return method === "GET" ? me(request, env, url, s) : reply({ error: "method_not_allowed" }, 405);
@@ -188,6 +192,7 @@ async function api(request, env, url, ctx) {
     "/api/class/join": classJoin, "/api/class/mine": classMine, "/api/class/progress": classProgress, "/api/class/leave": classLeave,
     "/api/class/checkout": classCheckout,
     "/api/usage": countUsage,
+    "/api/nudge/start": nudgeStart, "/api/nudge": nudgeMove, "/api/nudge/stop": nudgeStop,
     "/api/sync": syncProgress, "/api/sync/on": syncOn, "/api/sync/off": syncOff, "/api/sync/remove": syncRemove,
   };
   const fn = routes[path];
@@ -203,7 +208,7 @@ async function api(request, env, url, ctx) {
 // How many people open the app each day, how many come back, and how many lessons are started and finished. Only
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
-const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start"];
+const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_on", "from_email"];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
   const body = await readJson(request, 2000), now = Date.now();
@@ -236,7 +241,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const rows = (await env.DB.prepare("SELECT day, name, n FROM usage WHERE day >= ? ORDER BY day DESC").bind(since).all()).results || [];
   const days = {}; rows.forEach(r => ((days[r.day] = days[r.day] || {})[r.name] = r.n));
   const cols = [["open", "Opened the app"], ["new", "New"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
-    ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"]];
+    ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"], ["nudge_on", "Asked for the email"], ["from_email", "Came from the email"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
@@ -259,6 +264,129 @@ function reminderIcs(url) {
     "SUMMARY:Persian practice with Alefba", `DESCRIPTION:A few minutes of Persian today: ${url.origin}/?ref=reminder`, `URL:${url.origin}/?ref=reminder`,
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time for a little Persian!", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
   return new Response(ics, { headers: { "content-type": "text/calendar; charset=utf-8", "content-disposition": 'inline; filename="alefba-reminder.ics"', "cache-control": "no-store" } });
+}
+
+// ---------- the next-day email ----------
+// After a lesson, a grown-up can ask for an email when the next one is ready. Each finished lesson books one email for
+// about a day later (Resend sends it at that time); finishing another lesson before then moves it to a day after that
+// one. So nothing comes unless they practised the day before, and it stops by itself when they stop. Every email has a
+// one-click way to stop them. Kept: the address, a scrambled code of the token the device holds, and the booked email's
+// id and time, deleted when they stop the emails, or 60 days after the last one. Nothing about the learner.
+const NUDGE_HOURS = 23;
+const nudgeTimes = { perNetDay: 4, perDay: 300, movesPerDay: 30 };
+const cleanNext = n => {
+  n = n && typeof n === "object" ? n : {};
+  const t = String(n.t || "").replace(/[<>\r\n]/g, "").trim().slice(0, 60);
+  const fa = String(n.fa || "").replace(/[^؀-ۿ‌ ]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
+  return { t, fa };
+};
+async function nudgeStart(request, env, url, s) {
+  if (!s.db || !s.email) return reply({ error: "not_configured" }, 503);
+  if (tooMany(request, "nudge", 3, 12)) return reply({ error: "too_many" }, 429);
+  const body = await readJson(request, 2000);
+  const email = cleanEmail(body && body.email);
+  if (!email) return reply({ error: "bad_email" }, 400);
+  if (body.agree !== true) return reply({ error: "agree" }, 400);
+  const net = (await sha256("alefba-net:" + netOf(request.headers.get("CF-Connecting-IP")))).slice(0, 24), now = Date.now();
+  if (!(await bump(env, `${dayKey(now)}:nudgenet:${net}`, nudgeTimes.perNetDay))) return reply({ error: "too_many" }, 429);
+  const old = await env.DB.prepare("SELECT * FROM nudges WHERE email = ?").bind(email).first();
+  const token = randomToken(), h = await sha256("nudge:" + token);
+  // the same address asked again (another device, or after stopping): one row, a new token, and the old booking dropped
+  if (old && old.email_id && old.send_at > now) await resendCancel(env, old.email_id);
+  await env.DB.prepare("INSERT INTO nudges (h, email, created_at) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET h = excluded.h, stopped = 0, email_id = NULL, send_at = NULL").bind(h, email, now).run();
+  const row = await env.DB.prepare("SELECT * FROM nudges WHERE h = ?").bind(h).first();
+  const booked = await bookNudge(env, url, row, token, cleanNext(body.next));
+  if (!booked) return reply({ error: "email_failed" }, 502);
+  return reply({ ok: true, token });
+}
+async function nudgeMove(request, env, url, s) {
+  if (!s.db || !s.email) return reply({ error: "not_configured" }, 503);
+  if (tooMany(request, "nudge-move", 10, 60)) return reply({ error: "too_many" }, 429);
+  const body = await readJson(request, 2000);
+  const token = String((body && body.token) || "");
+  if (!/^[A-Za-z0-9_-]{30,60}$/.test(token)) return reply({ error: "gone" }, 404);
+  const row = await env.DB.prepare("SELECT * FROM nudges WHERE h = ?").bind(await sha256("nudge:" + token)).first();
+  if (!row || row.stopped) return reply({ error: "gone" }, 404);
+  if (!(await bump(env, `${dayKey(Date.now())}:nudgemove:${row.h.slice(0, 20)}`, nudgeTimes.movesPerDay))) return reply({ ok: true, kept: true });
+  const booked = await bookNudge(env, url, row, token, cleanNext(body.next));
+  return booked ? reply({ ok: true }) : reply({ error: "email_failed" }, 502);
+}
+async function bookNudge(env, url, row, token, next) {
+  const now = Date.now();
+  if (!(await bump(env, `${dayKey(now)}:nudges`, nudgeTimes.perDay))) return false;
+  if (row.email_id && row.send_at > now) await resendCancel(env, row.email_id); // the one booked after an earlier lesson
+  const at = now + NUDGE_HOURS * 3600e3, stop = `${url.origin}/api/nudge/stop?t=${token}`;
+  const m = nudgeMail(url, stop, next);
+  let id = null;
+  try {
+    const res = await fetch(serviceURL(env.RESEND_BASE_URL, "https://api.resend.com") + "/emails", {
+      method: "POST",
+      headers: { authorization: "Bearer " + env.RESEND_API_KEY.trim(), "content-type": "application/json" },
+      body: JSON.stringify({ from: nudgeFrom(env, url), to: [row.email], reply_to: bareAddress(fromAddress(env, url)), subject: m.subject, text: m.text, html: m.html,
+        scheduled_at: new Date(at).toISOString(),
+        headers: { "List-Unsubscribe": `<${stop}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } }),
+    });
+    if (res.ok) { const j = await res.json().catch(() => ({})); id = j && typeof j.id === "string" ? j.id.slice(0, 100) : null; }
+  } catch (e) {}
+  await env.DB.prepare("UPDATE nudges SET email_id = ?, send_at = ? WHERE h = ?").bind(id, id ? at : null, row.h).run();
+  return !!id;
+}
+async function resendCancel(env, id) {
+  try { await fetch(serviceURL(env.RESEND_BASE_URL, "https://api.resend.com") + "/emails/" + encodeURIComponent(id) + "/cancel", { method: "POST", headers: { authorization: "Bearer " + env.RESEND_API_KEY.trim() } }); } catch (e) {}
+}
+const bareAddress = f => (/<([^<>]+)>/.exec(f) || [null, f])[1];
+const nudgeFrom = (env, url) => { const f = fromAddress(env, url); return f.includes("<") ? f : `Alefba <${f}>`; };
+function nudgeMail(url, stop, next) {
+  const h = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const go = `${url.origin}/?ref=email`;
+  const what = next.t || "Your next lesson";
+  const subject = "Your next Persian lesson is ready";
+  const text = [
+    "Hi! Your next Persian lesson is ready:",
+    what + (next.fa ? ": " + next.fa : ""),
+    "It only takes a few minutes. Pick up where you left off:\n" + go,
+    "A little every day is the fastest way to learn.",
+    "Alefba",
+    "You're getting this because you asked for a reminder after a lesson on Alefba. It only comes the day after a lesson. To stop these emails: " + stop,
+  ].join("\n\n");
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;color:#13293a;max-width:520px">` +
+    `<p>Hi! Your next Persian lesson is ready:</p>` +
+    `<p style="font-size:18px;font-weight:700;margin:6px 0">${h(what)}${next.fa ? ` <span dir="rtl" lang="fa" style="font-size:24px">${h(next.fa)}</span>` : ""}</p>` +
+    `<p>It only takes a few minutes.</p>` +
+    `<p><a href="${h(go)}" style="display:inline-block;background:#1f3d8a;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:10px">Start my next lesson</a></p>` +
+    `<p>A little every day is the fastest way to learn.</p><p>Alefba</p>` +
+    `<p style="font-size:13px;color:#5a6577;margin-top:24px">You're getting this because you asked for a reminder after a lesson on Alefba. It only comes the day after a lesson. <a href="${h(stop)}" style="color:#5a6577">Stop these emails</a></p></div>`;
+  return { subject, text, html };
+}
+async function stopNudges(env, token) {
+  if (!/^[A-Za-z0-9_-]{30,60}$/.test(token)) return false;
+  const row = await env.DB.prepare("SELECT * FROM nudges WHERE h = ?").bind(await sha256("nudge:" + token)).first();
+  if (!row) return false;
+  if (row.email_id && row.send_at > Date.now()) await resendCancel(env, row.email_id);
+  await env.DB.prepare("DELETE FROM nudges WHERE h = ?").bind(row.h).run(); // stopping forgets the address
+  return true;
+}
+async function nudgeStop(request, env, url, s) { // from the app's settings
+  if (!s.db) return reply({ error: "not_configured" }, 503);
+  const body = await readJson(request, 1000);
+  await stopNudges(env, String((body && body.token) || ""));
+  return reply({ ok: true });
+}
+async function nudgeStopPage(request, env, url, s) {
+  const token = String(url.searchParams.get("t") || "").slice(0, 100);
+  const page = inner => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Alefba emails</title>
+<style>body{font-family:system-ui,sans-serif;margin:24px 16px;color:#13213f;background:#fbf7ef;max-width:520px}h1{font-size:1.3rem}button{font:inherit;font-weight:600;padding:12px 18px;border:0;border-radius:10px;background:#1f3d8a;color:#fff}a{color:#1f3d8a}
+@media (prefers-color-scheme:dark){body{background:#0b1820;color:#e4eef1}a{color:#9cc3ff}}</style></head><body>${inner}</body></html>`,
+    { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "no-referrer", "x-frame-options": "DENY" } });
+  if (!s.db) return page("<h1>Alefba</h1><p>Something went wrong. Please try again later.</p>");
+  // a link opened in a browser (or checked by a mail scanner) only shows a button; the button, or the mail app's
+  // one-click unsubscribe, stops them
+  if (request.method === "GET") {
+    const t = token.replace(/[^A-Za-z0-9_-]/g, "");
+    return page(`<h1>Stop the Alefba reminder emails?</h1><p>You won't get any more emails about the next lesson.</p><form method="post" action="/api/nudge/stop?t=${t}"><button>Stop the emails</button></form>`);
+  }
+  await stopNudges(env, token);
+  return page(`<h1>Done. No more reminder emails.</h1><p>You can still practise any time at <a href="${url.origin}/">learnalefba.com</a>.</p>`);
 }
 
 // ---------- the family's account, as the app sees it ----------
@@ -766,6 +894,8 @@ async function deleteAccount(request, env, url, s) {
     const pend = (await env.DB.prepare("SELECT checkout_id FROM classes WHERE teacher_id = ? AND checkout_id IS NOT NULL").bind(fam.id).all()).results || [];
     for (const r of pend) { const v = String(r.checkout_id); if (v.startsWith(mode + ":") && !(await expireCheckout(env, v.slice(mode.length + 1)))) return reply({ error: "payment_error" }, 502); }
   }
+  const nd = await env.DB.prepare("SELECT email_id, send_at FROM nudges WHERE email = ?").bind(fam.email).first();
+  if (nd && nd.email_id && nd.send_at > Date.now() && s.email) await resendCancel(env, nd.email_id); // a reminder email still booked
   await env.DB.batch([
     env.DB.prepare("DELETE FROM progress WHERE family_id = ?").bind(fam.id),
     env.DB.prepare("DELETE FROM talks WHERE family_id = ?").bind(fam.id),
@@ -774,6 +904,7 @@ async function deleteAccount(request, env, url, s) {
     env.DB.prepare("DELETE FROM sessions WHERE family_id = ?").bind(fam.id),
     env.DB.prepare("DELETE FROM codes WHERE email = ? OR email = ?").bind(fam.email, "confirm:" + fam.email),
     env.DB.prepare("DELETE FROM families WHERE id = ?").bind(fam.id),
+    env.DB.prepare("DELETE FROM nudges WHERE email = ?").bind(fam.email),
   ]);
   const res = reply({ ok: true });
   res.headers.append("set-cookie", clearCookie(url));
@@ -1638,7 +1769,7 @@ function mergeProgress(a, b) {
 
 // ---------- storage (D1) ----------
 // The tables are made the first time they're needed, and brought up to date if an earlier version made them.
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS families (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, stripe_test TEXT, stripe_live TEXT, checkout_id TEXT, sub_id TEXT, plan TEXT, plan_status TEXT, plan_checked INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS free_ledger (h TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)",
@@ -1651,6 +1782,7 @@ const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT)",
   "CREATE TABLE IF NOT EXISTS progress (family_id TEXT NOT NULL, sid TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (family_id, sid))",
+  "CREATE TABLE IF NOT EXISTS nudges (h TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, email_id TEXT, send_at INTEGER, stopped INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS class_members (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, name TEXT NOT NULL, joined_at INTEGER NOT NULL, seen_at INTEGER NOT NULL, progress TEXT)",
 ];
 const SCHEMA_ADDED = [ // columns an earlier version's tables don't have yet (each fails harmlessly if it's there)
@@ -1720,6 +1852,7 @@ async function prune(env) {
     env.DB.prepare("DELETE FROM spend WHERE k < ?").bind(weekAgo),
     env.DB.prepare("DELETE FROM counters WHERE k < ?").bind(dayKey(now - 2 * 864e5)), // daily counts, kept two days
     env.DB.prepare("DELETE FROM usage WHERE day < ?").bind(dayKey(now - 400 * 864e5)), // usage totals, kept about a year
+    env.DB.prepare("DELETE FROM nudges WHERE COALESCE(send_at, created_at) < ?").bind(now - 60 * 864e5), // reminder emails: the address goes 60 days after the last one
   ]);
 }
 

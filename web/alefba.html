@@ -420,6 +420,15 @@ a.btn { text-decoration: none; }
 .finish .cheer { direction: rtl; font-family: var(--font-display); font-size: 2.6rem; color: var(--saffron); line-height: 1.1; }
 .finish h2 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.5rem; }
 .finish p { margin: 0; color: var(--muted); }
+/* what's next, at the end of a lesson */
+.up-next { width: 100%; max-width: 420px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.up-next .up-tag { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.up-next b { font-size: 1.05rem; }
+.up-next .up-glyphs { font-family: var(--font-fa, inherit); font-size: 2rem; line-height: 1.5; direction: rtl; word-spacing: 0.2em; color: var(--lapis-text, var(--lapis)); }
+.up-next .note { font-size: 0.86rem; color: var(--muted); }
+.finish .plan-card.nudge { width: 100%; max-width: 420px; box-sizing: border-box; text-align: start; }
+.plan-card.nudge .remind-row { align-items: center; }
+#nudgeRow > .btn { align-self: flex-start; }
 
 /* conversation */
 .talk-head { display: flex; align-items: center; gap: 10px; padding-block: 8px; }
@@ -2725,6 +2734,7 @@ function loadState() {
   }
   applyLang();
   countOpen();
+  if (WEB && /[?&]ref=email(&|$)/.test(location.search)) { count("from_email"); try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {} } // came back from the reminder email
   if (WEB && S.cls && S.cls.token) setTimeout(() => syncClass(true), 0); // the teacher's latest assignments, and today's progress
 }
 // ----- Usage totals (website only) -----
@@ -4941,11 +4951,14 @@ function finishLesson() {
       d.append(box2);
     }
     const nx = nextLesson();
-    if (nx) d.append(el("p", null, `Up next: ${nx.title}${nx.level ? ` (${nx.level.title})` : ` (${nx.unit.title})`}.`));
-    // after the very first lesson: put the app on the home screen (the icon is what brings people back)
-    if (R.lesson && firstTime && Object.values(S.done).filter(v => v === true).length === 1) { const ic = installCard(true); if (ic) d.append(ic); }
-    // a daily reminder, offered once, after the second lesson (it's also in Settings)
-    if (R.lesson && !S.prefs.remind && !S.prefs.remindAsked && Object.keys(S.done).length >= 2) {
+    if (nx) d.append(upNextCard(nx));
+    // what brings people back, one at a time in the first lessons: an email the next day, then the home-screen icon
+    const doneN = Object.values(S.done).filter(v => v === true).length;
+    let offered = false;
+    if (R.lesson && firstTime && doneN === 1) { const nc = nudgeCard(nx); if (nc) { d.append(nc); offered = true; } }
+    if (!offered && R.lesson && firstTime && doneN === (WEB && WEB.api ? 2 : 1)) { const ic = installCard(true); if (ic) { d.append(ic); offered = true; } }
+    // a daily calendar reminder, offered once, after the second lesson, when there's no reminder email (it's also in Settings)
+    if (!offered && R.lesson && !S.prefs.remind && !S.prefs.remindAsked && !nudgeInfo() && Object.keys(S.done).length >= 2) {
       S.prefs.remindAsked = true; save();
       const card = el("div", "remind-card"); card.id = "remindCard";
       card.append(el("b", null, "Want a reminder to practise each day?"), el("p", "note", "People who practise a little every day learn much faster. Pick a time:"));
@@ -4965,6 +4978,7 @@ function finishLesson() {
       d.append(more);
     }
   }
+  if (!practice) moveNudge(nextLesson()); // practice today: the reminder email moves to tomorrow
   if (!practice && (R.lesson || R.game)) celebrate(d); // confetti, a chime, and any new sticker or badge
   box.append(d);
   setMain(practice ? "Back to the alphabet" : R.game ? "Back to games" : "Back to lessons", true);
@@ -7120,6 +7134,81 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.p
 const installDismissed = () => { try { return localStorage.getItem("alefba-install") === "no"; } catch (e) { return false; } };
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; renderLessons(); renderReview(); });
 window.addEventListener("appinstalled", () => { INSTALL_EVT = null; renderLessons(); renderReview(); });
+// What comes next, at the end of a lesson: its name and, for new letters, the letters themselves.
+function upNextCard(nx) {
+  const c = el("div", "up-next"); c.id = "upNext";
+  c.append(el("span", "up-tag", "Up next"), el("b", null, nx.title));
+  if (nx.kind === "meet" && nx.unit && nx.unit.letters) c.append(fa("div", "up-glyphs", Array.from(nx.unit.letters).join(" ")));
+  c.append(el("span", "note", nx.level ? nx.level.title : nx.unit.title));
+  return c;
+}
+// ----- The reminder email (website only) -----
+// After a lesson, a grown-up can ask for one email the day after a lesson, when the next one is ready. The server books
+// it with the email service; each finished lesson moves it to a day later, so it only comes after a day with practice.
+// This device keeps just the email address (to show in Settings) and the token that moves or stops the emails.
+const NUDGE_KEY = "alefba-nudge";
+function nudgeInfo() { try { const j = JSON.parse(localStorage.getItem(NUDGE_KEY) || "null"); return j && j.token ? j : null; } catch (e) { return null; } }
+function setNudge(v) { try { if (v) localStorage.setItem(NUDGE_KEY, JSON.stringify(v)); else localStorage.removeItem(NUDGE_KEY); } catch (e) {} }
+function nudgeAsked() { try { return localStorage.getItem(NUDGE_KEY + "-asked") === "1"; } catch (e) { return false; } }
+function markNudgeAsked() { try { localStorage.setItem(NUDGE_KEY + "-asked", "1"); } catch (e) {} }
+function nudgeNext(nx) { // what the email says is next
+  if (!nx) return { t: "Your next lesson" };
+  const where = nx.level ? nx.level.title : nx.unit ? nx.unit.title : "";
+  return { t: nx.title + (where ? ` (${where})` : ""), fa: nx.kind === "meet" && nx.unit && nx.unit.letters ? Array.from(nx.unit.letters).join(" ") : "" };
+}
+function moveNudge(nx) {
+  const n = nudgeInfo();
+  if (!n || !WEB || !WEB.api) return;
+  apiPost("/nudge", { token: n.token, next: nudgeNext(nx) }).then(r => { if (r.status === 404) setNudge(null); }); // stopped from the email: forget it
+}
+const NUDGE_ERRORS = { bad_email: "That email address doesn't look right.", agree: "Please tick the box first.", too_many: "That's a lot of tries. Please try again tomorrow.", network: "No internet connection. Try again when you're back online." };
+function nudgeCard(nx, fromSettings) {
+  if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && nudgeAsked())) return null;
+  if (!fromSettings) markNudgeAsked(); // offered once; it's in Settings after that
+  const grown = isAdult();
+  const c = el("div", "plan-card install nudge"); c.id = fromSettings ? "nudgeSetCard" : "nudgeCard";
+  c.append(el("b", null, grown ? "Want an email when your next lesson is ready?" : "Grown-ups: want an email when the next lesson is ready?"));
+  c.append(el("p", "note", "One short email the day after a lesson, so it's easy to come back for the next one. Nothing else, and you can stop it any time."));
+  const em = el("input", "text-input"); em.type = "email"; em.id = fromSettings ? "nudgeSetEmail" : "nudgeEmail"; em.autocomplete = "email"; em.inputMode = "email";
+  em.placeholder = grown ? "Your email" : "A grown-up's email"; em.setAttribute("aria-label", em.placeholder);
+  const agree = el("label", "gate-agree"), cb = el("input"); cb.type = "checkbox"; cb.id = fromSettings ? "nudgeSetAgree" : "nudgeAgree";
+  agree.append(cb, el("span", null, grown ? "I'm an adult, and this is my email." : "I'm this child's parent or guardian, and this is my email."));
+  const msg = el("p", "note"); msg.setAttribute("role", "status");
+  const row = el("div", "remind-row");
+  const go = el("button", "btn primary", "Email me tomorrow"); go.type = "button"; go.id = fromSettings ? "nudgeSetGo" : "nudgeGo";
+  row.append(go);
+  if (!fromSettings) { const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "nudgeNo"; no.addEventListener("click", () => { markNudgeAsked(); c.remove(); }); row.append(no); }
+  go.addEventListener("click", async () => {
+    const email = em.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { msg.textContent = NUDGE_ERRORS.bad_email; em.focus(); return; }
+    if (!cb.checked) { msg.textContent = NUDGE_ERRORS.agree; return; }
+    go.disabled = true; msg.textContent = "One moment…";
+    const r = await apiPost("/nudge/start", { email, agree: true, next: nudgeNext(nx || nextLesson()) });
+    go.disabled = false;
+    if (!r.ok || !r.data.token) { msg.textContent = NUDGE_ERRORS[r.error] || "That didn't work. Please try again later."; return; }
+    setNudge({ token: r.data.token, email }); markNudgeAsked(); count("nudge_on");
+    const done = el("b", null, "Done! We'll email you tomorrow when the next lesson is ready."); done.id = "nudgeDone";
+    c.replaceChildren(done, el("p", "note", "It comes from Alefba (hello@learnalefba.com). If you don't see it, check your spam folder once and mark it “Not spam”. You can stop the emails any time in the Review tab."));
+  });
+  c.append(em, agree, row, msg);
+  return c;
+}
+function nudgeRow() { // in Settings
+  if (!WEB || !WEB.api) return null;
+  const n = nudgeInfo(), r = el("div", "setting"); r.id = "nudgeRow";
+  if (n) {
+    r.append(el("span", "setting-lbl", `Reminder email: on, to ${n.email}`));
+    const b = el("button", "btn quiet", "Stop the emails"); b.type = "button"; b.id = "nudgeStop";
+    b.addEventListener("click", () => { apiPost("/nudge/stop", { token: n.token }); setNudge(null); r.replaceWith(nudgeRow()); });
+    r.append(b);
+  } else {
+    r.append(el("span", "setting-lbl", "Reminder email: off"));
+    const b = el("button", "btn quiet", "Email me after lessons"); b.type = "button"; b.id = "nudgeOn";
+    b.addEventListener("click", () => { const c = nudgeCard(null, true); if (c) b.replaceWith(c); });
+    r.append(b);
+  }
+  return r;
+}
 function installCard(short) {
   if (!WEB || isStandalone() || (short && installDismissed())) return null;
   const c = el("div", "plan-card install"); c.id = short ? "installBanner" : "installCard";
@@ -7433,6 +7522,7 @@ function renderReview() {
   const rr = el("div", "setting"); rr.id = "remindRow";
   rr.append(el("span", "setting-lbl", S.prefs.remind ? `Daily reminder: ${S.prefs.remind} (add it again to change the time)` : "Daily reminder"), reminderBox(null, "setRemind"));
   pb.append(rr);
+  const nr = nudgeRow(); if (nr) pb.append(nr);
   setting("Finglish under Persian words", "fing", [["auto", "Just at first"], ["always", "Always"], ["off", "Never"]], S.prefs.fing || "auto", k => (S.prefs.fing = k));
   setting("Your language, for word meanings", "lang", LANGS.map(l => [l.k, l.label]), langOf().k, k => { S.prefs.lang = k; applyLang(); });
   const ul = $("weak"); ul.replaceChildren();

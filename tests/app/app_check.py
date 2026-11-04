@@ -23,6 +23,7 @@ with sync_playwright() as p:
     c.close()
     done = {}
     c, pg, errs = page(b, st(done={"a1-1": True}, items=items))
+    pg.evaluate("localStorage.setItem('alefba-install', 'no')") # the home-screen card already said no to, so the calendar reminder is next
     for trial in range(5):
         r = pg.evaluate("""(() => { const l = LESSONS.find(l => l.kind === 'words' && l.level.index === 2); const seq = buildLesson(l);
           const own = new Set(l.words.map(W => W.tr));
@@ -83,6 +84,11 @@ with sync_playwright() as p:
     check("offered on a later lesson for someone who hasn't seen it", pg.is_visible("#remindCard"))
     pg.click("#remindNo"); pg.wait_for_timeout(200)
     check("No thanks closes it, and it's remembered", not pg.is_visible("#remindCard") and pg.evaluate("S.prefs.remindAsked") is True and not pg.evaluate("S.prefs.remind"))
+    c.close()
+    # the second lesson, for someone who hasn't said no to the home-screen card: that card first, the calendar later
+    c, pg, errs = page(b, st(done={"a1-1": True}))
+    pg.evaluate("openLesson(LESSONS.find(l => l.kind === 'words' && l.level.index === 0))"); pg.wait_for_timeout(300); pg.evaluate("finishLesson()"); pg.wait_for_timeout(300)
+    check("2nd lesson: the home-screen card, not the calendar yet", pg.evaluate("!!document.querySelector('#exBox #installBanner')") and not pg.is_visible("#remindCard"))
     c.close()
     # first lesson: not offered yet
     c, pg, errs = page(b, st())

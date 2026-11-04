@@ -189,8 +189,16 @@ export function resendServer(port = 9789) {
     if (u.pathname === "/emails" && req.method === "POST") {
       const b = JSON.parse(raw), dom = (/@([^\s@>]+)>?$/.exec(b.from) || [])[1];
       if (state.resendFail || !state.verifiedDomains.includes(dom)) return send(res, 403, { statusCode: 403, message: `The ${dom} domain is not verified.`, name: "validation_error" });
-      state.emails.push({ from: b.from, to: b.to, subject: b.subject, text: b.text, html: b.html });
-      return send(res, 200, { id: nid("email") });
+      const id = nid("email");
+      state.emails.push({ id, from: b.from, to: b.to, subject: b.subject, text: b.text, html: b.html, scheduled_at: b.scheduled_at, headers: b.headers, reply_to: b.reply_to });
+      return send(res, 200, { id });
+    }
+    let cm;
+    if ((cm = /^\/emails\/([^/]+)\/cancel$/.exec(u.pathname)) && req.method === "POST") { // a booked email called off
+      const e = state.emails.find(x => x.id === cm[1]);
+      if (!e || !e.scheduled_at || e.canceled) return send(res, 422, { statusCode: 422, message: "This email can't be canceled", name: "validation_error" });
+      e.canceled = true;
+      return send(res, 200, { object: "email", id: e.id });
     }
     send(res, 404, { message: "not found" });
   }).listen(port, "127.0.0.1");
