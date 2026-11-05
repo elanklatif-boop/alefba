@@ -6528,7 +6528,7 @@ function renderOB() {
       : "Start with a 2-minute lesson right now. Or answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
     if (WEB && WEB.parentsUrl) {
       const links = el("p", "ob-links");
-      [["For parents", WEB.parentsUrl], ["For adult learners", WEB.adultsUrl], ["For teachers", WEB.teachersUrl]].filter(x => x[1]).forEach(([t, h], k) => {
+      [["For parents", WEB.parentsUrl], ["For adult learners", WEB.adultsUrl], ["For teachers", WEB.teachersUrl], ["Who made Alefba", WEB.aboutUrl]].filter(x => x[1]).forEach(([t, h], k) => {
         if (k) links.append(document.createTextNode(" · "));
         const a = el("a", null, t); a.href = h; a.target = "_blank"; a.rel = "noopener"; links.append(a);
       });

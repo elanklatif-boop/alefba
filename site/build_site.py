@@ -43,14 +43,14 @@ HEAD = f"""<!doctype html>
 <meta name="apple-mobile-web-app-title" content="Alefba">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>:root{{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}}html{{scroll-padding-top:env(safe-area-inset-top,0px)}}body{{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}}img{{max-width:100%}}[hidden]:not([hidden=until-found i]){{display:none!important}}</style>
-<script>window.ALEFBA_WEB = {{ api: "/api", parentsUrl: "parents.html", adultsUrl: "adults.html", teachersUrl: "teachers.html" }};</script>
+<script>window.ALEFBA_WEB = {{ api: "/api", parentsUrl: "parents.html", adultsUrl: "adults.html", teachersUrl: "teachers.html", aboutUrl: "about.html" }};</script>
 </head>
 <body>
 """
 if os.path.exists(OUT): shutil.rmtree(OUT)
 os.makedirs(os.path.join(OUT, "audio"))
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "learn-persian.html","learn-persian-adults.html", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "learn-persian.html","learn-persian-adults.html", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
 shutil.copytree(os.path.join(HERE, "fonts"), os.path.join(OUT, "fonts"))
 shutil.copytree(os.path.join(HERE, "icons"), os.path.join(OUT, "icons"))
