@@ -500,6 +500,7 @@ button.msg-hint { background: none; border: 0; padding: 4px 0; font-family: inhe
 /* welcome and level check */
 .ob-head { display: flex; align-items: center; gap: 12px; padding-block: 10px; min-height: 52px; }
 .ob-steps { flex: 1; display: flex; gap: 6px; align-items: center; }
+.ob-signin { flex: none; min-height: 40px; padding: 6px 18px; }
 .ob-steps i { flex: 1; height: 6px; border-radius: 999px; background: var(--line); }
 .ob-steps i.on { background: var(--turq); }
 .ob-steps .meter { flex: 1; }
@@ -978,6 +979,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   <div class="ov-top"><div class="shell gutter ob-head">
     <button class="icon-btn" id="obBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg></button>
     <div class="ob-steps" id="obSteps" aria-hidden="true"></div>
+    <button class="btn quiet ob-signin" id="obSignIn" type="button" hidden>Sign in</button>
   </div></div>
   <div class="ov-body" id="obBody"><div class="shell gutter ob-main" id="obMain"></div></div>
   <div class="ov-foot"><div class="shell gutter foot-row">
@@ -5337,6 +5339,7 @@ async function refreshAccount(refresh, api) {
     const r = await fetch((api || WEB.api) + "/me" + (refresh ? "?refresh=1" : ""), { cache: "no-store", credentials: "same-origin" });
     if (r.ok) ACCT = await r.json();
   } catch (e) {}
+  if (ACCT && ACCT.signedIn && $("obSignIn")) $("obSignIn").hidden = true; // already signed in: nothing to offer on the welcome
   return ACCT;
 }
 async function apiPost(path, body) {
@@ -5364,7 +5367,7 @@ function planLine(a) {
   if (a.plan === "basic") return `Plan: ${a.basicTalks} talks a month, ${a.left} left`;
   return `${a.left} of ${a.free} free talks left`;
 }
-function accountChanged() { updateTalkStart(); updateVoiceRow(); renderLessons(); renderTalkTab(); renderReview(); renderPlansTab(); scheduleSync(800); } // lessons too: a plan unlocks levels
+function accountChanged() { if (ACCT && ACCT.signedIn) $("obSignIn").hidden = true; updateTalkStart(); updateVoiceRow(); renderLessons(); renderTalkTab(); renderReview(); renderPlansTab(); scheduleSync(800); } // lessons too: a plan unlocks levels
 // The way to the plans from anywhere: the account sheet when signed in, signing in first when not.
 const plansBtnText = () => { const signed = !!(ACCT && ACCT.signedIn); return isAdult() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"; };
 function goPlans(after) { const cb = after || renderAll; if (ACCT && ACCT.signedIn) openAccount(cb); else openSignIn(cb); }
@@ -5494,18 +5497,22 @@ async function syncNow() {
     if (!r.ok) { if (r.error === "sync_off" && ACCT) { ACCT.sync = false; renderReview(); } return; }
     if (notNow() || famTag() !== fam) { scheduleSync(4000); return; } // something started meanwhile: the merge waits
     const sidOf = id => { const st = readLearner(id) || {}; return !st.syncFam || st.syncFam === fam ? st.sid : null; };
-    const freshDevice = !FAM.learners.some(l => { const st = readLearner(l.id); return st && st.profile; });
+    // a learner who only tried the first lesson here, without setting anything up, is an empty spot too: signing in
+    // then brings the learner from the other device into it, instead of adding a second learner
+    const tried = st => st && st.profile && st.profile.skipped && !st.profile.name && !st.sid;
+    const freshDevice = !FAM.learners.some(l => { const st = readLearner(l.id); return st && st.profile && !tried(st); });
     let changed = false;
     for (const x of r.data.learners || []) {
       if (!x || typeof x.sid !== "string" || !x.state || typeof x.state !== "object") continue;
       let id = x.lid && FAM.learners.some(l => l.id === x.lid) ? x.lid : (FAM.learners.find(l => sidOf(l.id) === x.sid) || {}).id;
       if (!id) { // a learner from another device: into the empty spot of a brand-new device, or as a new learner here
-        const empty = freshDevice && FAM.learners.find(l => { const st = readLearner(l.id); return !st || !st.profile; });
+        const empty = freshDevice && FAM.learners.find(l => { const st = readLearner(l.id); return !st || !st.profile || tried(st); });
         if (empty) id = empty.id;
         else if (FAM.learners.length < 8) { id = "l" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); FAM.learners.push({ id }); saveFamily(); }
         else continue;
       }
       const cur = readLearner(id) || {}, merged = mergeProgress(cur, x.state);
+      if (tried(cur) && x.state.profile) merged.profile = x.state.profile; // the real learner's name and settings, not the try-out's
       merged.sid = x.sid; merged.syncFam = fam;
       if (cur.cls) merged.cls = cur.cls; else delete merged.cls; // the class key is this device's own
       if (JSON.stringify(merged) !== JSON.stringify(cur)) { writeLearner(id, merged); changed = true; }
@@ -6490,7 +6497,7 @@ function renderOB() {
   $("obBody").scrollTop = 0;
   next.hidden = false; next.disabled = false; next.onclick = null;
   alt.hidden = true; alt.onclick = null; alt.classList.remove("as-btn", "lead"); next.classList.remove("second");
-  $("obBack").hidden = !OB_FLOW.includes(st);
+  $("obBack").hidden = !OB_FLOW.includes(st); $("obSignIn").hidden = true;
   if (OB_FLOW.includes(st)) OB_FLOW.forEach((s, k) => steps.append(el("i", k <= OB_FLOW.indexOf(st) ? "on" : "")));
   if (st === "welcome") {
     main.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"));
@@ -6514,15 +6521,14 @@ function renderOB() {
         const a = el("a", null, t); a.href = h; a.target = "_blank"; a.rel = "noopener"; links.append(a);
       });
       main.append(links);
-      if (!S.profile && !(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn)) { // a family that already uses Alefba on another device
-        const back = el("button", "link-btn ob-back-in", "Already use Alefba on another device? Sign in"); back.id = "obSignIn"; back.type = "button";
-        back.addEventListener("click", () => openSignIn(() => {
-          renderAll();
-          if (ACCT && ACCT.sync) syncNow();
-          else if (ACCT && ACCT.signedIn) showNotice("You're signed in", "To bring progress from your other device, open the Review tab there and turn on Progress on every device. Then it shows here too.");
-        }, { restore: true }));
-        main.append(back);
-      }
+    }
+    if (WEB && !(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn)) { // a family that already uses Alefba on another device: at the top, where it's easy to find
+      const back = $("obSignIn"); back.hidden = false;
+      back.onclick = () => openSignIn(() => {
+        renderAll();
+        if (ACCT && ACCT.sync) syncNow();
+        else if (ACCT && ACCT.signedIn) showNotice("You're signed in", "To bring progress from your other device, open the Review tab there and turn on Progress on every device. Then it shows here too.");
+      }, { restore: true });
     }
     next.textContent = S.profile ? "Set up my plan" : "Find my level"; next.onclick = () => obGo("who");
     alt.hidden = false;
