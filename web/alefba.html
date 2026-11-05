@@ -236,7 +236,7 @@ main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   main { padding-bottom: 48px !important; }
   .shell { max-width: 760px; }
 }
-.lib-switch { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 14px; border-radius: 999px; background: var(--raised, var(--surface)); border: 1px solid var(--line); }
+.lib-switch { display: inline-flex; width: fit-content; align-self: flex-start; gap: 4px; padding: 4px; margin-bottom: 18px; border-radius: 999px; background: var(--raised, var(--surface)); border: 1px solid var(--line); }
 .lib-btn { border: 0; background: none; padding: 8px 18px; border-radius: 999px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
 .lib-btn[aria-pressed="true"] { background: var(--surface, var(--bg)); color: var(--ink); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
 
@@ -612,6 +612,14 @@ button.phrase:hover { border-color: var(--turq); }
 .remind .note { margin: 0; font-size: 0.86rem; color: var(--muted); }
 .mode-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .mode-row .pick { flex: 1 1 0; text-align: center; } /* Hear it / Write it fill the row */
+/* the Words tab: three compact filters, then the search box, each with room to breathe */
+#wordsMode { margin-bottom: 14px; }
+#wordsMode .pick { flex: none; padding: 8px 16px; font-size: 0.95rem; }
+#wordsMode .pick .n { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--line); color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+#wordsMode .pick[aria-pressed="true"] .n { background: var(--turq); color: var(--bg); }
+#wordSearchWrap { display: block; margin-bottom: 12px; }
+#wordSearchWrap[hidden] { display: none; }
+#view-words .wgroup-title { margin-top: 22px; }
 /* word-family and spoken-Persian lessons in the path */
 .step.fam { border-color: var(--rose); background: var(--rose-soft); }
 .step.spk { border-color: var(--lapis); background: var(--lapis-soft); }
@@ -7312,8 +7320,8 @@ function renderAlphabet() {
 let WORDS_MODE = "all";
 function renderWords() {
   const modes = $("wordsMode"); modes.replaceChildren();
-  [["all", "All words"], ["two", `Book vs everyday (${WORDS.filter(W => W.two).length + SPOKEN_PAIRS().length})`], ["grammar", `Grammar tips (${GRAMMAR.length})`]].forEach(([k, t]) => {
-    const b = el("button", "pick", t); b.id = "wmode-" + k;
+  [["all", "All words", WORDS.length], ["two", "Book vs everyday", WORDS.filter(W => W.two).length + SPOKEN_PAIRS().length], ["grammar", "Grammar tips", GRAMMAR.length]].forEach(([k, t, n]) => {
+    const b = el("button", "pick", t); b.id = "wmode-" + k; b.append(el("span", "n", String(n)));
     b.setAttribute("aria-pressed", String(WORDS_MODE === k));
     b.addEventListener("click", () => { WORDS_MODE = k; renderWords(); });
     modes.append(b);
