@@ -886,6 +886,14 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .little-card { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--saffron-soft); border-radius: 18px; padding: 14px 16px; }
 .little-card p { margin: 0; }
 #alphaMode .sheets-link { margin-inline-start: auto; }
+#sheets { z-index: 25; }
+#little { z-index: 21; }
+.ob-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 10px; }
+.ob-extra-btn { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 2px; align-items: center; text-align: start; font: inherit; color: var(--ink); background: var(--saffron-soft); border: 1.5px solid transparent; border-radius: 16px; padding: 12px 14px; cursor: pointer; }
+.ob-extra-btn:hover { border-color: var(--saffron); }
+.ob-extra-btn:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
+.ob-extra-ic { grid-row: span 2; font-size: 1.8rem; line-height: 1; }
+.ob-extra-btn span:last-child { color: var(--muted-strong); font-size: 0.92rem; }
 .teach-sheets { display: grid; gap: 6px; justify-items: start; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 .teach-sheets h3 { margin: 0; }
 
@@ -6642,6 +6650,19 @@ function renderOB() {
      ["گفتگو", "Conversations", "Chat with characters at your level, in writing or out loud."]]
       .forEach(([f, t, d]) => { const c = el("div", "ob-card"); c.append(fa("span", "ob-card-fa", f), el("b", null, t), el("span", null, d)); cards.append(c); });
     main.append(cards);
+    // little ones and teachers: easy to find from the first screen
+    const extra = el("div", "ob-extra"); extra.id = "obExtra";
+    const lm = el("button", "ob-extra-btn"); lm.type = "button"; lm.id = "obLittleBtn";
+    lm.append(el("span", "ob-extra-ic", "🧒"), el("b", null, "Ages 4 to 6?"), el("span", null, "Little mode: big letters, pictures and tracing, with nothing to read."));
+    lm.addEventListener("click", () => { OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
+    extra.append(lm);
+    if (WEB) {
+      const ts = el("button", "ob-extra-btn"); ts.type = "button"; ts.id = "obSheetsBtn";
+      ts.append(el("span", "ob-extra-ic", "✏️"), el("b", null, "Teaching a class?"), el("span", null, "Print tracing sheets: dotted letters and a word with a picture."));
+      ts.addEventListener("click", openSheets);
+      extra.append(ts);
+    }
+    main.append(extra);
     main.append(el("p", "ob-sub", S.profile ? "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."
       : "Start with a 2-minute lesson right now. Or answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
     if (WEB && WEB.parentsUrl) {
@@ -8074,6 +8095,9 @@ if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) 
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
+// links to share: learnalefba.com/#little starts little mode, learnalefba.com/#sheets opens the tracing sheets
+if (location.hash === "#sheets" && WEB) openSheets();
+else if (location.hash === "#little" && !isLittle()) { if ($("onboard").hidden) openOnboarding(); OB.draft.adult = false; OB.draft.little = true; obGo("name"); }
 findVoice();
 try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
 checkMp3();
