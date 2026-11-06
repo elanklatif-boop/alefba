@@ -508,6 +508,7 @@ button.msg-hint { background: none; border: 0; padding: 4px 0; font-family: inhe
 .ob-title { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.5rem; line-height: 1.25; text-wrap: balance; }
 .ob-sub { margin: -6px 0 0; color: var(--muted); max-width: 56ch; }
 .ob-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+@media (min-width: 760px) { .ob-cards { grid-template-columns: repeat(4, 1fr); } }
 .ob-card { display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 .ob-card-fa { font-family: var(--font-fa); font-size: 1.6rem; color: var(--turq); line-height: 1.5; direction: rtl; text-align: left; }
 .ob-card b { font-size: 0.98rem; }
@@ -515,7 +516,7 @@ button.msg-hint { background: none; border: 0; padding: 4px 0; font-family: inhe
 .ob-free { margin: 0; font-weight: 600; }
 .ob-links { margin: -4px 0 0; font-size: 0.9rem; }
 .ob-links a { color: var(--lapis-text); }
-.ob-alt.as-btn { align-self: stretch; text-decoration: none; border: 1.5px solid var(--lapis); color: var(--lapis-text); border-radius: 12px; padding: 12px; font-size: 1rem; font-weight: 600; background: transparent; }
+.ob-alt.as-btn { align-self: stretch; max-width: none; text-decoration: none; border: 1.5px solid var(--lapis); color: var(--lapis-text); border-radius: 12px; padding: 12px; font-size: 1rem; font-weight: 600; background: transparent; }
 /* a first visit: the short first lesson is the big button, the questions the smaller one under it */
 .ob-alt.as-btn.lead { order: -1; background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); padding: 14px; }
 .ob-alt.as-btn.lead:hover { filter: brightness(1.1); }
@@ -888,12 +889,15 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 #alphaMode .sheets-link { margin-inline-start: auto; }
 #sheets { z-index: 25; }
 #little { z-index: 21; }
-.ob-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 10px; }
-.ob-extra-btn { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 2px; align-items: center; text-align: start; font: inherit; color: var(--ink); background: var(--saffron-soft); border: 1.5px solid transparent; border-radius: 16px; padding: 12px 14px; cursor: pointer; }
-.ob-extra-btn:hover { border-color: var(--saffron); }
+.ob-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ob-extra-btn { display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; align-items: center; text-align: start; font: inherit; color: var(--ink); background: transparent; border: 1px dashed var(--line); border-radius: 14px; padding: 10px 12px; cursor: pointer; min-width: 0; }
+.ob-extra-btn::after { content: "›"; grid-row: 1 / span 2; grid-column: 3; color: var(--turq); font-size: 1.4rem; line-height: 1; }
+.ob-extra-btn:hover { border-style: solid; border-color: var(--turq); }
 .ob-extra-btn:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
-.ob-extra-ic { grid-row: span 2; font-size: 1.8rem; line-height: 1; }
-.ob-extra-btn span:last-child { color: var(--muted-strong); font-size: 0.92rem; }
+.ob-extra-ic { grid-row: span 2; font-size: 1.4rem; line-height: 1; }
+.ob-extra-btn b { font-size: 0.95rem; }
+.ob-extra-btn span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.84rem; line-height: 1.3; grid-column: 2; }
+@media (max-width: 420px) { .ob-extra { grid-template-columns: 1fr; } }
 .teach-sheets { display: grid; gap: 6px; justify-items: start; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 .teach-sheets h3 { margin: 0; }
 
@@ -6639,8 +6643,8 @@ function renderOB() {
   if (OB_FLOW.includes(st)) OB_FLOW.forEach((s, k) => steps.append(el("i", k <= OB_FLOW.indexOf(st) ? "on" : "")));
   if (st === "welcome") {
     main.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"));
-    main.append(el("h2", "ob-title", "Let's make Alefba yours"));
-    main.append(el("p", "ob-sub", "Learn to read, write and speak Persian, for kids, teens and grown-ups, from complete beginners to people who grew up hearing it."));
+    main.append(el("h2", "ob-title", "Learn to read and speak Persian"));
+    main.append(el("p", "ob-sub", "For kids, teens and grown-ups, from complete beginners to people who grew up hearing it."));
     if (WEB) main.append(el("p", "ob-free", `The whole alphabet and the first ${FREE_LEVELS} levels are free. No sign-up needed to start.`)); // the first thing parents ask
     // what's inside, at a glance (the numbers come from the app itself, so they stay right)
     const cards = el("div", "ob-cards");
@@ -6653,18 +6657,17 @@ function renderOB() {
     // little ones and teachers: easy to find from the first screen
     const extra = el("div", "ob-extra"); extra.id = "obExtra";
     const lm = el("button", "ob-extra-btn"); lm.type = "button"; lm.id = "obLittleBtn";
-    lm.append(el("span", "ob-extra-ic", "🧒"), el("b", null, "Ages 4 to 6?"), el("span", null, "Little mode: big letters, pictures and tracing, with nothing to read."));
+    lm.append(el("span", "ob-extra-ic", "🧒"), el("b", null, "Ages 4 to 6"), el("span", null, "Little mode: big letters and tracing"));
     lm.addEventListener("click", () => { OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
     extra.append(lm);
     if (WEB) {
       const ts = el("button", "ob-extra-btn"); ts.type = "button"; ts.id = "obSheetsBtn";
-      ts.append(el("span", "ob-extra-ic", "✏️"), el("b", null, "Teaching a class?"), el("span", null, "Print tracing sheets: dotted letters and a word with a picture."));
+      ts.append(el("span", "ob-extra-ic", "✏️"), el("b", null, "Teachers"), el("span", null, "Print tracing sheets"));
       ts.addEventListener("click", openSheets);
       extra.append(ts);
     }
     main.append(extra);
-    main.append(el("p", "ob-sub", S.profile ? "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."
-      : "Start with a 2-minute lesson right now. Or answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
+    if (S.profile) main.append(el("p", "ob-sub", "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
     if (WEB && WEB.parentsUrl) {
       const links = el("p", "ob-links");
       [["For parents", WEB.parentsUrl], ["For adult learners", WEB.adultsUrl], ["For teachers", WEB.teachersUrl], ["Who made Alefba", WEB.aboutUrl]].filter(x => x[1]).forEach(([t, h], k) => {
