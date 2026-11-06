@@ -831,6 +831,38 @@ check("the earlier version's Stripe customer and used free talks are carried ove
   }
   azure.close();
 }
+
+// ---------- streamed talks: the character's line first, then the rest ----------
+{
+  const T = new Agent(); await T.signIn(env(), "stream@example.com");
+  const lines = r => r.text.trim().split("\n").filter(Boolean).map(l => JSON.parse(l));
+  let r = await T.post(env(), "/api/talk", { turns: opening, talk_key: "stream-key-0001", stream: true });
+  let L = lines(r);
+  check("streamed: the character's line comes first, on its own", r.status === 200 && /ndjson/.test(r.headers.get("content-type")) && L.length === 2 && L[0].early && L[0].early.fa === "آفرین! خیلی خوب بود.", L);
+  check("streamed: then the whole reply, with the talk's id and the account", L[1] && L[1].reply && L[1].reply.fa === L[0].early.fa && L[1].reply.talk_id && L[1].reply.account && L[1].reply.suggestions.length === 3 && L[1].reply.you_said === null, L[1]);
+  const id = L[1].reply.talk_id, fid = famOf("stream@example.com").id;
+  const spent = db.q("SELECT micro FROM spend WHERE k = ?", today() + ":" + fid)[0];
+  check("streamed: what it really cost is counted, not what was held", spent && spent.micro > 0 && spent.micro < mostItCosts(opening), spent);
+  state.claudeStreamGap = 15;
+  const t0 = Date.now(); let firstAt = 0;
+  const h = new Headers({ "CF-Connecting-IP": T.ip, cookie: T.cookie, "content-type": "application/json", Origin: "https://alefba.example" });
+  const res = await worker.fetch(new Request("https://alefba.example/api/talk", { method: "POST", headers: h, body: JSON.stringify({ turns: later("سلام"), talk_id: id, stream: true }) }), env(), ctx);
+  const rd = res.body.getReader(); let got = "";
+  for (;;) { const { value, done } = await rd.read(); if (done) break; got += new TextDecoder().decode(value); if (!firstAt && got.includes("\n")) firstAt = Date.now() - t0; }
+  const total = Date.now() - t0; state.claudeStreamGap = 0;
+  check(`streamed: the line arrives well before the end (${firstAt} ms of ${total} ms)`, firstAt > 0 && firstAt < total * 0.5, got);
+  r = await T.post(env(), "/api/talk", { turns: later("REFUSE this"), talk_id: id, stream: true }); L = lines(r);
+  check("streamed: a refusal says so", L.length === 1 && L[0].error === "refused", L);
+  state.claudeMode = "overloaded"; r = await T.post(env(), "/api/talk", { turns: later("salam"), talk_id: id, stream: true }); state.claudeMode = null;
+  check("streamed: Claude being busy is an ordinary error, before anything is streamed", r.status === 502 && r.json && r.json.error === "server_error", r.text);
+  const before = db.q("SELECT micro FROM spend WHERE k = ?", today() + ":" + fid)[0].micro;
+  state.claudeStreamCut = true; r = await T.post(env(), "/api/talk", { turns: later("salam"), talk_id: id, stream: true }); state.claudeStreamCut = false; L = lines(r);
+  const after = db.q("SELECT micro FROM spend WHERE k = ?", today() + ":" + fid)[0].micro;
+  check("streamed: an answer cut off part way ends with an error, after the line already sent", r.status === 200 && L.length === 2 && L[0].early && L[1].error === "server_error", L);
+  check("streamed: and what was held for it stays counted", after - before === mostItCosts(later("salam")), { before, after, L, hits: state.claudeHits.length });
+  r = await T.talk(env(), later("salam"), id);
+  check("without stream, a talk answers as before", r.status === 200 && r.json.fa && !r.json.early, r.json);
+}
 servers.forEach(s => s.close());
 console.log(`\n${pass} of ${pass + fail} passed`);
 process.exit(fail ? 1 : 0);

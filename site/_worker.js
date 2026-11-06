@@ -198,7 +198,7 @@ async function api(request, env, url, ctx) {
   const fn = routes[path];
   if (!fn) return reply({ error: "not_found" }, 404);
   if (method !== "POST") return reply({ error: "method_not_allowed" }, 405);
-  const res = await fn(request, env, url, s);
+  const res = await fn(request, env, url, s, ctx);
   // old codes, signed-out devices and talks from months ago are cleared away now and then, by signed-in visits
   if (s.db && ctx && typeof ctx.waitUntil === "function" && res.status < 400 && Math.random() < 0.02) ctx.waitUntil(prune(env).catch(() => {}));
   return res;
@@ -519,7 +519,7 @@ async function settleBudget(env, keys, change) {
 }
 
 // ---------- talks ----------
-async function talk(request, env, url, s) {
+async function talk(request, env, url, s, ctx) {
   if (!talksReady(s)) return reply({ error: "not_configured" }, 503);
   let fam = await currentFamily(request, env);
   if (!fam) return reply({ error: "sign_in" }, 401);
@@ -560,30 +560,96 @@ async function talk(request, env, url, s) {
     else await env.DB.prepare("UPDATE talks SET requests = requests - 1 WHERE id = ? AND requests > 0").bind(talkId).run();
     return reply({ error: hold.why }, hold.why === "paused" ? 503 : 429);
   }
-  const r = await askClaude(env, {
+  // With stream set, the reply comes back in pieces: the character's line first, as soon as Claude has written it,
+  // so the app can start fetching its voice (and speaking it) while the rest of the reply is still being written.
+  const streamed = body.stream === true;
+  const ask = {
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM,
     thinking: { type: "disabled" },
     output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
     messages: turns,
-  });
-  await settleBudget(env, hold.keys, (r.ok ? costMicro(r.data.usage) : 0) - hold.amount);
+  };
+  const r = await askClaude(env, streamed ? { ...ask, stream: true } : ask);
   if (!r.ok) {
+    await settleBudget(env, hold.keys, -hold.amount);
     if (isNew) await releaseTalk(env, fam, talkId, kind); // Claude didn't answer, so nothing was paid for
     // out of credit, over the monthly spending limit, or the key was switched off: talks rest until a grown-up fixes it
     if (["billing", "limit_reached", "key_rejected", "workspace"].includes(r.why)) return reply({ error: "paused" }, 503);
     if (r.status === 429) return reply({ error: "rate_limited" }, 429);
     return reply({ error: "server_error" }, 502);
   }
-  if (r.data.stop_reason === "refusal") return reply({ error: "refused", talk_id: talkId }, 422);
-  const text = (r.data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+  const done = { env, fam, s, hold, talkId, kind, isNew, first: turns.length === 1 };
+  if (streamed) return talkStream(r.res, done, ctx);
+  await settleBudget(env, hold.keys, costMicro(r.data.usage) - hold.amount);
+  const [out, status] = await talkResult(r.data, done);
+  return reply(out, status);
+}
+// Claude's whole answer turned into what the app gets: the reply, or why there isn't one.
+async function talkResult(data, d) {
+  if (data.stop_reason === "refusal") return [{ error: "refused", talk_id: d.talkId }, 422];
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
   let out;
   try { out = JSON.parse(text); } catch (e) { out = null; }
-  if (!out || typeof out !== "object" || Array.isArray(out)) return reply({ error: "invalid_json", talk_id: talkId }, 502);
-  out.talk_id = talkId;
-  if (turns.length === 1) out.account = await accountView(env, (await familyById(env, fam.id)) || fam, s);
-  return reply(out);
+  if (!out || typeof out !== "object" || Array.isArray(out)) return [{ error: "invalid_json", talk_id: d.talkId }, 502];
+  out.talk_id = d.talkId;
+  if (d.first) out.account = await accountView(d.env, (await familyById(d.env, d.fam.id)) || d.fam, d.s);
+  return [out, 200];
+}
+// The character's line, once Claude has finished writing it: the reply's first field, so it comes early.
+function earlyLine(text) {
+  const m = /^\s*\{\s*"fa"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(text);
+  if (!m) return null;
+  try { const fa = JSON.parse('"' + m[1] + '"').trim(); return fa || null; } catch (e) { return null; }
+}
+// A streamed talk: one line of JSON for the character's line as soon as it's written ({"early":{"fa":…}}), then one
+// for the whole reply ({"reply":…}), or for why there isn't one ({"error":…}).
+function talkStream(res, d, ctx) {
+  const enc = new TextEncoder(), { readable, writable } = new TransformStream(), w = writable.getWriter();
+  const line = o => w.write(enc.encode(JSON.stringify(o) + "\n")).catch(() => {}); // the app may have gone: nothing to do
+  const work = (async () => {
+    const data = { content: [{ type: "text", text: "" }], stop_reason: null, usage: {} };
+    let early = false, ended = false, failed = false, buf = "";
+    try {
+      const rd = res.body.getReader(), dec = new TextDecoder();
+      for (;;) {
+        const { value, done } = await rd.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let k;
+        while ((k = buf.indexOf("\n")) >= 0) {
+          const ln = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+          if (!ln.startsWith("data:")) continue;
+          let ev; try { ev = JSON.parse(ln.slice(5)); } catch (e) { continue; }
+          if (ev.type === "message_start" && ev.message) Object.assign(data.usage, ev.message.usage || {});
+          else if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") {
+            data.content[0].text += ev.delta.text || "";
+            if (!early) { const fa = earlyLine(data.content[0].text); if (fa) { early = true; line({ early: { fa } }); } }
+          } else if (ev.type === "message_delta") {
+            ended = true;
+            if (ev.delta && ev.delta.stop_reason) data.stop_reason = ev.delta.stop_reason;
+            Object.assign(data.usage, ev.usage || {});
+          } else if (ev.type === "error") failed = true;
+        }
+      }
+    } catch (e) { failed = true; }
+    if (!data.stop_reason) failed = true; // cut off before the end
+    // what it cost; when the end never came, what was held stays counted
+    const cost = ended ? costMicro(data.usage) : d.hold.amount;
+    try { await settleBudget(d.env, d.hold.keys, cost - d.hold.amount); } catch (e) {}
+    if (failed && data.stop_reason !== "refusal") {
+      if (d.isNew && !data.content[0].text) { try { await releaseTalk(d.env, d.fam, d.talkId, d.kind); } catch (e) {} }
+      await line({ error: "server_error" });
+    } else {
+      let out, status;
+      try { [out, status] = await talkResult(data, d); } catch (e) { out = { error: "server_error" }; status = 500; }
+      await line(status === 200 ? { reply: out } : out);
+    }
+    try { await w.close(); } catch (e) {}
+  })();
+  if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(work.catch(() => {}));
+  return new Response(readable, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
 
 // ---------- speaking practice ----------
@@ -1168,7 +1234,7 @@ async function askClaude(env, body) {
   let res;
   try { res = await fetch(serviceURL(env.ANTHROPIC_BASE_URL, "https://api.anthropic.com") + "/v1/messages", { method: "POST", headers: claudeHeaders(env), body: JSON.stringify(body) }); }
   catch (e) { return { ok: false, status: 0, why: "busy", type: "" }; }
-  if (res.ok) return { ok: true, data: await res.json() };
+  if (res.ok) return body.stream ? { ok: true, res } : { ok: true, data: await res.json() };
   let err = {};
   try { err = (await res.json()).error || {}; } catch (e) {}
   const msg = String(err.message || ""), code = String((err.details && err.details.error_code) || "");

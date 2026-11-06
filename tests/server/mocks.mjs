@@ -15,6 +15,22 @@ let n = 0;
 const nid = p => `${p}_${String(++n).padStart(5, "0")}`;
 const body = req => new Promise(r => { let b = ""; req.on("data", c => (b += c)); req.on("end", () => r(b)); });
 const send = (res, status, obj, headers = {}) => { res.writeHead(status, { "content-type": "application/json", ...headers }); res.end(JSON.stringify(obj)); };
+// like the real API with stream set: server-sent events, the text in small pieces (a pause between them if asked)
+async function sse(res, msg, gap = 0) {
+  res.writeHead(200, { "content-type": "text/event-stream" });
+  const ev = (type, o) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...o })}\n\n`);
+  ev("message_start", { message: { id: "msg_test", type: "message", role: "assistant", content: [], usage: { input_tokens: (msg.usage || {}).input_tokens || 10, output_tokens: 1 } } });
+  const text = ((msg.content || [])[0] || {}).text;
+  if (text != null) {
+    ev("content_block_start", { index: 0, content_block: { type: "text", text: "" } });
+    for (let i = 0; i < text.length; i += 7) { ev("content_block_delta", { index: 0, delta: { type: "text_delta", text: text.slice(i, i + 7) } }); if (gap) await new Promise(r => setTimeout(r, gap)); }
+    ev("content_block_stop", { index: 0 });
+  }
+  if (state.claudeStreamCut) { res.end(); return; } // ends early, without the closing events
+  ev("message_delta", { delta: { stop_reason: msg.stop_reason }, usage: { output_tokens: (msg.usage || {}).output_tokens || 10 } });
+  ev("message_stop", {});
+  res.end();
+}
 const err = (type, message, details) => ({ type: "error", error: { type, message, ...(details ? { details } : {}) }, request_id: "req_test" });
 
 // ---------- Claude ----------
@@ -38,7 +54,7 @@ export function claudeServer(port = 9787) {
       not_found: [404, err("not_found_error", "model: claude-haiku-5-5")],
     }[mode];
     if (fail) return send(res, fail[0], fail[1]);
-    if (mode === "refusal") return send(res, 200, { content: [], stop_reason: "refusal" });
+    if (mode === "refusal") return b.stream ? sse(res, { content: [], stop_reason: "refusal" }) : send(res, 200, { content: [], stop_reason: "refusal" });
     if (mode === "garbled") return send(res, 200, { content: [{ type: "text", text: "{not json" }], stop_reason: "end_turn" });
     // a gloss (what did I just say?): a tiny request with its own system prompt
     if (/Finglish/.test(String(b.system || "")) && /"translit"/.test(String(b.system || "")) && !Array.isArray(b.system)) {
@@ -52,7 +68,9 @@ export function claudeServer(port = 9787) {
     // like the real API: a field the reply shape doesn't allow can't appear, and a required one always does
     const shape = ((b.output_config || {}).format || {}).schema || {};
     if ((shape.required || []).includes("you_said")) reply.you_said = n > 1 ? { translit: "salâm!", en: "Hello!" } : null;
-    send(res, 200, { id: "msg_test", type: "message", role: "assistant", content: [{ type: "text", text: JSON.stringify(reply) }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } });
+    const msg = { id: "msg_test", type: "message", role: "assistant", content: [{ type: "text", text: JSON.stringify(reply) }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } };
+    if (b.stream) return sse(res, msg, state.claudeStreamGap || 0);
+    send(res, 200, msg);
   }).listen(port, "127.0.0.1");
 }
 

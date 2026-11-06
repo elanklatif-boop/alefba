@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pg.click("#vmHint"); pg.wait_for_timeout(100)
     check("Hint shows the meaning and the suggestions", pg.is_visible("#chat .msg.ai .en") and pg.is_visible("#sugs"))
     check("the mic is the big button in voice mode", "voice" in (pg.get_attribute("#talkForm", "class") or "") and pg.is_visible("#talkMic"))
-    pg.click("#talkMic"); pg.wait_for_timeout(600); pg.click("#talkMic"); pg.wait_for_timeout(2000)
+    pg.click("#talkMic"); pg.evaluate("TK.handsFree = false; 0"); pg.wait_for_timeout(600); pg.click("#talkMic"); pg.wait_for_timeout(2000)  # checking before sending (hands-free sending is in fast_check)
     check("after speaking, 'I heard' check appears instead of filling the box", pg.is_visible("#heardCard") and "خوبم" in pg.inner_text("#heardCard") and pg.input_value("#talkInput") == "")
     pg.click("#heardSend"); pg.wait_for_timeout(1200)
     check("Send sends what was heard, the next line arrives (same text: played from memory, no new request)", pg.locator("#chat .msg.me").count() == 1 and "خوبم" in pg.inner_text("#chat .msg.me") and pg.locator("#chat .msg.ai").count() == 2 and len(said) == 2)

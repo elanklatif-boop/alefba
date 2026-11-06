@@ -191,6 +191,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, [role="button"
 .heard { align-self: stretch; background: var(--surface); border: 1.5px solid var(--turq); border-radius: 14px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
 .heard .fa-line { font-size: 1.2rem; }
 .heard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.heard-bar { height: 4px; border-radius: 4px; background: var(--line, rgba(0,0,0,.08)); overflow: hidden; }
+.heard-bar > span { display: block; height: 100%; width: 100%; background: var(--turq); transform-origin: left; animation: heardGo 1.8s linear forwards; }
+@keyframes heardGo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.heard-auto { font-size: .9em; }
+@media (prefers-reduced-motion: reduce) { .heard-bar > span { animation-duration: 1.8s; } }
 .heard-gloss { display: flex; flex-direction: column; gap: 2px; }
 .heard-gloss .tr-always { margin: 0; font-style: italic; font-size: 1rem; }
 .heard-gloss .heard-en { margin: 0; color: var(--muted); font-size: 0.95rem; }
@@ -3293,24 +3298,51 @@ function heardMatches(heard, targets) {
 }
 // Record from the microphone until stop() or maxMs, then turn it into a small, plain sound file (16,000 samples a
 // second, one channel) that the speech-to-text reads on every device. The microphone is switched off after each clip.
-async function recordClip(maxMs) {
+// With vad (an AudioContext that's running), recording stops by itself once the speaker has paused, instead of
+// waiting for a tap; and if nobody speaks at all, it stops after a while with nothing to send (quiet is then true).
+// cancel() drops the clip: done gives null.
+async function recordClip(maxMs, vad) {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
   let rec;
   try { rec = new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(t => t.stop()); throw e; } // the microphone is switched off again if recording can't start
-  const chunks = [];
-  let timer = null;
+  const chunks = [], out = { quiet: false, dropped: false, spoke: false };
+  let timer = null, watch = null, src = null;
+  const stopNow = () => { if (rec.state === "recording") rec.stop(); };
   const done = new Promise((resolve, reject) => {
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-    rec.onerror = e => { stream.getTracks().forEach(t => t.stop()); reject(e); };
+    rec.onerror = e => { clearInterval(watch); stream.getTracks().forEach(t => t.stop()); reject(e); };
     rec.onstop = async () => {
-      clearTimeout(timer);
+      clearTimeout(timer); clearInterval(watch);
+      try { if (src) src.disconnect(); } catch (e) {}
       stream.getTracks().forEach(t => t.stop());
+      if (out.dropped || out.quiet) { resolve(null); return; }
       try { resolve(await toWav(new Blob(chunks, { type: rec.mimeType || "audio/webm" }))); } catch (e) { reject(e); }
     };
   });
   try { rec.start(); } catch (e) { stream.getTracks().forEach(t => t.stop()); throw e; }
-  timer = setTimeout(() => { if (rec.state === "recording") rec.stop(); }, maxMs);
-  return { done, stop: () => { if (rec.state === "recording") rec.stop(); } };
+  timer = setTimeout(stopNow, maxMs);
+  if (vad && vad.ctx && vad.ctx.state === "running") {
+    try {
+      src = vad.ctx.createMediaStreamSource(stream);
+      const an = vad.ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
+      const buf = new Float32Array(an.fftSize), t0 = performance.now();
+      let room = 0, lastLoud = 0, run = 0;
+      watch = setInterval(() => {
+        an.getFloatTimeDomainData(buf);
+        let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const level = Math.sqrt(sum / buf.length), t = performance.now() - t0;
+        if (t < 240) { room = Math.min(0.04, Math.max(room, level)); return; } // the first moment: how loud the room is
+        const loud = level > Math.max(0.012, room * 2.5);
+        run = loud ? run + 1 : 0;
+        if (run >= 2) { if (!out.spoke) { out.spoke = true; if (vad.onSpeech) vad.onSpeech(); } lastLoud = t; }
+        if (out.spoke && t - lastLoud > (vad.pauseMs || 1000)) stopNow(); // they've stopped talking
+        else if (!out.spoke && t > (vad.waitMs || 7000)) { out.quiet = true; stopNow(); } // nobody spoke
+      }, 50);
+    } catch (e) { clearInterval(watch); } // without the level check it records as before, until a tap or the time is up
+  }
+  out.done = done; out.stop = stopNow; out.cancel = () => { out.dropped = true; stopNow(); };
+  out.auto = !!watch;
+  return out;
 }
 async function toWav(blob) {
   const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC();
@@ -5519,13 +5551,14 @@ function setVoiceMode(on) {
   updateVoiceRow();
 }
 // The line the character just said, spoken out loud (at normal speed or slowly).
-function sayLine(r, slow, head) {
+function sayLine(r, slow, head, heard) {
   if (!TK) return;
+  if (TALK_REC) { try { TALK_REC.cancel(); } catch (e) {} } // the microphone would hear the line: what it had is dropped
   if (head) head.classList.add("playing");
-  sayText(r.fa, { slow, voice: charVoice(TK.conv), after: () => { if (head) head.classList.remove("playing"); } }).then(ok => { if (!ok && head) head.classList.remove("playing"); });
+  sayText(r.fa, { slow, voice: charVoice(TK.conv), after: () => { if (head) head.classList.remove("playing"); if (heard) heard(); } }).then(ok => { if (!ok && head) head.classList.remove("playing"); });
 }
 // What the microphone heard, before it's sent: in voice mode the learner can't see their words in the box first.
-function showHeard(text) {
+function showHeard(text, auto) {
   clearHeard();
   const c = el("div", "heard"); c.id = "heardCard";
   c.append(el("span", "note strong", "I heard:"), fa("p", "fa-line", text));
@@ -5544,9 +5577,17 @@ function showHeard(text) {
   const again = el("button", "btn quiet", "Say it again"); again.type = "button"; again.id = "heardAgain"; again.addEventListener("click", () => { c.remove(); $("talkMic").click(); });
   const type = el("button", "btn quiet", "Fix it by typing"); type.type = "button"; type.id = "heardType"; type.addEventListener("click", () => { c.remove(); $("talkInput").value = text; $("talkInput").focus(); });
   acts.append(ok, again, type); c.append(acts);
+  if (auto) { // hands-free: it goes by itself in a moment, unless they tap the card to stop it and check
+    const bar = el("div", "heard-bar"); bar.append(el("span")); c.prepend(bar); c.classList.add("auto");
+    const note = el("span", "note heard-auto", "Sending… tap here to wait"); c.insertBefore(note, acts);
+    const t = setTimeout(() => { if (c.isConnected) { c.remove(); send(text); } }, HEARD_SEND_MS);
+    const hold = () => { clearTimeout(t); c.classList.remove("auto"); bar.remove(); note.remove(); if (TK) TK.handsFree = false; };
+    c.addEventListener("pointerdown", hold, { once: true }); c.addEventListener("keydown", hold, { once: true });
+  }
   $("chat").append(c); scrollChat();
   setTimeout(() => ok.focus(), 0);
 }
+const HEARD_SEND_MS = 1800;
 function clearHeard() { const old = $("heardCard"); if (old) old.remove(); }
 // Finglish and meaning for a Persian line the microphone heard, from the website; null when it can't be had.
 const GLOSSED = new Map();
@@ -5629,11 +5670,17 @@ async function webTalkAI(api) {
         keyFor = turns[0].content; talkId = null;
       }
       let r;
-      try { r = await fetch(api + "/talk", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ turns, talk_id: talkId, talk_key: talkKey }), signal: opts && opts.signal }); }
+      try { r = await fetch(api + "/talk", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ turns, talk_id: talkId, talk_key: talkKey, stream: true }), signal: opts && opts.signal }); }
       catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
-      let j = null; try { j = await r.json(); } catch (e) {}
+      let j = null;
+      if (r.ok && /ndjson/.test(r.headers.get("content-type") || "") && r.body && r.body.getReader) {
+        // the reply in pieces: the character's line first (so it can be spoken at once), then the rest
+        try { j = await readTalkStream(r.body, opts && opts.onEarly); }
+        catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
+        if (!j) throw { code: "network" };
+      } else { try { j = await r.json(); } catch (e) {} }
       if (j && j.account) ACCT = j.account;
-      if (!r.ok) {
+      if (!r.ok || (j && j.error)) {
         const code = (j && j.error) || (r.status === 429 ? "rate_limited" : "server_error");
         if (code === "sign_in" && ACCT) ACCT = { ...ACCT, signedIn: false };
         throw { code };
@@ -5643,6 +5690,27 @@ async function webTalkAI(api) {
       return j;
     },
   };
+}
+// Reads a streamed talk reply: calls onEarly with the character's line when it comes, and gives the whole reply
+// (or { error }) at the end, or null if the connection ended without one.
+async function readTalkStream(body, onEarly) {
+  const rd = body.getReader(), dec = new TextDecoder();
+  let buf = "", last = null;
+  for (;;) {
+    const { value, done } = await rd.read();
+    if (value) buf += dec.decode(value, { stream: true });
+    let k;
+    while ((k = buf.indexOf("\n")) >= 0) {
+      const ln = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+      if (!ln) continue;
+      let o; try { o = JSON.parse(ln); } catch (e) { continue; }
+      if (o.early) { if (onEarly && o.early && typeof o.early.fa === "string" && o.early.fa) { try { onEarly(o.early.fa); } catch (e) {} } }
+      else if (o.reply && typeof o.reply === "object") last = o.reply;
+      else if (o.error) last = { error: String(o.error) };
+    }
+    if (done) break;
+  }
+  return last;
 }
 async function refreshAccount(refresh, api) {
   try {
@@ -6520,14 +6588,29 @@ function setHelp(on) {
 }
 function setComposer(on) { $("talkInput").disabled = !on; $("talkSend").disabled = !on; $("talkMic").disabled = !on; $("helpBtn").disabled = !on; $("sugs").querySelectorAll("button").forEach(b => (b.disabled = !on)); }
 function addTyping() { const t = el("div", "typing"); t.setAttribute("aria-label", "Typing"); t.append(el("i"), el("i"), el("i")); $("chat").append(t); scrollChat(); return t; }
-function addAiBubble(r) {
-  const b = el("div", "msg ai");
+// The character's line, as soon as the website has it (the rest of the reply is still being written): shown and
+// spoken straight away, then filled in by addAiBubble when the whole reply is there.
+function addEarlyBubble(text) {
+  const voice = !!(TK && TK.voice);
+  const b = el("div", "msg ai early");
+  let head = null;
+  if (voice) { b.classList.add("listen"); head = listenHead(); b.append(head); }
+  b.append(fa("p", "fa-line", text));
+  $("chat").append(b); scrollChat();
+  const said = canSayText();
+  if (said) { const n = TK.replyN; sayLine({ fa: text }, false, head, () => lineHeard(n)); }
+  return { b, head, fa: text, said };
+}
+function listenHead() { const head = el("div", "listen-head"); head.innerHTML = ICON.sound; head.append(el("span", null, `${TK.conv.who.name} is talking. Listen, then answer.`)); return head; }
+function addAiBubble(r, early) {
+  const b = early ? early.b : el("div", "msg ai");
+  if (early) { b.replaceChildren(); b.className = "msg ai"; }
   const voice = !!(TK && TK.voice);
   TK.hinted = false; TK.last = r;
   let head = null;
   if (voice) { // the words stay hidden: a "listening" line stands in for them
     b.classList.add("listen");
-    head = el("div", "listen-head"); head.innerHTML = ICON.sound; head.append(el("span", null, `${TK.conv.who.name} is talking. Listen, then answer.`));
+    head = early && early.head ? early.head : listenHead();
     b.append(head);
   } else b.title = "Tap to show Finglish and English";
   b.append(fa("p", "fa-line", r.fa));
@@ -6537,8 +6620,8 @@ function addAiBubble(r) {
   if (voice) {
     const tools = el("div", "voice-tools");
     const mk = (icon, text, id, on) => { const x = el("button"); x.type = "button"; x.id = id; x.innerHTML = icon; x.append(document.createTextNode(text)); x.addEventListener("click", e => { e.stopPropagation(); on(x); }); tools.append(x); return x; };
-    mk(ICON.replay, "Play again", "vmReplay", () => sayLine(r, false, head));
-    mk(ICON.slow, "Slower", "vmSlow", () => sayLine(r, true, head));
+    mk(ICON.replay, "Play again", "vmReplay", () => sayLine(r, false, head, maybeListen));
+    mk(ICON.slow, "Slower", "vmSlow", () => sayLine(r, true, head, maybeListen));
     mk(ICON.eye, "Show words", "vmWords", x => { const on = b.classList.toggle("words"); x.setAttribute("aria-pressed", String(on)); });
     mk(ICON.hint, "Hint", "vmHint", x => { TK.hinted = true; b.classList.add("hinted"); x.setAttribute("aria-pressed", "true"); $("sugs").classList.remove("sugs-hidden"); scrollChat(); });
     b.append(tools);
@@ -6557,8 +6640,20 @@ function addAiBubble(r) {
     r.new_words.forEach(n => { const c = el("span", "nw"); c.append(fa("span", "fa", n.fa), document.createTextNode(n.en || n.translit)); nw.append(c); });
     b.append(nw);
   }
-  $("chat").append(b);
-  if (canSayText()) sayLine(r, false, head); // every line is read aloud when a voice is there; in voice mode that's the whole point
+  $("chat").append(b); // (a bubble shown early moves below the feedback on the learner's message)
+  // every line is read aloud when a voice is there; in voice mode that's the whole point. A line already being
+  // spoken from early on isn't started again.
+  if (canSayText() && !(early && early.said && early.fa === r.fa)) { const n = TK.replyN; sayLine(r, false, head, () => lineHeard(n)); }
+}
+// Hands-free talking in voice mode: once the learner has answered out loud, the microphone opens by itself when the
+// character has finished speaking, stops when they pause, and what it heard is sent after a moment.
+function lineHeard(n) { if (!TK || TK.replyN !== n) return; TK.heardOut = true; maybeListen(); }
+function maybeListen() {
+  if (!TK || !TK.voice || !TK.handsFree || !TK.heardOut || TK.busy || TK.done || !TK.started) return;
+  if (TALK_REC || TALK_MIC_BUSY || $("heardCard") || $("talkInput").value || document.hidden) return;
+  if (!VAD_CTX || VAD_CTX.state !== "running" || $("talkMic").hidden || $("talkMic").disabled || !canHear()) return;
+  if (!$("talk") || $("talk").hidden) return;
+  listen(true);
 }
 function addMeBubble(text) { const b = el("div", "msg me"); const p = el("p", null, text); p.dir = "auto"; b.append(p); $("chat").append(b); scrollChat(); return b; }
 // Under the learner's own message: its Finglish and what it means in their language, so they understand what they said.
@@ -6611,8 +6706,11 @@ async function callAI() {
   const typing = addTyping();
   const ctl = new AbortController();
   TK.ctl = ctl;
+  TK.replyN = (TK.replyN || 0) + 1; TK.heardOut = false;
+  let early = null;
+  const onEarly = text => { if (myTK !== TK || early || !TK.busy) return; typing.remove(); early = addEarlyBubble(text); };
   try {
-    const raw = await AI.json(trimTurns(TK.turns), { modelTier: "quick", cache: false, signal: ctl.signal });
+    const raw = await AI.json(trimTurns(TK.turns), { modelTier: "quick", cache: false, signal: ctl.signal, onEarly });
     if (myTK !== TK) return;
     const r = cleanReply(raw, TK.conv.goals.length);
     if (!r) throw { code: "invalid_json" };
@@ -6620,7 +6718,7 @@ async function callAI() {
     typing.remove();
     if (TK.lastMe) { addYouSaid(TK.lastMe.b, TK.lastMe.text, r.you_said); TK.lastMe = null; }
     if (r.feedback) addFeedback(r.feedback);
-    addAiBubble(r);
+    addAiBubble(r, early);
     if (TK.learner > 0) TK.pace[r.pace]++;
     const before = TK.goalsDone.size;
     r.goals_done.forEach(n => TK.goalsDone.add(n - 1));
@@ -6631,8 +6729,10 @@ async function callAI() {
     renderSuggestions(r.suggestions);
     setComposer(true);
     scrollChat();
+    maybeListen(); // the line may already have been heard to the end while the rest of the reply came
   } catch (e) {
     typing.remove();
+    if (early) { early.b.remove(); if (myTK === TK) stopSound(); } // the line shown early belongs to a reply that didn't come
     if (myTK !== TK) return;
     TK.busy = false;
     if (e && e.code === "cancelled") return;
@@ -6681,7 +6781,7 @@ function showTalkError(code) {
 function send(text) {
   text = (text || "").trim();
   if (!TK || TK.busy || TK.done || !TK.started || !text) return;
-  if (TALK_REC) { try { TALK_REC.stop(); } catch (e) {} } // sending while the microphone is on: stop it, the clip is dropped
+  if (TALK_REC) { try { TALK_REC.cancel(); } catch (e) {} } // sending while the microphone is on: the clip is dropped
   clearTalkError(); clearHeard();
   const help = TK.help;
   TK.lastMe = help ? null : { b: addMeBubble(text), text };
@@ -6751,7 +6851,7 @@ function endTalk() {
 }
 function closeTalk() {
   stopSound(); clearHeard();
-  if (TALK_REC) { try { TALK_REC.stop(); } catch (e) {} }
+  if (TALK_REC) { try { TALK_REC.cancel(); } catch (e) {} }
   if (TK && TK.ctl) TK.ctl.abort();
   TK = null;
   closeOverlay("talk");
@@ -8366,29 +8466,50 @@ $("togTr").addEventListener("click", () => { S.prefs.tr = !S.prefs.tr; save(); a
 $("togEn").addEventListener("click", () => { S.prefs.en = !S.prefs.en; save(); applyTalkPrefs(); });
 $("togWr").addEventListener("click", () => { S.prefs.wr = !S.prefs.wr; save(); applyTalkPrefs(); });
 $("helpBtn").addEventListener("click", () => { if (!TK || TK.busy || TK.done) return; setHelp(!TK.help); $("talkInput").focus(); });
-$("talkForm").addEventListener("submit", e => { e.preventDefault(); send($("talkInput").value); });
+$("talkForm").addEventListener("submit", e => { e.preventDefault(); if (TK && $("talkInput").value.trim()) TK.handsFree = false; send($("talkInput").value); }); // typing: the microphone waits for a tap again
 // Say a reply instead of typing it: the words appear in the box, so they can be fixed before sending.
 let TALK_REC = null;
 $("talkMic").innerHTML = MIC_ICON;
 $("micPlans").addEventListener("click", () => openAccount(() => { if (TK && TK.started) { $("talkMic").hidden = !canHear() && !hearLocked(); $("talkMic").classList.toggle("locked", !canHear()); $("micNote").hidden = true; } }));
 let TALK_MIC_BUSY = false;
-$("talkMic").addEventListener("click", async () => {
-  const mic = $("talkMic"), inp = $("talkInput");
+// One sound context for checking the microphone's level, made on the first tap (phones only allow sound that a tap
+// started) and kept, so the microphone can also open by itself later in hands-free talking.
+let VAD_CTX = null;
+function unlockVad() {
+  try { if (!VAD_CTX) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) VAD_CTX = new AC(); } } catch (e) { VAD_CTX = null; }
+  try { if (VAD_CTX && VAD_CTX.state === "suspended") VAD_CTX.resume().catch(() => {}); } catch (e) {}
+}
+$("talkMic").addEventListener("click", () => {
   if (TALK_REC) { TALK_REC.stop(); return; }
+  unlockVad();
+  if (TK && TK.voice && canHear()) TK.handsFree = true; // answering out loud in voice mode: the next answers are hands-free
+  listen(false);
+});
+async function listen(auto) {
+  const mic = $("talkMic"), inp = $("talkInput");
   if (TALK_MIC_BUSY) return; // a tap while the microphone is still being switched on
-  if (!canHear()) { if (hearLocked()) openSpeakLocked("mic"); return; } // locked: say what it is and how to get it
+  if (!canHear()) { if (!auto && hearLocked()) openSpeakLocked("mic"); return; } // locked: say what it is and how to get it
   if (!TK || TK.busy || TK.done) return;
   const mine = TK; // the talk this recording belongs to: if it's sent or closed meanwhile, the clip is dropped
   const stillHere = () => TK === mine && !TK.busy && !TK.done;
-  stopSound();
+  if (!auto) stopSound();
   TALK_MIC_BUSY = true;
-  mic.classList.add("rec"); mic.innerHTML = STOP_ICON; inp.placeholder = "Listening… tap the square when done";
-  let wav;
-  try { TALK_REC = await recordClip(10000); wav = await TALK_REC.done; }
-  catch (e) { TALK_REC = null; TALK_MIC_BUSY = false; mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; if (!stillHere()) return; const t = micTrouble(e); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.help) openMicHelp(); return; }
+  mic.classList.add("rec"); mic.innerHTML = STOP_ICON; inp.placeholder = auto ? "Listening… go ahead" : "Listening… tap the square when done";
+  let wav, rec = null;
+  try {
+    rec = TALK_REC = await recordClip(auto ? 15000 : 12000, { ctx: VAD_CTX, pauseMs: 1000, waitMs: auto ? 8000 : 10000 });
+    if (rec.auto && !auto) inp.placeholder = "Listening… it stops when you stop";
+    wav = await rec.done;
+  }
+  catch (e) { TALK_REC = null; TALK_MIC_BUSY = false; mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; if (!stillHere()) return; if (auto) { mine.handsFree = false; inp.placeholder = replyHint(); return; } const t = micTrouble(e); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.help) openMicHelp(); return; }
   TALK_REC = null; TALK_MIC_BUSY = false;
   mic.classList.remove("rec"); mic.innerHTML = MIC_ICON;
   if (!stillHere()) { inp.placeholder = replyHint(); return; }
+  if (!wav) { // dropped, or nobody spoke: nothing is sent anywhere
+    if (rec && rec.quiet) { mine.handsFree = false; inp.placeholder = "Tap the microphone when you're ready to answer"; }
+    else inp.placeholder = replyHint();
+    return;
+  }
   mic.disabled = true; inp.placeholder = "Checking…";
   // what's being talked about (the character's last line and the suggested answers) helps the speech-to-text pick
   // the right Persian words among sound-alikes
@@ -8398,9 +8519,9 @@ $("talkMic").addEventListener("click", async () => {
   if (!stillHere()) return;
   if (!r.ok) { const t = micTrouble({ name: r.error }); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.plan) { refreshAccount().then(() => { accountChanged(); openSpeakLocked("mic"); }); } return; }
   if (!r.text) { inp.placeholder = "We couldn't hear anything. Try again, a bit louder."; return; }
-  if (TK.voice) { showHeard(r.text); return; } // voice mode: check what was heard, then send
+  if (TK.voice) { showHeard(r.text, TK.handsFree); return; } // voice mode: check what was heard, then send
   inp.value = r.text; inp.focus();
-});
+}
 $("teachBack").addEventListener("click", () => { if (TEACH.picked && TEACH.cur) teachClass(TEACH.cur.id); else if (TEACH.cur) teachList(); else closeTeacher(); });
 $("assignSave").addEventListener("click", saveAssigned);
 $("assignCancel").addEventListener("click", () => { if (TEACH.cur) teachClass(TEACH.cur.id); });
