@@ -23,7 +23,7 @@ with sync_playwright() as p:
     pg.goto(URL); pg.wait_for_timeout(1200)
     check("the welcome doesn't offer little mode to pick for yourself any more", not pg.locator("#obLittleBtn").count())
     pg.click("#obNext"); pg.wait_for_timeout(300)
-    check("nor does 'Who's learning?' (it's a class setting now)", not pg.locator("#obwho-little").count() and pg.is_visible("#obwho-child") and "13 and up" in pg.inner_text("#obwho-adult"))
+    check("'Who's learning?' offers Little one (3 to 6)", pg.is_visible("#obwho-little") and "Ages 3 to 6" in pg.inner_text("#obwho-little"))
     pg.click("#obBack"); pg.wait_for_timeout(300)
     # a teacher's class for ages 4 to 6: joining it turns little mode on
     CLS = {"name": "Little ones", "ages": "little", "assigned": [], "fullUntil": 0, "talks": None}
@@ -95,7 +95,8 @@ with sync_playwright() as p:
     hold(pg, "#littleGrown", 1500); pg.click("#littleOffBtn"); pg.wait_for_timeout(400)
     check("Turn off little mode turns it off", pg.is_hidden("#little") and pg.evaluate("S.profile.little") is False and pg.locator("#littleCard").count() == 0)
     pg.evaluate("showView('review')"); pg.wait_for_timeout(200)
-    check("once it's off, settings don't offer it (it comes from the class)", not pg.locator("#who-little").count() and pg.is_visible("#who-child"))
+    pg.click("#who-little"); pg.wait_for_timeout(400)
+    check("settings can turn it back on", pg.is_visible("#little") and pg.evaluate("S.profile.little") is True)
     check("no page errors", not errs, errs)
     c.close()
 

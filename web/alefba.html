@@ -852,7 +852,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   * { animation: none !important; transition: none !important; }
 }
 
-/* ===== Little learners (ages 4 to 6): big letters to tap and hear, a picture word, tracing with a finger. Nothing to read. ===== */
+/* ===== Little learners (ages 3 to 6): big letters to tap and hear, a picture word, tracing with a finger. Nothing to read. ===== */
 .little-head { display: flex; align-items: center; gap: 10px; padding-block: 8px; }
 .little-home { width: 52px; height: 52px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; flex: none; }
 .little-home svg { width: 28px; height: 28px; }
@@ -963,7 +963,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .ob-extra-btn b { font-size: 1.06rem; }
 .ob-extra-btn span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.88rem; line-height: 1.3; grid-column: 2; }
 .ob-extra { margin: 4px 0 18px; }
-.who-card .who-picks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 6px; }
+.who-card .who-picks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0 6px; }
 .who-pick { display: flex; flex-direction: column; gap: 2px; text-align: start; font: inherit; color: var(--ink); background: var(--surface, var(--bg)); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; }
 .who-pick:hover { border-color: var(--turq); }
 .who-pick:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
@@ -6094,7 +6094,7 @@ function openJoinClass(prefill) {
 // From the welcome screen, or a link a teacher sent (learnalefba.com/#join=ABC234): the welcome stays underneath until
 // they've joined, so "Not now" goes back to it.
 function joinFromLink(code) { openJoinClass(code); }
-// Who the class is for, set by its teacher, decides this learner's mode: little mode for ages 4 to 6, the children's
+// Who the class is for, set by its teacher, decides this learner's mode: little mode for ages 3 to 6, the children's
 // conversations for 7 to 12, and the teens' and adults' ones for 13 and up. True when that changed anything.
 function applyClassAges(ages) {
   const want = { little: [false, true], kids: [false, false], teens: [true, false] }[ages];
@@ -6111,7 +6111,7 @@ function classEntries() {
   const box = el("div", "ob-extra"); box.id = "obExtra";
   const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; b.append(el("span", "ob-extra-ic", ic), el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
   mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => openJoinClass());
-  mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => openTeacher());
+  mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => openTeacher(true));
   return box;
 }
 function showJoinForm(prefill) {
@@ -6154,12 +6154,14 @@ function showJoinForm(prefill) {
   code.focus();
 }
 
+// Who's learning: the same four choices, in the same words, everywhere the app asks.
+const WHO = { adult: ["Teen or adult", "13 and up"], child: ["Child", "Ages 7 to 12"], little: ["Little one", "Ages 3 to 6: pictures and tracing, no reading"], teacher: ["Teacher", "Go straight to teacher mode"] };
 // ----- teacher mode -----
 const TEACH = { cur: null, picked: null };
 // Who a class is for. Each student who joins gets that mode; little mode is only ever turned on this way.
-const CLASS_AGES = [["little", "Ages 4 to 6", "Little mode: big letters to tap and hear, pictures and tracing. No reading needed."],
-  ["kids", "Ages 7 to 12", "The children's lessons, with conversations with classmates, family and friends."],
-  ["teens", "13 and up", "Teens and adults: conversations with friends, coworkers, in-laws and shopkeepers."]];
+const CLASS_AGES = [["little", "Little ones, 3 to 6", "Little mode: big letters to tap and hear, pictures and tracing. No reading needed."],
+  ["kids", "Children, 7 to 12", "The children's lessons, with conversations with classmates, family and friends."],
+  ["teens", "Teens and adults, 13 and up", "Conversations with friends, coworkers, in-laws and shopkeepers."]];
 function agePicker(cur, onPick) {
   const row = el("div", "age-picks"); row.setAttribute("role", "group");
   CLASS_AGES.forEach(([k, t, d]) => {
@@ -6171,9 +6173,11 @@ function agePicker(cur, onPick) {
   return row;
 }
 const joinLink = code => "https://learnalefba.com/#join=" + code;
-function openTeacher() {
+function openTeacher(asTeacher) {
   if (!WEB) return;
-  if (!(ACCT && ACCT.signedIn)) { openSignIn(() => { renderAll(); if (ACCT && ACCT.signedIn) openTeacher(); }, { teacher: true }); return; }
+  const open = () => { $("onboard").inert = !$("onboard").hidden; openOverlay("teach"); teachList(); };
+  if (!(ACCT && ACCT.signedIn)) { openSignIn(() => { renderAll(); if (ACCT && ACCT.signedIn) openTeacher(asTeacher); }, { teacher: true }); return; }
+  if (asTeacher === true) return open(); // they said they're a teacher (and signed in with their email): no sum to answer
   grownUpGate("teachGate", "Teacher mode", "Teacher mode is for grown-ups: making classes, assigning lessons and seeing learners' progress.", () => { $("onboard").inert = !$("onboard").hidden; openOverlay("teach"); teachList(); });
 }
 function closeTeacher() { TEACH.cur = null; TEACH.picked = null; $("teachFoot").hidden = true; $("onboard").inert = false; closeOverlay("teach"); }
@@ -7100,8 +7104,10 @@ function renderOB() {
   } else if (st === "who") {
     main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "This changes who you talk with in the conversations and how the app speaks to you. Families learning together can pick either."));
     const list = el("div", "choice-list");
-    list.append(choiceButton("A child", "Ages 7 to 12. A parent signs in for the AI talks.", d.adult === false, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
-    list.append(choiceButton("A teen or an adult", "13 and up. Conversations with friends, coworkers, in-laws and shopkeepers.", d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
+    list.append(choiceButton(WHO.adult[0], WHO.adult[1], d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
+    list.append(choiceButton(WHO.child[0], WHO.child[1], d.adult === false && !d.little, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
+    list.append(choiceButton(WHO.little[0], WHO.little[1], d.adult === false && !!d.little, () => { d.adult = false; d.little = true; renderOB(); }, "obwho-little"));
+    list.append(choiceButton(WHO.teacher[0], WHO.teacher[1], false, () => openTeacher(true), "obwho-teacher"));
     main.append(list);
     next.textContent = "Continue"; next.disabled = d.adult == null; next.onclick = () => obGo("name");
   } else if (st === "name") {
@@ -7758,9 +7764,13 @@ function whoCard() {
     renderAll();
   };
   const pick = (id, t, d, fn) => { const b = el("button", "who-pick"); b.type = "button"; b.id = id; b.append(el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); row.append(b); };
-  pick("whoMe", "Me", "I'm 13 or older", () => set(true));
-  pick("whoChild", "A child", "Ages 7 to 12", () => set(false));
-  pick("whoTeacher", "I'm a teacher", "Make a class for my students", () => { set(true); openTeacher(); });
+  pick("whoMe", WHO.adult[0], WHO.adult[1], () => set(true));
+  pick("whoChild", WHO.child[0], WHO.child[1], () => set(false));
+  pick("whoLittle", WHO.little[0], WHO.little[1], () => {
+    Object.assign(S.profile, { adult: false, little: true, whoSet: true, goal: 1, at: todayStr() }); delete S.profile.skipped;
+    S.prefs.order = "letters"; buildLevels(); save(); closeLesson(); openLittle();
+  });
+  pick("whoTeacher", WHO.teacher[0], WHO.teacher[1], () => { set(true); openTeacher(true); });
   c.append(row);
   const j = el("button", "link-btn", "Have a class code? Join your class"); j.id = "whoJoin"; j.type = "button";
   j.addEventListener("click", () => { closeLesson(); openJoinClass(); });
@@ -8108,7 +8118,7 @@ function renderReview() {
     opts.forEach(([k, t]) => { const b = el("button", "pick", t); b.id = id + "-" + k; b.setAttribute("aria-pressed", String(cur === k)); b.addEventListener("click", () => { onPick(k); save(); renderAll(); }); row.append(b); });
     wrap.append(row); pb.append(wrap);
   };
-  setting("Who's learning", "who", [["child", "A child (7–12)"], ["adult", "A teen or adult"], ...(isLittle() ? [["little", "Little mode (4–6)"]] : [])], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; S.profile.whoSet = true; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
+  setting("Who's learning", "who", [["adult", `${WHO.adult[0]} (13+)`], ["child", `${WHO.child[0]} (7–12)`], ["little", `${WHO.little[0]} (3–6)`]], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; S.profile.whoSet = true; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
   const famRow = el("div", "setting"); famRow.append(el("span", "setting-lbl", `Learners on this device: ${FAM.learners.map(l => learnerInfo(l.id).name).join(", ")}`));
   const famBtn = el("button", "btn quiet", FAM.learners.length > 1 ? "Switch learner or add one" : "Add another learner"); famBtn.id = "familyBtn"; famBtn.type = "button"; famBtn.addEventListener("click", openFamily);
   famRow.append(famBtn); pb.append(famRow);
@@ -8182,7 +8192,7 @@ function showView(name) {
   window.scrollTo(0, 0);
 }
 
-// ================= LITTLE LEARNERS (ages 4 to 6) =================
+// ================= LITTLE LEARNERS (ages 3 to 6) =================
 // For children who can't read yet, like a kindergarten class: big letters to tap and hear, a picture word for each,
 // and a big space to trace the letter with a finger. Nothing to read and nothing to type. Short spoken English prompts
 // say what to do, and every letter traced earns a star. Grown-ups leave by pressing and holding a small button.
