@@ -60,8 +60,10 @@ with sync_playwright() as p:
     # straight into the first lesson, without saying who's learning: it doesn't assume a child or an adult
     c, pg, errs = page(b, {**st(), "profile": {"skipped": True, "goal": 2, "adult": False, "first": "new"}})
     finish_first(pg)
+    check("not said who's learning: it asks that first, instead of the email", pg.is_visible("#whoCard") and not pg.is_visible("#nudgeCard"))
+    pg.click("#whoMe"); pg.wait_for_timeout(300)
     t = pg.inner_text("#nudgeCard") if pg.is_visible("#nudgeCard") else ""
-    check("not said who's learning: no 'Grown-ups', no 'this child'", t and "Grown-ups" not in t and "this child's" not in t and "parent or guardian of the child" in t and pg.get_attribute("#nudgeEmail", "placeholder") == "Your email", t)
+    check("then the email offer, worded for the adult who said so", t and "Grown-ups" not in t and "I'm an adult, and this is my email." in t and pg.get_attribute("#nudgeEmail", "placeholder") == "Your email", t)
     check("no page errors", not errs, errs)
     c.close()
     # an adult, saying no thanks

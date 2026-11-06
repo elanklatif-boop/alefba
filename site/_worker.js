@@ -190,7 +190,7 @@ async function api(request, env, url, ctx) {
     "/api/talk": talk, "/api/auth/start": authStart, "/api/auth/verify": authVerify, "/api/auth/signout": signOut,
     "/api/confirm": confirmStart, "/api/checkout": checkout, "/api/plan": changePlan, "/api/portal": portal, "/api/account/delete": deleteAccount,
     "/api/hear": hear, "/api/say": say, "/api/gloss": gloss,
-    "/api/class/create": classCreate, "/api/class/list": classList, "/api/class/view": classView, "/api/class/assign": classAssign,
+    "/api/class/create": classCreate, "/api/class/list": classList, "/api/class/view": classView, "/api/class/assign": classAssign, "/api/class/ages": classAges,
     "/api/class/remove": classRemove, "/api/class/delete": classDelete,
     "/api/class/join": classJoin, "/api/class/mine": classMine, "/api/class/progress": classProgress, "/api/class/leave": classLeave,
     "/api/class/checkout": classCheckout,
@@ -1563,10 +1563,14 @@ async function teacherAndClass(request, env, s, body) {
   if (!c) return { res: reply({ error: "not_found" }, 404) };
   return { fam, c };
 }
-const classOut = (c, members) => ({ id: c.id, name: c.name, code: c.code, assigned: parseList(c.assigned), paidUntil: Number(c.paid_until) || 0, talksUntil: Number(c.talks_until) || 0, pending: !!c.checkout_id, ...(members == null ? {} : { members }) });
+// Who a class is for, set by its teacher: "little" (ages 4 to 6: little mode, pictures and tracing, no reading),
+// "kids" (7 to 12) or "teens" (13 and up: the conversations for teens and adults). A learner who joins gets that mode.
+const CLASS_AGES = ["little", "kids", "teens"];
+const cleanAges = v => (CLASS_AGES.includes(v) ? v : "");
+const classOut = (c, members) => ({ id: c.id, name: c.name, code: c.code, ages: cleanAges(c.ages) || null, assigned: parseList(c.assigned), paidUntil: Number(c.paid_until) || 0, talksUntil: Number(c.talks_until) || 0, pending: !!c.checkout_id, ...(members == null ? {} : { members }) });
 // What a learner's device is told about its class: the name, the assigned lessons, whether the class has a school
 // plan, and (when the plan includes talks) how many talks this learner has left this month.
-const memberClass = (c, talks) => { const until = Number(c.paid_until) || 0; return { name: c.class_name || c.name, assigned: parseList(c.assigned), fullUntil: until > Date.now() ? until : 0, talks: talks || null }; };
+const memberClass = (c, talks) => { const until = Number(c.paid_until) || 0; return { name: c.class_name || c.name, ages: cleanAges(c.ages) || null, assigned: parseList(c.assigned), fullUntil: until > Date.now() ? until : 0, talks: talks || null }; };
 const upgradePrice = p => Math.max(100, p.schoolTalks - p.school); // adding talks to a class that has the school plan already
 async function classCreate(request, env, url, s) {
   const t = await teacherAndClass(request, env, s);
@@ -1574,12 +1578,14 @@ async function classCreate(request, env, url, s) {
   const body = (await readJson(request, 2000)) || {};
   const name = cleanLabel(body.name, CLASS.nameMax, false);
   if (!name) return reply({ error: "bad_name" }, 400);
+  const ages = body.ages == null ? "kids" : cleanAges(body.ages); // an older app doesn't ask
+  if (!ages) return reply({ error: "bad_ages" }, 400);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM classes WHERE teacher_id = ?").bind(t.fam.id).first();
   if (n && n.n >= CLASS.maxClasses) return reply({ error: "too_many_classes" }, 409);
   for (let i = 0; i < 6; i++) {
-    const c = { id: randomId(), name, code: joinCode(), assigned: "[]" };
+    const c = { id: randomId(), name, code: joinCode(), assigned: "[]", ages };
     try {
-      await env.DB.prepare("INSERT INTO classes (id, teacher_id, name, code, created_at, assigned) VALUES (?, ?, ?, ?, ?, '[]')").bind(c.id, t.fam.id, c.name, c.code, Date.now()).run();
+      await env.DB.prepare("INSERT INTO classes (id, teacher_id, name, code, created_at, assigned, ages) VALUES (?, ?, ?, ?, ?, '[]', ?)").bind(c.id, t.fam.id, c.name, c.code, Date.now(), ages).run();
       return reply({ class: classOut(c, 0) });
     } catch (e) { /* that code is taken: try another */ }
   }
@@ -1608,6 +1614,15 @@ async function classAssign(request, env, url, s) {
   if (list.length > CLASS.maxAssigned) return reply({ error: "too_many_lessons" }, 400);
   await env.DB.prepare("UPDATE classes SET assigned = ? WHERE id = ?").bind(JSON.stringify(list), t.c.id).run();
   return reply({ class: classOut({ ...t.c, assigned: JSON.stringify(list) }) });
+}
+async function classAges(request, env, url, s) {
+  const body = (await readJson(request, 1000)) || {};
+  const t = await teacherAndClass(request, env, s, body);
+  if (t.res) return t.res;
+  const ages = cleanAges(body.ages);
+  if (!ages) return reply({ error: "bad_ages" }, 400);
+  await env.DB.prepare("UPDATE classes SET ages = ? WHERE id = ?").bind(ages, t.c.id).run();
+  return reply({ class: classOut({ ...t.c, ages }) });
 }
 async function classRemove(request, env, url, s) {
   const body = (await readJson(request, 1000)) || {};
@@ -1654,7 +1669,7 @@ async function classJoin(request, env, url, s) {
 }
 async function memberOf(env, token) {
   if (typeof token !== "string" || !/^[A-Za-z0-9_-]{40,50}$/.test(token)) return null;
-  return env.DB.prepare("SELECT m.id, m.name, c.id AS cid, c.name AS class_name, c.assigned, c.paid_until, c.talks_until, c.checkout_id, c.checkout_kind FROM class_members m JOIN classes c ON c.id = m.class_id WHERE m.token_hash = ?").bind(await sha256(token)).first();
+  return env.DB.prepare("SELECT m.id, m.name, c.id AS cid, c.name AS class_name, c.assigned, c.ages, c.paid_until, c.talks_until, c.checkout_id, c.checkout_kind FROM class_members m JOIN classes c ON c.id = m.class_id WHERE m.token_hash = ?").bind(await sha256(token)).first();
 }
 async function classMine(request, env, url, s) {
   if (!s.db) return reply({ error: "not_configured" }, 503);
@@ -1907,7 +1922,7 @@ function mergeProgress(a, b) {
 
 // ---------- storage (D1) ----------
 // The tables are made the first time they're needed, and brought up to date if an earlier version made them.
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS families (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, stripe_test TEXT, stripe_live TEXT, checkout_id TEXT, sub_id TEXT, plan TEXT, plan_status TEXT, plan_checked INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS free_ledger (h TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)",
@@ -1918,7 +1933,7 @@ const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS counters (k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS usage (day TEXT NOT NULL, name TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, name))", // daily totals only
   "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-  "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT, talks_until INTEGER, agreed_at INTEGER, checkout_kind TEXT)",
+  "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT, talks_until INTEGER, agreed_at INTEGER, checkout_kind TEXT, ages TEXT)",
   "CREATE TABLE IF NOT EXISTS progress (family_id TEXT NOT NULL, sid TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (family_id, sid))",
   "CREATE TABLE IF NOT EXISTS nudges (h TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, email_id TEXT, send_at INTEGER, stopped INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS class_members (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, name TEXT NOT NULL, joined_at INTEGER NOT NULL, seen_at INTEGER NOT NULL, progress TEXT)",
@@ -1935,6 +1950,7 @@ const SCHEMA_ADDED = [ // columns an earlier version's tables don't have yet (ea
   "ALTER TABLE classes ADD COLUMN talks_until INTEGER",
   "ALTER TABLE classes ADD COLUMN agreed_at INTEGER",
   "ALTER TABLE classes ADD COLUMN checkout_kind TEXT",
+  "ALTER TABLE classes ADD COLUMN ages TEXT",
 ];
 const SCHEMA_INDEXES = [
   "CREATE INDEX IF NOT EXISTS talks_by_family ON talks (family_id, started_at)",

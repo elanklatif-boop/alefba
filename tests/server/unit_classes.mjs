@@ -133,8 +133,30 @@ r = await T.post(env(), "/api/class/view", { id: cls.id });
 check("the teacher sees each learner's name and progress", r.status === 200 && r.json.class.members.length === 1 && r.json.class.members[0].name === "Sara K" && r.json.class.members[0].progress.done.length === 2, r.json);
 check("the teacher's view never shows a learner's key", !r.text.includes(tok) && !r.text.includes("token"), r.text.slice(0, 200));
 
+// who the class is for: set by the teacher, and passed to each learner's device
+check("a class made by an older app, without saying who it's for, is for ages 7 to 12", cls.ages === "kids", cls);
+r = await T.post(env(), "/api/class/create", { name: "Little ones", ages: "toddlers" });
+check("an unknown age group is refused", r.status === 400 && r.json.error === "bad_ages", r.json);
+r = await T.post(env(), "/api/class/create", { name: "Little ones", ages: "little" });
+check("a class for ages 4 to 6", r.status === 200 && r.json.class.ages === "little", r.json);
+const little = r.json.class;
+r = await K.post(env(), "/api/class/join", { code: little.code, name: "Nima" });
+check("a learner joining it is told the class is for little ones", r.status === 200 && r.json.class.ages === "little", r.json);
+const ltok = r.json.token;
+r = await T.post(env(), "/api/class/ages", { id: little.id, ages: "teens" });
+check("the teacher can change who the class is for", r.status === 200 && r.json.class.ages === "teens", r.json);
+r = await K.post(env(), "/api/class/progress", { token: ltok, progress: { done: [] } });
+check("and the learner's device hears about it", r.status === 200 && r.json.class.ages === "teens", r.json);
+r = await T.post(env(), "/api/class/ages", { id: little.id, ages: "babies" });
+check("changing it to an unknown age group is refused", r.status === 400 && r.json.error === "bad_ages", r.json);
+r = await T.post(env(), "/api/class/list", {});
+check("the list shows who each class is for", r.status === 200 && r.json.classes.map(c => c.ages).join() === "kids,teens", r.json);
+await T.post(env(), "/api/class/delete", { id: little.id });
+
 // another grown-up can't see or change this class
 const O = new Agent(); await O.signIn(env(), "other@example.com");
+r = await O.post(env(), "/api/class/ages", { id: cls.id, ages: "little" });
+check("another account can't change who a class is for", r.status === 404, r.json);
 r = await O.post(env(), "/api/class/view", { id: cls.id });
 check("another account can't see the class", r.status === 404, r.json);
 r = await O.post(env(), "/api/class/assign", { id: cls.id, lessons: [] });

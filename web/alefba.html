@@ -955,13 +955,26 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 #sheets { z-index: 25; }
 #little { z-index: 21; }
 .ob-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ob-extra-btn { text-decoration: none; display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; align-items: center; text-align: start; font: inherit; color: var(--ink); background: transparent; border: 1px dashed var(--line); border-radius: 14px; padding: 10px 12px; cursor: pointer; min-width: 0; }
+.ob-extra-btn { text-decoration: none; display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; row-gap: 2px; align-items: center; text-align: start; font: inherit; color: var(--ink); background: var(--turq-soft); border: 1.5px solid color-mix(in srgb, var(--turq) 55%, transparent); border-radius: 16px; padding: 14px 14px; cursor: pointer; min-width: 0; min-height: 64px; }
 .ob-extra-btn::after { content: "›"; grid-row: 1 / span 2; grid-column: 3; color: var(--turq); font-size: 1.4rem; line-height: 1; }
-.ob-extra-btn:hover { border-style: solid; border-color: var(--turq); }
+.ob-extra-btn:hover { border-color: var(--turq); }
 .ob-extra-btn:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
-.ob-extra-ic { grid-row: span 2; font-size: 1.4rem; line-height: 1; }
-.ob-extra-btn b { font-size: 0.95rem; }
-.ob-extra-btn span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.84rem; line-height: 1.3; grid-column: 2; }
+.ob-extra-ic { grid-row: span 2; font-size: 1.7rem; line-height: 1; }
+.ob-extra-btn b { font-size: 1.06rem; }
+.ob-extra-btn span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.88rem; line-height: 1.3; grid-column: 2; }
+.ob-extra { margin: 4px 0 18px; }
+.who-card .who-picks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0 6px; }
+.who-pick { display: flex; flex-direction: column; gap: 2px; text-align: start; font: inherit; color: var(--ink); background: var(--surface, var(--bg)); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; }
+.who-pick:hover { border-color: var(--turq); }
+.who-pick:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
+.who-pick b { font-size: 1rem; }
+.who-pick span { color: var(--muted); font-size: 0.84rem; line-height: 1.3; }
+@media (max-width: 480px) { .who-card .who-picks { grid-template-columns: 1fr; } }
+.age-picks { display: grid; gap: 8px; margin: 6px 0 4px; }
+.age-pick { display: flex; gap: 10px; align-items: flex-start; text-align: start; font: inherit; color: var(--ink); background: transparent; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; }
+.age-pick[aria-pressed="true"] { border-color: var(--turq); background: var(--turq-soft); }
+.invite-link { font-weight: 600; word-break: break-all; color: var(--turq); margin: 2px 0 6px; }
+.age-pick b { display: block; } .age-pick span { color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 420px) { .ob-extra { grid-template-columns: 1fr; } }
 .teach-sheets { display: grid; gap: 6px; justify-items: start; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 .teach-sheets h3 { margin: 0; }
@@ -2719,6 +2732,9 @@ const checkAdult = () => (typeof OB !== "undefined" && OB && OB.draft && OB.draf
 const checkBank = tier => (checkAdult() ? ADULT_CHECK_TALK : CHECK_TALK)[tier];
 // Who is learning: a child (the default) or an adult. It changes the conversations and the wording, not the lessons.
 const isAdult = () => !!(S.profile && S.profile.adult);
+// The wording: "you" for a teen or adult, and also while nobody has said who is learning yet (then the app doesn't
+// assume a child and send them to a grown-up); "a grown-up" only once it's known to be a child.
+const talksToYou = () => isAdult() || whoUnknown();
 const learnerName = () => (isAdult() ? ADULT_LEARNER : "Kian");
 // Each level: its words in chunks of five, any spoken-Persian or word-family lesson, then its conversations
 // (the main one with the level's character, then the extra situations). Built again when the learner changes
@@ -3450,7 +3466,7 @@ function micTrouble(e) {
   if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") return { text: isAdult() || whoUnknown() ? "The microphone is off for Alefba. Here's how to turn it on." : "The microphone is off for Alefba. A grown-up can turn it on.", stop: true, help: true };
   if (name === "NotFoundError" || name === "DevicesNotFoundError") return { text: "This device doesn't seem to have a microphone.", stop: true };
   if (name === "needs_plan") return { text: "Saying it out loud comes with a plan.", stop: false, plan: true };
-  if (name === "sign_in") return { text: isAdult() ? "Sign in again to say it out loud." : "A grown-up needs to sign in again for speaking.", stop: false, plan: true };
+  if (name === "sign_in") return { text: talksToYou() ? "Sign in again to say it out loud." : "A grown-up needs to sign in again for speaking.", stop: false, plan: true };
   if (name === "not_configured") return { text: "Speaking isn't working on the website right now. Try again later.", stop: true };
   if (name === "resting") return { text: "That's lots of speaking for today! There's more tomorrow.", stop: true };
   if (name === "too_long") return { text: "That was a bit long. Try saying just the word.", stop: false };
@@ -5310,11 +5326,15 @@ function finishLesson() {
       d.append(box2);
     }
     const nx = nextLesson();
+    // started straight from the welcome, so nobody has said who's learning: ask now, after a lesson, not before
+    const doneSoFar = Object.values(S.done).filter(v => v === true).length;
+    const askWho = !!(R.lesson && WEB && whoUnknown() && !inClass() && doneSoFar <= 3);
+    if (askWho) d.append(whoCard());
     if (nx) d.append(upNextCard(nx));
     // what brings people back, one at a time in the first lessons: an email the next day, then the home-screen icon
     const doneN = Object.values(S.done).filter(v => v === true).length;
-    let offered = false;
-    if (R.lesson && firstTime && doneN === 1) { const nc = nudgeCard(nx); if (nc) { d.append(nc); offered = true; } }
+    let offered = askWho; // one question at a time: the email offer comes after they've said who's learning
+    if (!offered && R.lesson && firstTime && doneN === 1) { const nc = nudgeCard(nx); if (nc) { d.append(nc); offered = true; } }
     if (!offered && R.lesson && firstTime && doneN === (WEB && WEB.api ? 2 : 1)) { const ic = installCard(true); if (ic) { d.append(ic); offered = true; } }
     // a daily calendar reminder, offered once, after the second lesson, when there's no reminder email (it's also in Settings)
     if (!offered && R.lesson && !S.prefs.remind && !S.prefs.remindAsked && !nudgeInfo() && Object.keys(S.done).length >= 2) {
@@ -5624,7 +5644,7 @@ function updateTalkStart() {
     const free = ACCT && ACCT.free;
     box.append(el("p", "note", isAdult() ? `Talking with ${name} uses AI, so you sign in with your email first. It only takes a minute${free ? `, and the first ${free} talks are free` : ""}.`
       : `Talking with ${name} uses AI, so a grown-up signs in first. It only takes a minute${free ? `, and the first ${free} talks are free` : ""}.`));
-    const g = el("button", "btn primary wide", isAdult() ? "Sign in" : "Ask a grown-up to sign in"); g.id = "grownUpBtn";
+    const g = el("button", "btn primary wide", talksToYou() ? "Sign in" : "Ask a grown-up to sign in"); g.id = "grownUpBtn";
     g.addEventListener("click", () => openSignIn(updateTalkStart));
     box.append(g);
     box.append(el("p", "note", c.dialogue ? "Until then, you can read and listen to the example above." : "Until then, you can practice the useful phrases above."));
@@ -5633,7 +5653,7 @@ function updateTalkStart() {
     box.append(el("p", "note", c.dialogue ? "You can still read and listen to the example above." : "You can still practice the useful phrases above."));
   } else if (aiState === "ready" && !canTalkNow()) {
     box.append(el("p", "note talks-left", talksLeftText(ACCT) + "."));
-    if (ACCT.plans && ACCT.kind !== "unlimited") { const p = el("button", "btn primary wide", isAdult() ? "See the plans" : "Ask a grown-up about plans"); p.id = "plansBtn"; p.addEventListener("click", () => openAccount(updateTalkStart)); box.append(p); }
+    if (ACCT.plans && ACCT.kind !== "unlimited") { const p = el("button", "btn primary wide", talksToYou() ? "See the plans" : "Ask a grown-up about plans"); p.id = "plansBtn"; p.addEventListener("click", () => openAccount(updateTalkStart)); box.append(p); }
     if (hearLocked()) box.append(el("p", "note strong", voiceLocked() ? "Plans also include Voice mode: the character speaks, you answer out loud. And speaking practice in lessons." : "Plans also include speaking practice: say your replies out loud here, and say words in lessons."));
     box.append(el("p", "note", c.dialogue ? "You can still read and listen to the example above." : "You can still practice the useful phrases above."));
   } else if (aiState === "ready") {
@@ -5666,7 +5686,7 @@ function startTalk() {
   $("talkMic").hidden = !canHear() && !hearLocked();
   $("talkMic").classList.toggle("locked", !canHear());
   $("micNote").hidden = true;
-  $("micPlans").textContent = isAdult() ? "See the plans" : "Show a grown-up the plans";
+  $("micPlans").textContent = talksToYou() ? "See the plans" : "Show a grown-up the plans";
   TK.voice = canVoiceMode() && !!S.prefs.voiceMode;
   updateVoiceRow();
   TK.turns = [{ role: "user", content: talkRules(TK.conv) + `\n\nStart the conversation now: greet the ${isAdult() ? "learner" : "child"} in character, set the scene in one line, and ask one simple question.` }];
@@ -5769,7 +5789,7 @@ function planLine(a) {
 }
 function accountChanged() { if (ACCT && ACCT.signedIn) $("obSignIn").hidden = true; updateTalkStart(); updateVoiceRow(); renderLessons(); renderTalkTab(); renderReview(); renderPlansTab(); scheduleSync(800); } // lessons too: a plan unlocks levels
 // The way to the plans from anywhere: the account sheet when signed in, signing in first when not.
-const plansBtnText = () => { const signed = !!(ACCT && ACCT.signedIn); return isAdult() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"; };
+const plansBtnText = () => { const signed = !!(ACCT && ACCT.signedIn); return talksToYou() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"; };
 function goPlans(after) { const cb = after || renderAll; if (ACCT && ACCT.signedIn) openAccount(cb); else openSignIn(cb); }
 const planPrices = A => (A && A.prices ? `${A.prices.basic} a month for ${A.basicTalks || 20} talks, ${A.prices.unlimited} a month for unlimited talks, or ${A.prices.yearly} a year` : "");
 // Tapping something that needs a plan (Voice mode, or the microphone in a talk) explains it, instead of doing nothing.
@@ -5798,7 +5818,7 @@ function renderPlansTab() {
   const card = el("div", "plan-card plans-tab");
   card.append(el("h2", null, hasPlan ? "Your plan" : "Plans"));
   if (A.signedIn) card.append(el("p", "acct-line", `Signed in as ${A.email}. ${planLine(A)}.`));
-  else if (ready) card.append(el("p", null, isAdult() ? "You're not signed in yet. Signing in with your email turns on the AI talks." : "Not signed in yet. A grown-up signs in with their email to turn on the AI talks."));
+  else if (ready) card.append(el("p", null, talksToYou() ? "You're not signed in yet. Signing in with your email turns on the AI talks." : "Not signed in yet. A grown-up signs in with their email to turn on the AI talks."));
   const list = (title, items) => {
     const sec = el("div", "plans-sec"); sec.append(el("h3", null, title));
     items.forEach(([icon, text]) => { const f = el("span", "plan-feature"); f.innerHTML = icon; f.append(document.createTextNode(text)); sec.append(f); });
@@ -5813,7 +5833,7 @@ function renderPlansTab() {
   if (A.prices && !hasPlan) card.append(el("p", "note", "Plans renew by themselves until you cancel, and you can cancel any time."));
   if (A.signedIn) card.append(el("p", "note talks-left", talksLeftText(A) + "."));
   if (ready && A.plans !== false) {
-    const go = el("button", "btn primary wide", hasPlan ? (isAdult() ? "Manage my plan" : "Manage the plan (for grown-ups)") : plansBtnText()); go.id = "plansGo"; go.type = "button";
+    const go = el("button", "btn primary wide", hasPlan ? (talksToYou() ? "Manage my plan" : "Manage the plan (for grown-ups)") : plansBtnText()); go.id = "plansGo"; go.type = "button";
     go.addEventListener("click", () => goPlans(renderAll));
     card.append(go);
     if (A.signedIn && !hasPlan) { const acct = el("button", "link-btn", "Sign out or delete the account"); acct.id = "plansAcct"; acct.type = "button"; acct.addEventListener("click", () => openAccount(renderAll)); card.append(acct); }
@@ -5998,6 +6018,11 @@ function syncClass(soon) {
       mine.cname = r.data.class.name; mine.assigned = (r.data.class.assigned || []).slice(0, 40); if (r.data.name) mine.name = r.data.name;
       mine.fullUntil = Number(r.data.class.fullUntil) || 0;
       mine.talks = r.data.class.talks || null;
+      const ages = r.data.class.ages || null;
+      if (ages && ages !== mine.ages) { // the teacher set or changed who the class is for
+        mine.ages = ages;
+        if (applyClassAges(ages)) { save(); renderAll(); if (isLittle()) openLittle(); else if (!$("little").hidden) closeLittle(); }
+      }
       save(true);
       if (JSON.stringify([mine.cname, mine.assigned, mine.fullUntil, mine.talks]) !== before) { renderLessons(); renderReview(); accountChanged(); }
     } else if (r.error === "not_in_class") { S.cls = null; save(); renderLessons(); renderReview(); } // the teacher removed them, or deleted the class
@@ -6063,10 +6088,33 @@ function grownUpGate(id, title, intro, then) {
   inp.focus();
 }
 const CLASS_SHARES = "Your teacher will see the name you type here and your progress: which lessons are done, which days you practised, and your streak. Your talks are never shared. You can leave the class any time from the Review tab.";
-function openJoinClass() {
-  grownUpGate("joinGate", "Joining a class", "A teacher's class can see this learner's first name or nickname and their progress. A grown-up says yes first.", showJoinForm);
+function openJoinClass(prefill) {
+  grownUpGate("joinGate", "Joining a class", "A teacher's class can see this learner's first name or nickname and their progress. A grown-up says yes first.", () => showJoinForm(prefill));
 }
-function showJoinForm() {
+// From the welcome screen, or a link a teacher sent (learnalefba.com/#join=ABC234): the welcome stays underneath until
+// they've joined, so "Not now" goes back to it.
+function joinFromLink(code) { openJoinClass(code); }
+// Who the class is for, set by its teacher, decides this learner's mode: little mode for ages 4 to 6, the children's
+// conversations for 7 to 12, and the teens' and adults' ones for 13 and up. True when that changed anything.
+function applyClassAges(ages) {
+  const want = { little: [false, true], kids: [false, false], teens: [true, false] }[ages];
+  if (!want) return false;
+  const p = S.profile || (S.profile = { skipped: true, goal: 2 });
+  const changed = !!p.adult !== want[0] || !!p.little !== want[1];
+  p.adult = want[0]; p.little = want[1]; p.whoSet = true;
+  if (want[1]) { S.prefs.order = "letters"; if (p.skipped) { delete p.skipped; p.goal = 1; p.at = todayStr(); } } // set up like a little one from the welcome used to be
+  if (changed) buildLevels();
+  return changed;
+}
+// On the welcome screen, where a student with a class code or a teacher sees it straight away.
+function classEntries() {
+  const box = el("div", "ob-extra"); box.id = "obExtra";
+  const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; b.append(el("span", "ob-extra-ic", ic), el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
+  mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => openJoinClass());
+  mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => openTeacher());
+  return box;
+}
+function showJoinForm(prefill) {
   const { wrap, box } = sheetShell("joinSheet", "joinTitle");
   const h = el("h3", null, "Join a class"); h.id = "joinTitle";
   const f = el("form", "sign-step"); f.id = "joinForm"; f.noValidate = true;
@@ -6074,6 +6122,7 @@ function showJoinForm() {
   const code = el("input", "text-input code-input"); code.id = "joinCode"; code.maxLength = 8; code.autocomplete = "off"; code.spellcheck = false; code.setAttribute("autocapitalize", "characters"); code.placeholder = "ABC234";
   const ln = el("label", "gate-q"); ln.htmlFor = "joinName"; ln.append(el("span", null, "Your first name or a nickname"));
   const name = el("input", "text-input"); name.id = "joinName"; name.maxLength = 24; name.autocomplete = "off";
+  if (prefill) code.value = String(prefill).toUpperCase();
   const prof = activeProfile(); name.value = (prof && prof.name) || "";
   const err = el("p", "gate-err"); err.id = "joinErr"; err.hidden = true; err.setAttribute("aria-live", "polite");
   const ok = el("button", "btn primary wide", "Join the class"); ok.id = "joinOk"; ok.type = "submit";
@@ -6089,9 +6138,14 @@ function showJoinForm() {
     const r = await apiPost("/class/join", { code: code.value, name: name.value });
     ok.disabled = false;
     if (r.ok && r.data.token) {
-      S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0, talks: r.data.class.talks || null };
+      S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, ages: r.data.class.ages || null, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0, talks: r.data.class.talks || null };
+      if (!S.profile) S.profile = { skipped: true, goal: 2, adult: false };
+      if (!S.profile.name) S.profile.name = r.data.name;
+      applyClassAges(S.cls.ages);
       save(); wrap.remove();
-      syncClass(true); renderLessons(); renderReview(); showView("lessons");
+      if (!$("onboard").hidden) closeOnboarding();
+      syncClass(true); renderAll();
+      if (isLittle()) openLittle(); else showView("lessons");
       return;
     }
     say({ bad_code: "That code didn't work. Check it with your teacher.", bad_name: "Use just a first name or a nickname, without numbers or an email address.",
@@ -6102,6 +6156,21 @@ function showJoinForm() {
 
 // ----- teacher mode -----
 const TEACH = { cur: null, picked: null };
+// Who a class is for. Each student who joins gets that mode; little mode is only ever turned on this way.
+const CLASS_AGES = [["little", "Ages 4 to 6", "Little mode: big letters to tap and hear, pictures and tracing. No reading needed."],
+  ["kids", "Ages 7 to 12", "The children's lessons, with conversations with classmates, family and friends."],
+  ["teens", "13 and up", "Teens and adults: conversations with friends, coworkers, in-laws and shopkeepers."]];
+function agePicker(cur, onPick) {
+  const row = el("div", "age-picks"); row.setAttribute("role", "group");
+  CLASS_AGES.forEach(([k, t, d]) => {
+    const b = el("button", "age-pick"); b.type = "button"; b.id = "age-" + k; b.setAttribute("aria-pressed", String(cur === k));
+    const tx = el("div"); tx.append(el("b", null, t), el("span", null, d)); b.append(tx);
+    b.addEventListener("click", () => { row.querySelectorAll(".age-pick").forEach(x => x.setAttribute("aria-pressed", String(x === b))); onPick(k); });
+    row.append(b);
+  });
+  return row;
+}
+const joinLink = code => "https://learnalefba.com/#join=" + code;
 function openTeacher() {
   if (!WEB) return;
   if (!(ACCT && ACCT.signedIn)) { openSignIn(() => { renderAll(); if (ACCT && ACCT.signedIn) openTeacher(); }, { teacher: true }); return; }
@@ -6119,10 +6188,11 @@ async function teachList() {
   const m = $("teachMain"); m.replaceChildren();
   if (!r.ok) { m.append(el("p", "note", r.error === "sign_in" ? "Please sign in again from the Plans tab." : "Your classes couldn't be loaded. Try again in a moment.")); return; }
   const list = r.data.classes || [];
-  m.append(el("p", "lead", "Make a class and give your students its code. They join from the Review tab on their own device. Then you can assign lessons and see who's practising."));
+  m.append(el("p", "lead", "Make a class and send your students its link (or its code). They join on their own device, with no sign-up. Then you can assign lessons and see who's practising."));
   list.forEach(c => {
     const b = el("button", "class-row"); b.id = "tcls-" + c.id; b.type = "button";
-    b.append(el("b", null, c.name), el("span", "note", `${c.members} learner${c.members === 1 ? "" : "s"} · code ${c.code}${c.talksUntil > Date.now() ? " · school plan with talks" : c.paidUntil > Date.now() ? " · school plan" : ""}`));
+    const ageT = (CLASS_AGES.find(a => a[0] === c.ages) || [])[1];
+    b.append(el("b", null, c.name), el("span", "note", `${ageT ? ageT + " · " : ""}${c.members} learner${c.members === 1 ? "" : "s"} · code ${c.code}${c.talksUntil > Date.now() ? " · school plan with talks" : c.paidUntil > Date.now() ? " · school plan" : ""}`));
     b.addEventListener("click", () => teachClass(c.id));
     m.append(b);
   });
@@ -6131,16 +6201,18 @@ async function teachList() {
   const inp = el("input", "text-input"); inp.id = "newClassName"; inp.maxLength = 40; inp.autocomplete = "off"; inp.placeholder = "Like: Saturday beginners";
   const err = el("p", "gate-err"); err.id = "newClassErr"; err.hidden = true; err.setAttribute("aria-live", "polite");
   const ok = el("button", "btn primary", "Make the class"); ok.id = "newClassOk"; ok.type = "submit";
-  f.append(lab, inp, err, ok);
+  let ages = null;
+  f.append(lab, inp, el("p", "gate-q", "Who is the class for?"), agePicker(null, k => { ages = k; err.hidden = true; }), err, ok);
   f.addEventListener("submit", async e => {
     e.preventDefault(); err.hidden = true;
     if (!inp.value.trim()) { err.hidden = false; err.textContent = "Give the class a name."; return; }
+    if (!ages) { err.hidden = false; err.textContent = "Pick who the class is for."; return; }
     ok.disabled = true;
-    const r2 = await apiPost("/class/create", { name: inp.value });
+    const r2 = await apiPost("/class/create", { name: inp.value, ages });
     ok.disabled = false;
     if (r2.ok) return teachClass(r2.data.class.id);
     err.hidden = false;
-    err.textContent = { bad_name: "Use a short name, without email addresses or links.", too_many_classes: "You have 20 classes, the most there can be. Delete one first.", sign_in: "Please sign in again from the Plans tab." }[r2.error] || "The class couldn't be made just now. Try again.";
+    err.textContent = { bad_name: "Use a short name, without email addresses or links.", bad_ages: "Pick who the class is for.", too_many_classes: "You have 20 classes, the most there can be. Delete one first.", sign_in: "Please sign in again from the Plans tab." }[r2.error] || "The class couldn't be made just now. Try again.";
   });
   m.append(f);
   const sh = el("section", "teach-sheets"); sh.append(el("h3", null, "Tracing sheets"), el("p", "note", "Print letter tracing homework for your class: dotted letters, their joined shapes, and a word with a picture."), sheetsButton("Make tracing sheets", "teachSheetsBtn"));
@@ -6184,8 +6256,10 @@ async function teachClass(id) {
   const m = $("teachMain"); m.replaceChildren();
   const cb = el("div", "plan-card code-card");
   const code = el("div", "class-code", c.code); code.id = "classCode";
-  cb.append(el("span", "note", "Class code"), code, el("p", "note", "Students go to learnalefba.com, open the Review tab, tap Join a class and type this code."));
-  const invite = `Join our Persian class on Alefba: go to learnalefba.com, open the Review tab, tap "Join a class" and type the code ${c.code}.`;
+  const link = el("p", "invite-link", joinLink(c.code)); link.id = "classLink";
+  cb.append(el("span", "note", "Class code"), code, el("p", "note", "Send students this link. It opens Alefba with the code filled in, and they type their first name:"), link,
+    el("p", "note", "Or they go to learnalefba.com, tap Join your class and type the code."));
+  const invite = `Join our Persian class on Alefba: open ${joinLink(c.code)} and type your first name. (Or go to learnalefba.com, tap "Join your class" and type the code ${c.code}.)`;
   const copy = el("button", "btn quiet", "Copy an invite message"); copy.id = "copyInvite"; copy.type = "button";
   copy.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(invite); copy.textContent = "Copied. Paste it in an email or a message."; }
@@ -6193,6 +6267,15 @@ async function teachClass(id) {
   });
   cb.append(copy);
   m.append(cb);
+  const ag = el("section", "teach-sec"); ag.id = "classAges"; ag.append(el("h3", null, "Who the class is for"));
+  const agMsg = el("p", "note"); agMsg.setAttribute("role", "status");
+  if (!c.ages) agMsg.textContent = "Pick one, and each student gets the right mode when they next open Alefba.";
+  ag.append(agePicker(c.ages || null, async k => {
+    agMsg.textContent = "Saving…";
+    const r2 = await apiPost("/class/ages", { id: c.id, ages: k });
+    if (r2.ok) { c.ages = k; agMsg.textContent = "Saved. Students get this when they next open Alefba."; } else agMsg.textContent = "That didn't save. Try again.";
+  }), agMsg);
+  m.append(ag);
   m.append(schoolPlanSec(c));
   const as = el("section", "teach-sec"); as.append(el("h3", null, "Assigned lessons"));
   if (!c.assigned.length) as.append(el("p", "note", "Nothing assigned yet. Learners carry on with their own lessons."));
@@ -6378,7 +6461,7 @@ function openSignIn(after, opts) {
   const teacher = !!(opts && opts.teacher), restore = !!(opts && opts.restore);
   const grown = isAdult() || teacher || restore; // a teacher or a parent signs in as an adult, whatever this device's learner is
   const { wrap, box } = sheetShell("signInSheet", "signTitle");
-  const h = el("h3", null, teacher ? "Sign in for teacher mode" : restore ? "Sign in" : isAdult() ? "Sign in" : "For a grown-up"); h.id = "signTitle";
+  const h = el("h3", null, teacher ? "Sign in for teacher mode" : restore ? "Sign in" : talksToYou() ? "Sign in" : "For a grown-up"); h.id = "signTitle";
   const free = ACCT && ACCT.free, you = isAdult() ? "you type" : "your child types", yourName = isAdult() ? "your name" : "your child's name";
   if (teacher) box.append(h,
     el("p", null, "Teacher mode is free: make a class, give your students its code, assign lessons and see who's practising."),
@@ -6464,7 +6547,7 @@ function openSignIn(after, opts) {
 // Plans, billing and the account are for grown-ups, so a quick sum comes first.
 function openAccount(after) {
   const { wrap, box } = sheetShell("accountSheet", "acctTitle");
-  const h = el("h3", null, isAdult() ? "Your account" : "For a grown-up"); h.id = "acctTitle";
+  const h = el("h3", null, talksToYou() ? "Your account" : "For a grown-up"); h.id = "acctTitle";
   let a = 0, b = 0;
   const gate = el("form", "sign-step"); gate.id = "acctGate"; gate.noValidate = true;
   const qText = el("span", null, "");
@@ -6801,8 +6884,8 @@ function showTalkError(code) {
     paused: "Talks are taking a rest right now. Try again another day, or practice with the example and phrases.",
     session_expired: "Sign in to Claude again, then try again.",
     refused: `${name} can't answer that. Try writing something else.`,
-    sign_in: isAdult() ? "Sign in again to keep talking." : "A grown-up needs to sign in again to keep talking.",
-    no_talks: isAdult() ? "There are no talks left for now. You can see the plans in the Review tab." : "There are no talks left for now. A grown-up can see the plans in the Review tab.",
+    sign_in: talksToYou() ? "Sign in again to keep talking." : "A grown-up needs to sign in again to keep talking.",
+    no_talks: talksToYou() ? "There are no talks left for now. You can see the plans in the Review tab." : "There are no talks left for now. A grown-up can see the plans in the Review tab.",
     talk_over: "This talk has gone on for a long time. Start a new one!",
     resting: "That's a lot of talking for one day! Come back tomorrow.",
     free_resting: "Free talks are resting for today. Come back tomorrow!",
@@ -6971,6 +7054,8 @@ function renderOB() {
     main.append(el("h2", "ob-title", "Learn to read and speak Persian"));
     main.append(el("p", "ob-sub", "For kids, teens and grown-ups, from complete beginners to people who grew up hearing it."));
     if (WEB) main.append(el("p", "ob-free", `The whole alphabet and the first ${FREE_LEVELS} levels are free. No sign-up needed to start.`)); // the first thing parents ask
+    // students with a class code and teachers: the first thing they see, not something to hunt for
+    if (WEB && WEB.api) main.append(classEntries());
     // what's inside, at a glance (the numbers come from the app itself, so they stay right)
     const cards = el("div", "ob-cards");
     [["الفبا", "The alphabet", `${ALPHA_UNITS.length} short units, letters grouped by shape.`],
@@ -6979,18 +7064,6 @@ function renderOB() {
      ["گفتگو", "Conversations", "Chat with characters at your level, in writing or out loud."]]
       .forEach(([f, t, d]) => { const c = el("div", "ob-card"); c.append(fa("span", "ob-card-fa", f), el("b", null, t), el("span", null, d)); cards.append(c); });
     main.append(cards);
-    // little ones and teachers: easy to find from the first screen
-    const extra = el("div", "ob-extra"); extra.id = "obExtra";
-    const lm = el("button", "ob-extra-btn"); lm.type = "button"; lm.id = "obLittleBtn";
-    lm.append(el("span", "ob-extra-ic", "🧒"), el("b", null, "Ages 4 to 6"), el("span", null, "Little mode: big letters and tracing"));
-    lm.addEventListener("click", () => { OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
-    extra.append(lm);
-    if (WEB && WEB.teachersUrl) { // the whole page for teachers: classes, homework, tracing sheets and privacy
-      const ts = el("a", "ob-extra-btn"); ts.id = "obTeachersBtn"; ts.href = WEB.teachersUrl; ts.target = "_blank"; ts.rel = "noopener";
-      ts.append(el("span", "ob-extra-ic", "✏️"), el("b", null, "Teachers"), el("span", null, "Classes, homework and tracing sheets"));
-      extra.append(ts);
-    }
-    main.append(extra);
     if (S.profile) main.append(el("p", "ob-sub", "Answer a few quick questions and take a short level check, and you'll get a plan that starts at the right place."));
     if (WEB && WEB.parentsUrl) {
       const links = el("p", "ob-links");
@@ -7025,11 +7098,10 @@ function renderOB() {
     main.append(list);
     next.hidden = true;
   } else if (st === "who") {
-    main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "This changes who you talk with in the conversations and how the app speaks to you. Families learning together can pick either. For a little one who can't read yet, there's a simpler mode with pictures and tracing."));
+    main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "This changes who you talk with in the conversations and how the app speaks to you. Families learning together can pick either."));
     const list = el("div", "choice-list");
-    list.append(choiceButton("A child", "Ages 7–14. A parent signs in for the AI talks.", d.adult === false && !d.little, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
-    list.append(choiceButton("An adult", "Teens and grown-ups. Conversations with coworkers, in-laws, shopkeepers and friends.", d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
-    list.append(choiceButton("A little one", "Ages 4–6. Big letters to tap and hear, pictures and tracing. No reading needed.", d.adult === false && !!d.little, () => { d.adult = false; d.little = true; renderOB(); }, "obwho-little"));
+    list.append(choiceButton("A child", "Ages 7 to 12. A parent signs in for the AI talks.", d.adult === false, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
+    list.append(choiceButton("A teen or an adult", "13 and up. Conversations with friends, coworkers, in-laws and shopkeepers.", d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
     main.append(list);
     next.textContent = "Continue"; next.disabled = d.adult == null; next.onclick = () => obGo("name");
   } else if (st === "name") {
@@ -7362,7 +7434,7 @@ function openLocked(ls) {
   const signed = !!(ACCT && ACCT.signedIn);
   box.append(h, el("p", null, `The alphabet and the first ${FREE_LEVELS} levels are free. A plan opens all ${LEVELS.length} levels (${WORDS.length} words and ${CONVS.length} conversations), the AI talks${ACCT && ACCT.hearReady ? (ACCT.voiceReady ? ", speaking practice and spoken conversations" : " and speaking practice") : ""}.`));
   if (ACCT && ACCT.prices) box.append(el("p", "note", `${ACCT.prices.basic} a month, ${ACCT.prices.unlimited} a month for unlimited talks, or ${ACCT.prices.yearly} a year.`));
-  const go = el("button", "btn primary wide", isAdult() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"); go.id = "lockedPlans"; go.type = "button";
+  const go = el("button", "btn primary wide", talksToYou() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"); go.id = "lockedPlans"; go.type = "button";
   go.addEventListener("click", () => { wrap.remove(); (signed ? openAccount : openSignIn)(() => { renderAll(); if (!lessonLocked(ls)) openLesson(ls); }); });
   const no = el("button", "btn quiet wide", "Not now"); no.id = "lockedClose"; no.type = "button"; no.addEventListener("click", () => wrap.remove());
   box.append(go, no);
@@ -7578,7 +7650,7 @@ function renderTalkTab() {
   row.append(easier, harder);
   top.append(row);
   if (aiState === "none" || aiState === "blocked") top.append(el("p", "note", WEB ? "Live talks aren't available right now, so each one shows an example or useful phrases to practice." : "Live conversations need Claude. Without it, each one shows an example or useful phrases to practice."));
-  else if (aiState === "ready" && !grownUpOK()) top.append(el("p", "note", `Live talks use AI, so ${isAdult() ? "you sign in" : "a grown-up signs in"} the first time.${ACCT && ACCT.free ? ` The first ${ACCT.free} talks are free.` : ""}`));
+  else if (aiState === "ready" && !grownUpOK()) top.append(el("p", "note", `Live talks use AI, so ${talksToYou() ? "you sign in" : "a grown-up signs in"} the first time.${ACCT && ACCT.free ? ` The first ${ACCT.free} talks are free.` : ""}`));
   else if (aiState === "ready" && webAccount() && useClassTalks()) top.append(el("p", "note talks-left", classTalksLine() + "."));
   else if (aiState === "ready" && webAccount() && ACCT && ACCT.signedIn) top.append(el("p", "note talks-left", talksLeftText(ACCT) + "."));
   if (canVoiceMode() || (voiceModeLocked() && voiceLocked())) {
@@ -7673,6 +7745,28 @@ function moveNudge(nx) {
   apiPost("/nudge", { token: n.token, next: nudgeNext(nx) }).then(r => { if (r.status === 404) setNudge(null); }); // stopped from the email: forget it
 }
 const NUDGE_ERRORS = { bad_email: "That email address doesn't look right.", agree: "Please tick the box first.", too_many: "That's a lot of tries. Please try again tomorrow.", network: "No internet connection. Try again when you're back online." };
+// After the first lessons, for someone who started straight from the welcome: who's learning? Nothing to sign in to.
+function whoCard() {
+  const c = el("div", "plan-card who-card"); c.id = "whoCard";
+  c.append(el("b", null, "Who's learning Persian?"), el("p", "note", "So the app talks to you the right way. There's nothing to sign up for."));
+  const row = el("div", "who-picks");
+  const set = adult => {
+    S.profile.adult = adult; S.profile.little = false; S.profile.whoSet = true; buildLevels(); save();
+    const nx = nextLesson(), up = $("upNext"); if (up && nx) up.replaceWith(upNextCard(nx)); // the next lesson can differ for a child or an adult
+    const nc = WEB && WEB.api ? nudgeCard(nx) : null;
+    c.replaceWith(nc || el("p", "note good", "Got it, thanks!"));
+    renderAll();
+  };
+  const pick = (id, t, d, fn) => { const b = el("button", "who-pick"); b.type = "button"; b.id = id; b.append(el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); row.append(b); };
+  pick("whoMe", "Me", "I'm 13 or older", () => set(true));
+  pick("whoChild", "A child", "Ages 7 to 12", () => set(false));
+  pick("whoTeacher", "I'm a teacher", "Make a class for my students", () => { set(true); openTeacher(); });
+  c.append(row);
+  const j = el("button", "link-btn", "Have a class code? Join your class"); j.id = "whoJoin"; j.type = "button";
+  j.addEventListener("click", () => { closeLesson(); openJoinClass(); });
+  c.append(j);
+  return c;
+}
 // Not said yet who's learning: the first lesson was started straight from the welcome, without the questions.
 const whoUnknown = () => !!(S.profile && S.profile.skipped && !S.profile.whoSet && !S.profile.little);
 function nudgeCard(nx, fromSettings) {
@@ -8014,7 +8108,7 @@ function renderReview() {
     opts.forEach(([k, t]) => { const b = el("button", "pick", t); b.id = id + "-" + k; b.setAttribute("aria-pressed", String(cur === k)); b.addEventListener("click", () => { onPick(k); save(); renderAll(); }); row.append(b); });
     wrap.append(row); pb.append(wrap);
   };
-  setting("Who's learning", "who", [["child", "A child"], ["adult", "An adult"], ["little", "A little one (4–6)"]], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; S.profile.whoSet = true; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
+  setting("Who's learning", "who", [["child", "A child (7–12)"], ["adult", "A teen or adult"], ...(isLittle() ? [["little", "Little mode (4–6)"]] : [])], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; S.profile.whoSet = true; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
   const famRow = el("div", "setting"); famRow.append(el("span", "setting-lbl", `Learners on this device: ${FAM.learners.map(l => learnerInfo(l.id).name).join(", ")}`));
   const famBtn = el("button", "btn quiet", FAM.learners.length > 1 ? "Switch learner or add one" : "Add another learner"); famBtn.id = "familyBtn"; famBtn.type = "button"; famBtn.addEventListener("click", openFamily);
   famRow.append(famBtn); pb.append(famRow);
@@ -8621,9 +8715,9 @@ if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) 
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
-// links to share: learnalefba.com/#little starts little mode, learnalefba.com/#sheets opens the tracing sheets
+// links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
 if (location.hash === "#sheets" && WEB) openSheets();
-else if (location.hash === "#little" && !isLittle()) { if ($("onboard").hidden) openOnboarding(); OB.draft.adult = false; OB.draft.little = true; obGo("name"); }
+else if (/^#join=/i.test(location.hash) && WEB) { const jc = decodeURIComponent(location.hash.slice(6)).slice(0, 12); history.replaceState(null, "", location.pathname); joinFromLink(jc); }
 findVoice();
 try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
 checkMp3();
