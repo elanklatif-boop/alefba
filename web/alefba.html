@@ -908,6 +908,14 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .little-world { position: relative; aspect-ratio: 1 / 1; border: 0; border-radius: 26px; background: var(--u); color: var(--ink); cursor: pointer; display: grid; place-items: center; align-content: center; gap: 4px; font: inherit; box-shadow: 0 4px 0 color-mix(in srgb, var(--u) 70%, #000); }
 .little-world .ic { font-size: 4rem; line-height: 1.1; }
 .little-world .w { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.3; color: var(--muted-strong); }
+.little-menu { display: grid; gap: 14px; }
+.little-act { aspect-ratio: auto; grid-template-columns: auto 1fr; justify-items: start; text-align: start; column-gap: 16px; padding: 18px 20px; place-items: center start; }
+.little-act .ic { grid-row: span 3; font-size: 3.4rem; }
+.little-act .w { font-size: 1.5rem; }
+.little-world .lw-en { font-size: 1rem; font-weight: 600; color: var(--ink); }
+.little-act .d { font-size: 0.9rem; color: var(--muted); }
+.little-world .star { position: absolute; top: 10px; inset-inline-end: 12px; font-size: 1.3rem; }
+.little-hint { text-align: center; color: var(--muted); font-size: 0.95rem; margin: 0 0 10px; }
 .little-world .stars { display: flex; gap: 2px; font-size: 1.1rem; color: color-mix(in srgb, var(--muted) 45%, transparent); }
 .little-world .stars .on { color: #f2b23c; }
 .little-world:active, .little-game:active, .little-opt:active, .little-mcard:active, .little-card-big:active { transform: translateY(3px); box-shadow: none; }
@@ -1176,7 +1184,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
     <div class="little-stars" id="littleStars"></div>
     <button class="little-grown" id="littleGrown" type="button" aria-label="For grown-ups. Press and hold"><span class="fill" aria-hidden="true"></span>Grown-ups: hold</button>
   </div></div>
-  <div class="ov-body" id="littleBody"><div class="shell gutter little-main" id="littleMain"></div></div>
+  <div class="ov-body" id="littleBody"><div class="shell gutter"><p class="little-hint" id="littleHint" hidden></p></div><div class="shell gutter little-main" id="littleMain"></div></div>
 </div>
 
 <div class="overlay" id="sheets" hidden>
@@ -6106,11 +6114,12 @@ function applyClassAges(ages) {
   if (changed) buildLevels();
   return changed;
 }
-// On the welcome screen, where a student with a class code or a teacher sees it straight away.
+// On the welcome screen, where a student with a class code, a family with a little one, or a teacher sees it straight away.
 function classEntries() {
   const box = el("div", "ob-extra"); box.id = "obExtra";
   const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; b.append(el("span", "ob-extra-ic", ic), el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
   mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => openJoinClass());
+  mk("obLittleBtn", "🧒", "Little one (3 to 6)", "Flashcards, picture games and tracing. No reading needed.", () => { OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
   mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => openTeacher(true));
   return box;
 }
@@ -7371,7 +7380,7 @@ function finishLittleOB() {
   S.prefs.order = "letters";
   buildLevels(); save();
   closeOnboarding();
-  openLittle(); setTimeout(() => sayEn("Tap a letter!"), 300);
+  openLittle();
 }
 function finishWithoutCheck() {
   const prev = activeProfile() && activeProfile().placed;  // redoing the setup without the check keeps the earlier result
@@ -8231,17 +8240,11 @@ function enVoice() {
     return vs.find(v => /^en[-_](US|GB)/i.test(v.lang) && /samantha|jenny|aria|zira|female|google us/i.test(v.name)) || vs.find(v => /^en[-_]/i.test(v.lang)) || null;
   } catch (e) { return null; }
 }
+// Little mode has no computer voice: what to do is a short line on screen (for the grown-up helping), and only the
+// Persian words are heard.
 function sayEn(text, after) {
-  const id = ++SOUND_ID, next = () => { if (after && id === SOUND_ID) after(); };
-  try { PLAYER.onended = null; PLAYER.pause(); } catch (e) {}
-  try {
-    if (!window.speechSynthesis) return next();
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text); u.lang = "en-US";
-    const v = enVoice(); if (v) u.voice = v;
-    u.rate = 0.95; u.pitch = 1.1; u.onend = next; u.onerror = next;
-    speechSynthesis.speak(u);
-  } catch (e) { next(); }
+  const h = $("littleHint"); if (h) { h.textContent = text || ""; h.hidden = !text; }
+  if (after) setTimeout(after, 0);
 }
 function littleBtn(cls, icon, label, onClick) {
   const b = el("button", cls); b.type = "button"; b.innerHTML = icon; b.setAttribute("aria-label", label); b.title = label;
@@ -8279,46 +8282,58 @@ function littleGameDone(id, game) {
 const littleStarCount = () => Object.keys(littleDone()).length + Object.values((S.little && S.little.games) || {}).reduce((n, g) => n + Object.keys(g).length, 0);
 // the round button at the top left goes back one step: from a game to its world, from a world to the worlds
 function littleBack(to) { const b = $("littleHome"); b.hidden = !to; b.onclick = to || null; }
-function littleHome(talk) {
+// The first screen is a menu: flashcards, games, or the letters. Words in English for the grown-up, Persian for the child.
+const LITTLE_MENU = [["cards", "🃏", "کارت‌ها", "Flashcards", "Pictures and their words"], ["games", "🎲", "بازی‌ها", "Games", "Where is it? and Memory"], ["letters", "✏️", "الفبا", "Letters", "Tap, hear and trace"]];
+let LITTLE_FROM = "cards"; // which activity the topics were picked for, so Back goes to the right place
+function littleHome() {
   LITTLE = { g: null, tracer: null, tries: 0 };
-  littleStars(); littleBack(null);
+  littleStars(); littleBack(null); sayEn("");
   const m = $("littleMain"); m.replaceChildren();
-  const hi = el("div", "little-hello");
-  hi.append(fa("span", "little-title", "الفبا"), littleBtn("little-say", ICON.sound, "Hear what to do", () => sayEn("Pick a picture!")));
-  m.append(hi);
-  const grid = el("div", "little-worlds");
-  LITTLE_WORLDS.forEach(w => {
-    const n = w.id === "letters" ? Math.min(3, Math.floor(Object.keys(littleDone()).length / 4)) : Object.keys(littleGamesDone(w.id)).length;
-    const b = el("button", "little-world"); b.type = "button"; b.id = "lw-" + w.id; b.style.setProperty("--u", w.tone);
-    b.setAttribute("aria-label", w.en + (n ? `, ${n} of 3 stars` : ""));
-    b.append(el("span", "ic", w.icon), fa("span", "w", w.fa));
-    const st = el("span", "stars"); for (let k = 0; k < 3; k++) st.append(el("i", k < n ? "on" : "", "★")); b.append(st);
-    b.addEventListener("click", () => (w.id === "letters" ? littleLetters(true) : littleWorld(w.id, true)));
+  const hi = el("div", "little-hello"); hi.append(fa("span", "little-title", "الفبا")); m.append(hi);
+  const grid = el("div", "little-menu");
+  LITTLE_MENU.forEach(([k, ic, f, en, d]) => {
+    const b = el("button", "little-world little-act"); b.type = "button"; b.id = "lm-" + k;
+    b.style.setProperty("--u", { cards: "var(--good-soft)", games: "var(--rose-soft)", letters: "var(--saffron-soft)" }[k]);
+    b.setAttribute("aria-label", en);
+    b.append(el("span", "ic", ic), fa("span", "w", f), el("span", "lw-en", en), el("span", "d", d));
+    b.addEventListener("click", () => (k === "letters" ? littleLetters() : k === "games" ? littleGamesMenu() : littleTopics("cards")));
     grid.append(b);
   });
   m.append(grid);
   $("littleBody").scrollTop = 0;
-  if (talk) sayEn("Pick a picture!");
 }
-function littleWorld(id, talk) {
-  const w = LITTLE_WORLDS.find(x => x.id === id); if (!w) return littleHome();
-  LITTLE = { g: null, tracer: null, tries: 0, world: id };
-  littleStars(); littleBack(() => littleHome(true));
+function littleGamesMenu() {
+  LITTLE = { g: null, tracer: null, tries: 0 };
+  littleStars(); littleBack(() => littleHome()); sayEn("Pick a game");
   const m = $("littleMain"); m.replaceChildren();
-  const head = el("div", "little-wtop"); head.style.setProperty("--u", w.tone);
-  head.append(el("span", "ic", w.icon), fa("span", "w", w.fa));
-  m.append(head);
-  const done = littleGamesDone(id), row = el("div", "little-games");
-  LITTLE_GAMES.forEach(([g, ic, label]) => {
+  const row = el("div", "little-games");
+  LITTLE_GAMES.filter(x => x[0] !== "cards").forEach(([g, ic, label]) => {
     const b = el("button", "little-game"); b.type = "button"; b.id = "lg-" + g; b.setAttribute("aria-label", label);
     b.append(el("span", "ic", ic), el("span", "lbl", label));
-    if (done[g]) b.append(el("span", "star", "⭐"));
-    b.addEventListener("click", () => ({ cards: littleCards, where: littleWhere, memory: littleMemory })[g](id));
+    b.addEventListener("click", () => littleTopics(g));
     row.append(b);
   });
   m.append(row);
   $("littleBody").scrollTop = 0;
-  if (talk) sayEn("Pick a game!");
+}
+// the topics (animals, colours, family, food, my body) for flashcards or a game
+function littleTopics(kind) {
+  LITTLE_FROM = kind;
+  LITTLE = { g: null, tracer: null, tries: 0 };
+  littleStars(); littleBack(() => (kind === "cards" ? littleHome() : littleGamesMenu())); sayEn(kind === "cards" ? "Pick a topic" : "Pick a topic to play");
+  const m = $("littleMain"); m.replaceChildren();
+  const grid = el("div", "little-worlds");
+  LITTLE_WORLDS.filter(w => w.id !== "letters").forEach(w => {
+    const got = !!littleGamesDone(w.id)[kind];
+    const b = el("button", "little-world"); b.type = "button"; b.id = "lw-" + w.id; b.style.setProperty("--u", w.tone);
+    b.setAttribute("aria-label", w.en + (got ? ", got a star" : ""));
+    b.append(el("span", "ic", w.icon), fa("span", "w", w.fa), el("span", "lw-en", w.en));
+    if (got) b.append(el("span", "star", "⭐"));
+    b.addEventListener("click", () => ({ cards: littleCards, where: littleWhere, memory: littleMemory })[kind](w.id));
+    grid.append(b);
+  });
+  m.append(grid);
+  $("littleBody").scrollTop = 0;
 }
 // the end of a game: a big star, then play again or go back to the world
 function littleWin(id, game, again) {
@@ -8328,16 +8343,16 @@ function littleWin(id, game, again) {
   box.append(el("div", "big", "🌟"), fa("div", "w", "آفرین!"));
   const row = el("div", "little-tools");
   const a = littleBtn("little-round", ICON.replay, "Play again", again); a.id = "littleAgainGame";
-  const n = littleBtn("little-round next pulse", LITTLE_ICON.next, "Back to the games", () => littleWorld(id, true)); n.id = "littleWinNext";
+  const n = littleBtn("little-round next pulse", LITTLE_ICON.next, "Back", () => littleTopics(LITTLE_FROM)); n.id = "littleWinNext";
   row.dir = "rtl"; row.append(n, a); box.append(row); m.append(box);
   setTimeout(() => sayEn(pick(["Great job!", "Wonderful!", "You did it!"])), 400);
 }
 // Picture cards: one big picture at a time; it says its word, and says it again when tapped
 function littleCards(id) {
   const w = LITTLE_WORLDS.find(x => x.id === id), Ws = worldWords(w);
-  if (!Ws.length) return littleWorld(id);
+  if (!Ws.length) return littleTopics(LITTLE_FROM);
   let i = 0; const seen = new Set();
-  littleBack(() => littleWorld(id, true));
+  littleBack(() => littleTopics(LITTLE_FROM));
   const show = () => {
     const W = Ws[i]; seen.add(i);
     const m = $("littleMain"); m.replaceChildren();
@@ -8361,8 +8376,8 @@ function littleCards(id) {
 // Where is it? The word plays, and the child taps its picture out of three. Six rounds.
 function littleWhere(id) {
   const w = LITTLE_WORLDS.find(x => x.id === id), Ws = worldWords(w);
-  if (Ws.length < 3) return littleWorld(id);
-  littleBack(() => littleWorld(id, true));
+  if (Ws.length < 3) return littleTopics(LITTLE_FROM);
+  littleBack(() => littleTopics(LITTLE_FROM));
   const rounds = shuffle(Ws.slice()).slice(0, 6);
   let r = 0, first = true;
   const ask = () => {
@@ -8393,8 +8408,8 @@ function littleWhere(id) {
 // Memory: four pairs of picture cards face down. Each card says its word when it turns over.
 function littleMemory(id) {
   const w = LITTLE_WORLDS.find(x => x.id === id), Ws = shuffle(worldWords(w)).slice(0, 4);
-  if (Ws.length < 2) return littleWorld(id);
-  littleBack(() => littleWorld(id, true));
+  if (Ws.length < 2) return littleTopics(LITTLE_FROM);
+  littleBack(() => littleTopics(LITTLE_FROM));
   const deck = shuffle([...Ws, ...Ws]); let open = [], found = 0, busy = false;
   const m = $("littleMain"); m.replaceChildren();
   const grid = el("div", "little-memory");
@@ -8416,12 +8431,9 @@ function littleMemory(id) {
 }
 function littleLetters(talk) {
   LITTLE = { g: null, tracer: null, tries: 0 };
-  littleBack(() => littleHome(true));
-  littleStars();
+  littleBack(() => littleHome());
+  littleStars(); sayEn("Tap a letter to hear it and trace it");
   const m = $("littleMain"); m.replaceChildren();
-  const hi = el("div", "little-hello");
-  hi.append(fa("span", "little-title", "الفبا"), littleBtn("little-say", ICON.sound, "Hear what to do", () => sayEn("Tap a letter!")));
-  m.append(hi);
   ALPHA_UNITS.forEach((u, i) => {
     const row = el("div", "little-unit"); row.dir = "rtl"; row.style.setProperty("--u", LITTLE_TONES[i % LITTLE_TONES.length]);
     Array.from(u.letters).forEach(g => {
@@ -8437,7 +8449,6 @@ function littleLetters(talk) {
     m.append(row);
   });
   $("littleBody").scrollTop = 0;
-  if (talk) sayEn("Tap a letter!");
 }
 function littleLetter(g) {
   const L = BY_GLYPH[g], lw = littleWord(g), W = lw && lw.W, pic = lw && lw.pic, n = LITTLE_LETTERS.length, i = LITTLE_LETTERS.indexOf(g);
