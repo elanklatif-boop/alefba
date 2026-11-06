@@ -130,7 +130,7 @@ with sync_playwright() as p:
     check("learner chip shows the name", pg.inner_text("#learnerBtn").strip() == "Elan")
     pg.click("#learnerBtn"); pg.wait_for_timeout(200); pg.click("#addLearnerBtn"); pg.wait_for_timeout(400)
     check("adding a learner starts the welcome for them", not pg.is_hidden("#onboard") and pg.evaluate("Object.keys(S.done).length") == 0)
-    pg.click("#obAlt"); pg.wait_for_timeout(300); check("Try the first lesson opens a lesson", pg.is_visible("#lesson")); pg.evaluate("closeLesson()"); pg.wait_for_timeout(200); pg.click("#learnerBtn"); pg.wait_for_timeout(200)
+    pg.click("#obAlt"); pg.wait_for_timeout(300); pg.click("#obfirst-no"); pg.wait_for_timeout(300); check("Try the first lesson opens a lesson", pg.is_visible("#lesson")); pg.evaluate("closeLesson()"); pg.wait_for_timeout(200); pg.click("#learnerBtn"); pg.wait_for_timeout(200)
     check("both learners are listed", pg.locator(".learner-row").count() == 2)
     pg.click("#learner-main"); pg.wait_for_timeout(300)
     check("switching back restores Elan's progress", pg.inner_text("#learnerBtn").strip() == "Elan" and pg.evaluate("Object.keys(S.done).length") == 1)

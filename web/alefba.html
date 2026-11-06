@@ -3922,7 +3922,57 @@ function buildLesson(lesson) {
   if (front.length) seq.unshift(...front);
   return seq;
 }
+// The very first lesson, in two versions. Someone new to Persian learns two letters, sees them join, and reads two
+// real words. Someone who already speaks some reads words they've heard all their life, finding a letter in each,
+// and ends with how people really say a word. The letters left out come in the next lesson.
+const wordByTr = tr => WORDS.find(W => W.tr === tr);
+function exHearLetter(L, Ls) {
+  const o = shuffle(Ls.map(x => x[0])), i = o.indexOf(L[0]);
+  return { type: "choice", title: "Which letter do you hear?", listen: true, options: o.map(t => ({ t, fa: true })), answer: i, key: "listen:" + lid(L), audio: letterAudio(L), reveal: ["", `That was ${L[1]}: `, L[0], "."] };
+}
+function exFindLetter(W, L, Ls) {
+  const o = shuffle(Ls.map(x => x[0])), i = o.indexOf(L[0]);
+  return { type: "choice", title: `Which letter makes the “${tileSound(L)}” sound?`, sub: `In ${W.tr}:`, glyph: W.fa, word: true, hear: true, options: o.map(t => ({ t, fa: true })), answer: i, key: "letter:" + lid(L), audio: wordAudio(W), reveal: [L[0], ` is ${L[1]}, the ${tileSound(L)} in ${W.tr}.`] };
+}
+function tasterNew(lesson) {
+  const A = BY_GLYPH["ا"], B = BY_GLYPH["ب"], bb = wordByTr("bâbâ"), ab = wordByTr("âb");
+  if (!bb || !ab) return null;
+  const seq = [
+    { type: "introLetter", L: A, audio: letterAudio(A), lite: true },
+    { type: "introLetter", L: B, audio: letterAudio(B), lite: true },
+    exHearLetter(B, [A, B]),
+    exHearLetter(A, [A, B]),
+    { type: "tip", title: "Letters join together", art: "ب + ا = با", text: "Most letters join onto the letter after them. Here be joins onto alef and makes bâ. Persian is read from right to left." },
+    { type: "readWord", W: bb, audio: wordAudio(bb) },
+    { type: "tip", title: "Alef with a hat", art: "آ", text: "At the start of a word, alef sometimes wears a little hat. Then it always says â, like the a in father." },
+    { type: "readWord", W: ab, audio: wordAudio(ab) },
+  ];
+  seq.later = { unit: lesson.unit.index, letters: lesson.letters.map(L => L[0]).filter(g => !"اب".includes(g)) };
+  seq.finishTitle = "You just read your first Persian words!";
+  return seq;
+}
+function tasterHeard(lesson) {
+  const [A, B, M, N] = ["ا", "ب", "م", "ن"].map(g => BY_GLYPH[g]);
+  const bb = wordByTr("bâbâ"), mm = wordByTr("mâmân"), ab = wordByTr("âb"), nn = wordByTr("nân"), rain = wordByTr("bârân");
+  if (!bb || !mm || !ab || !nn) return null;
+  const seq = [
+    { type: "heardWord", W: bb, audio: wordAudio(bb), focus: ["ب", "ا"], focusText: "It's two letters, be (b) and alef (â), read from right to left:" },
+    exFindLetter(bb, B, [A, B]),
+    { type: "heardWord", W: mm, audio: wordAudio(mm), focus: ["م", "ن"], focusText: "Two new letters here, mim (m) and nun (n):" },
+    exFindLetter(mm, M, [A, M, N]),
+    { type: "heardWord", W: ab, audio: wordAudio(ab), focus: ["آ"], focusText: "آ is alef with a little hat. It always says â:" },
+    { type: "readWord", W: nn, audio: wordAudio(nn) },
+  ];
+  if (rain && rain.two) seq.push({ type: "introWord", W: rain, audio: wordAudio(rain), tag: "How you really say it" });
+  seq.later = { unit: lesson.unit.index, letters: lesson.letters.map(L => L[0]).filter(g => !"اب".includes(g)) };
+  seq.finishTitle = "You read 4 words you already knew!";
+  return seq;
+}
 function buildTaster(lesson) {
+  if (lesson.kind === "meet" && lesson.unit && lesson.unit.index === 0 && S.profile && S.profile.first) {
+    const t = S.profile.first === "heard" ? tasterHeard(lesson) : tasterNew(lesson);
+    if (t) return t;
+  }
   const seq = [];
   if (lesson.kind === "meet") {
     const Ls = lesson.letters.slice(0, 3), seen = [];
@@ -4348,7 +4398,7 @@ function closeOverlay(id) {
 // queue is given for one-off practice (like writing a single letter from the Alphabet tab)
 function startLesson(lesson, queue, reviewName) {
   const q = queue || (lesson ? buildLesson(lesson) : buildReview());
-  R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "", later: q.later || null, usedLater: !!q.usedLater };
+  R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "", later: q.later || null, usedLater: !!q.usedLater, finishTitle: q.finishTitle || null };
   if (lesson && !lesson.practice) count("lesson_start");
   openOverlay("lesson");
   showExercise();
@@ -4567,14 +4617,29 @@ function showExercise() {
       [["Name", L[1]], ["Sound", L[2]]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
       box.append(facts);
       const W = LETTER_EXAMPLE[L[0]];
-      if (W) box.append(mixed(["", "Like in ", W.fa, endDot(` (${W.tr}), which means ${W.m}`)], "ex-sub letter-example"));
+      if (W && !ex.lite) box.append(mixed(["", "Like in ", W.fa, endDot(` (${W.tr}), which means ${W.m}`)], "ex-sub letter-example"));
     }
-    const row = el("div", "cells");
-    formsOf(L[0]).forEach(([pos, shape]) => { const c = el("div", "cell"); c.append(fa("span", "fa", shape), el("span", "pos", pos)); row.append(c); });
-    box.append(row);
+    if (!ex.lite) {
+      const row = el("div", "cells");
+      formsOf(L[0]).forEach(([pos, shape]) => { const c = el("div", "cell"); c.append(fa("span", "fa", shape), el("span", "pos", pos)); row.append(c); });
+      box.append(row);
+    }
     // a new letter: its name
     const after = ex.type === "introLetter" ? () => sayLetterHelp(L) : null;
     if (hasAudio(ex.audio)) { box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
+    return setMain("Continue", true);
+  }
+  if (ex.type === "heardWord") {
+    const W = ex.W, focus = new Set(ex.focus || []);
+    const tag = el("span", "ex-tag", "A word you know");
+    if (isReal(ex.audio)) tag.append(el("span", "rv", "real voice"));
+    box.append(tag, el("h2", "ex-title", `You know this word: ${W.tr}`));
+    box.append(fa("div", "glyph word", W.fa));
+    const letters = Array.from(W.fa), row = el("div", "cells read-cells");
+    row.style.gridTemplateColumns = `repeat(${letters.length}, minmax(0, 66px))`;
+    letters.forEach(g => { const L = BY_GLYPH[g]; const c = el("div", "cell" + (focus.has(g) ? " lit" : "")); c.append(fa("span", "fa", g), el("span", "pos", L ? tileSound(L) : "â")); row.append(c); });
+    box.append(el("p", "ex-sub letters-lbl", ex.focusText || "Its letters, from right to left:"), row);
+    if (hasAudio(ex.audio)) { box.append(playButton(ex.audio, false, "Hear it again")); speak(ex.audio); }
     return setMain("Continue", true);
   }
   if (ex.type === "readWord") {
@@ -5076,7 +5141,7 @@ function finishLesson() {
     d.append(el("h2", null, "Nice writing!"));
     d.append(el("p", null, "Come back and write any letter you like from the Alphabet tab."));
   } else {
-    d.append(el("h2", null, R.game ? "Well played!" : R.lesson ? (firstTime ? "Lesson finished" : "Lesson reviewed") : R.reviewName ? `${R.reviewName} reviewed` : "Review finished"));
+    d.append(el("h2", null, R.game ? "Well played!" : R.lesson ? (firstTime ? R.finishTitle || "Lesson finished" : "Lesson reviewed") : R.reviewName ? `${R.reviewName} reviewed` : "Review finished"));
     if (R.graded) d.append(el("p", null, `${R.graded - R.mistakes} of ${R.graded} right the first time.`));
     if (R.missed.length) {
       d.append(el("p", null, "Worth another look:"));
@@ -6639,7 +6704,7 @@ function renderOB() {
   $("obBody").scrollTop = 0;
   next.hidden = false; next.disabled = false; next.onclick = null;
   alt.hidden = true; alt.onclick = null; alt.classList.remove("as-btn", "lead"); next.classList.remove("second");
-  $("obBack").hidden = !OB_FLOW.includes(st); $("obSignIn").hidden = true;
+  $("obBack").hidden = !OB_FLOW.includes(st) && st !== "first"; $("obSignIn").hidden = true;
   if (OB_FLOW.includes(st)) OB_FLOW.forEach((s, k) => steps.append(el("i", k <= OB_FLOW.indexOf(st) ? "on" : "")));
   if (st === "welcome") {
     main.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"));
@@ -6690,8 +6755,15 @@ function renderOB() {
       // a first visit: straight into the short first lesson is the big button (most visitors want to try it, not
       // answer questions); "Find my level" stays, as the smaller one under it
       alt.textContent = "Start learning: 2 minutes"; alt.classList.add("as-btn", "lead"); next.classList.add("second");
-      alt.onclick = () => { S.profile = { skipped: true, goal: 2, adult: false }; buildLevels(); save(); closeOnboarding(); const ls = nextLesson(); if (ls) openLesson(ls); };
+      alt.onclick = () => obGo("first");
     }
+  } else if (st === "first") {
+    main.append(el("h2", "ob-title", "Do you already speak some Persian?"), el("p", "ob-sub", "So your first lesson fits you. It takes about 2 minutes."));
+    const list = el("div", "choice-list");
+    list.append(choiceButton("Yes, a little or a lot", "You'll read words you already know, like bâbâ and mâmân.", false, () => startFirst("heard"), "obfirst-yes"));
+    list.append(choiceButton("No, I'm new to Persian", "You'll learn two letters and read your first words.", false, () => startFirst("new"), "obfirst-no"));
+    main.append(list);
+    next.hidden = true;
   } else if (st === "who") {
     main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "This changes who you talk with in the conversations and how the app speaks to you. Families learning together can pick either. For a little one who can't read yet, there's a simpler mode with pictures and tracing."));
     const list = el("div", "choice-list");
@@ -6946,6 +7018,14 @@ function saveProfile(p) {
 // The profile (and so the child or adult conversations) is saved first, then the placement marks lessons, so the
 // marks land on the conversations the learner will actually see.
 function finishCheck() { const p = placementFrom(OB.test); saveProfile(p); applyPlacement(p); save(); renderAll(); obGo("plan"); }
+// The first lesson straight away, after one question: does this learner already speak some Persian?
+function startFirst(kind) {
+  const heard = kind === "heard";
+  S.profile = { skipped: true, goal: 2, adult: false, first: kind };
+  S.speak = heard ? 2 : 0; S.prefs.en = !heard; S.prefs.order = "letters";
+  buildLevels(); save(); closeOnboarding();
+  const ls = nextLesson(); if (ls) openLesson(ls);
+}
 // A little one skips the questions and the level check: their lessons are the letters, in little mode.
 function finishLittleOB() {
   const d = OB.draft;
