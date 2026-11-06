@@ -887,6 +887,12 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .little-card { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--saffron-soft); border-radius: 18px; padding: 14px 16px; }
 .little-card p { margin: 0; }
 #alphaMode .sheets-link { margin-inline-start: auto; }
+.mic-steps { display: grid; gap: 4px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.mic-steps ol { margin: 0; padding-inline-start: 1.3em; display: grid; gap: 4px; }
+.mic-others { display: grid; gap: 8px; }
+.mic-others summary { cursor: pointer; color: var(--lapis-text); font-weight: 600; }
+.mic-others[open] { gap: 8px; }
+.mic-others .mic-steps { margin-top: 8px; }
 .little-home[hidden] { display: grid !important; visibility: hidden; }
 .little-worlds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 @media (min-width: 640px) { .little-worlds { grid-template-columns: repeat(3, 1fr); } }
@@ -3394,7 +3400,7 @@ const STOP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6"
 // Why a clip couldn't be checked, in words for a child (or the grown-up nearby).
 function micTrouble(e) {
   const name = e && (e.name || e.error || e.code);
-  if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") return { text: isAdult() ? "The microphone is off for Alefba. You can allow it in the browser's settings." : "The microphone is off for Alefba. A grown-up can allow it in the browser's settings.", stop: true };
+  if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") return { text: isAdult() || whoUnknown() ? "The microphone is off for Alefba. Here's how to turn it on." : "The microphone is off for Alefba. A grown-up can turn it on.", stop: true, help: true };
   if (name === "NotFoundError" || name === "DevicesNotFoundError") return { text: "This device doesn't seem to have a microphone.", stop: true };
   if (name === "needs_plan") return { text: "Saying it out loud comes with a plan.", stop: false, plan: true };
   if (name === "sign_in") return { text: isAdult() ? "Sign in again to say it out loud." : "A grown-up needs to sign in again for speaking.", stop: false, plan: true };
@@ -3402,6 +3408,51 @@ function micTrouble(e) {
   if (name === "resting") return { text: "That's lots of speaking for today! There's more tomorrow.", stop: true };
   if (name === "too_long") return { text: "That was a bit long. Try saying just the word.", stop: false };
   return { text: "That couldn't be checked just now. Let's try again in a moment.", stop: false };
+}
+
+// When the browser has the microphone switched off for Alefba: the steps to turn it on, for the browser and
+// device this is (with the others a tap away), then a reload so the browser asks again.
+function micBrowser() {
+  const ua = navigator.userAgent || "", ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) return /CriOS/.test(ua) ? "ios-chrome" : /FxiOS|EdgiOS/.test(ua) ? "ios-other" : "ios-safari";
+  if (/Android/.test(ua)) return /Firefox/.test(ua) ? "firefox" : "android-chrome";
+  if (/Firefox\//.test(ua)) return "firefox";
+  if (/Edg\//.test(ua)) return "edge";
+  if (/Chrome\//.test(ua)) return "chrome";
+  if (/Safari\//.test(ua)) return "mac-safari";
+  return "chrome";
+}
+const MIC_STEPS = {
+  "chrome": ["Chrome on a computer", ["Click the small icon just left of the web address. It looks like two sliders, or a lock.", "Find Microphone and switch it on, or choose Allow.", "Reload the page."]],
+  "edge": ["Edge", ["Click the lock icon just left of the web address.", "Find Microphone and choose Allow.", "Reload the page."]],
+  "mac-safari": ["Safari on a Mac", ["In the menu bar at the top, click Safari, then Settings for learnalefba.com.", "Next to Microphone, choose Allow.", "Reload the page."]],
+  "firefox": ["Firefox", ["Click the microphone with a line through it, at the left of the address bar.", "Click the × next to Blocked, so it isn't blocked any more.", "Reload the page, and choose Allow when it asks."]],
+  "ios-safari": ["Safari on an iPhone or iPad", ["Tap the aA button at the left of the address bar.", "Tap Website Settings.", "Set Microphone to Allow, then reload the page."]],
+  "ios-chrome": ["Chrome on an iPhone or iPad", ["Open the Settings app, scroll down and tap Chrome.", "Turn on Microphone.", "Come back to Alefba and reload the page."]],
+  "ios-other": ["A browser on an iPhone or iPad", ["Open the Settings app, scroll down and tap your browser.", "Turn on Microphone.", "Come back to Alefba and reload the page."]],
+  "android-chrome": ["Chrome on Android", ["Tap the small icon just left of the web address.", "Tap Permissions, then Microphone, and choose Allow.", "Reload the page."]],
+};
+function micSteps(k) {
+  const [name, steps] = MIC_STEPS[k] || MIC_STEPS.chrome, box = el("div", "mic-steps");
+  box.append(el("b", null, name));
+  const ol = el("ol"); steps.forEach(t => ol.append(el("li", null, t))); box.append(ol);
+  return box;
+}
+function openMicHelp() {
+  const { wrap, box } = sheetShell("micHelpSheet", "micHelpTitle");
+  const h = el("h3", null, "Turn on the microphone"); h.id = "micHelpTitle";
+  box.append(h, el("p", null, isAdult() || whoUnknown() ? "Alefba uses the microphone to hear you say words. Right now your browser has it switched off for this site. To turn it on:" : "Alefba uses the microphone to hear you say words. Right now the browser has it switched off for this site. A grown-up can turn it on:"));
+  const mine = micBrowser(); box.append(micSteps(mine));
+  const others = el("details", "mic-others"); others.append(el("summary", null, "Using a different browser?"));
+  Object.keys(MIC_STEPS).filter(k => k !== mine).forEach(k => others.append(micSteps(k)));
+  box.append(others);
+  const ua = navigator.userAgent || "";
+  if (!/iPhone|iPad|iPod|Android/.test(ua) && !(navigator.maxTouchPoints > 1)) box.append(el("p", "note", /Mac/.test(ua)
+    ? "Still not working? Open System Settings, then Privacy & Security, then Microphone, and turn it on for your browser."
+    : "Still not working? Open your computer's Settings, then Privacy & security, then Microphone, and turn on microphone access for your browser."));
+  const re = el("button", "btn primary wide", "I've turned it on: reload the page"); re.id = "micHelpReload"; re.type = "button"; re.addEventListener("click", () => location.reload());
+  const no = el("button", "btn quiet wide", "Not now"); no.id = "micHelpClose"; no.type = "button"; no.addEventListener("click", () => wrap.remove());
+  box.append(re, no); re.focus();
 }
 
 // ================= HELPERS =================
@@ -5057,6 +5108,10 @@ function sayTrouble(mic, heard, t) {
   mic.classList.remove("rec"); mic.disabled = false; mic.innerHTML = MIC_ICON; mic.append(document.createTextNode("Tap, then say it"));
   heard.hidden = false; heard.textContent = t.text;
   if (t.stop) { SAY.off = true; mic.hidden = true; R.phase = "result"; feedback("info", "Let's skip the speaking for now.", null); setMain("Continue", true); }
+  if (t.help) {
+    const b = el("button", "link-btn", "How to turn on the microphone"); b.id = "micHelpBtn"; b.type = "button"; b.addEventListener("click", openMicHelp);
+    heard.after(b); openMicHelp();
+  }
 }
 function giveUp() {
   if (!R || R.phase !== "answer") return;
@@ -8330,7 +8385,7 @@ $("talkMic").addEventListener("click", async () => {
   mic.classList.add("rec"); mic.innerHTML = STOP_ICON; inp.placeholder = "Listening… tap the square when done";
   let wav;
   try { TALK_REC = await recordClip(10000); wav = await TALK_REC.done; }
-  catch (e) { TALK_REC = null; TALK_MIC_BUSY = false; mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; if (!stillHere()) return; const t = micTrouble(e); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } return; }
+  catch (e) { TALK_REC = null; TALK_MIC_BUSY = false; mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; if (!stillHere()) return; const t = micTrouble(e); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.help) openMicHelp(); return; }
   TALK_REC = null; TALK_MIC_BUSY = false;
   mic.classList.remove("rec"); mic.innerHTML = MIC_ICON;
   if (!stillHere()) { inp.placeholder = replyHint(); return; }
