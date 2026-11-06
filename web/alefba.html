@@ -3923,7 +3923,7 @@ function buildLesson(lesson) {
   return seq;
 }
 // The very first lesson, in two versions. Someone new to Persian learns two letters, sees them join, and reads two
-// real words. Someone who already speaks some reads words they've heard all their life, finding a letter in each,
+// real words. Someone who already speaks some starts with everyday words they may have heard, finding a letter in each,
 // and ends with how people really say a word. The letters left out come in the next lesson.
 const wordByTr = tr => WORDS.find(W => W.tr === tr);
 function exHearLetter(L, Ls) {
@@ -3965,7 +3965,7 @@ function tasterHeard(lesson) {
   ];
   if (rain && rain.two) seq.push({ type: "introWord", W: rain, audio: wordAudio(rain), tag: "How you really say it" });
   seq.later = { unit: lesson.unit.index, letters: lesson.letters.map(L => L[0]).filter(g => !"اب".includes(g)) };
-  seq.finishTitle = "You read 4 words you already knew!";
+  seq.finishTitle = "You just read 4 Persian words!";
   return seq;
 }
 function buildTaster(lesson) {
@@ -4631,9 +4631,9 @@ function showExercise() {
   }
   if (ex.type === "heardWord") {
     const W = ex.W, focus = new Set(ex.focus || []);
-    const tag = el("span", "ex-tag", "A word you know");
+    const tag = el("span", "ex-tag", "A word you may know");
     if (isReal(ex.audio)) tag.append(el("span", "rv", "real voice"));
-    box.append(tag, el("h2", "ex-title", `You know this word: ${W.tr}`));
+    box.append(tag, el("h2", "ex-title", `Have you heard this word? ${W.tr}`));
     box.append(fa("div", "glyph word", W.fa));
     const letters = Array.from(W.fa), row = el("div", "cells read-cells");
     row.style.gridTemplateColumns = `repeat(${letters.length}, minmax(0, 66px))`;
@@ -6760,7 +6760,7 @@ function renderOB() {
   } else if (st === "first") {
     main.append(el("h2", "ob-title", "Do you already speak some Persian?"), el("p", "ob-sub", "So your first lesson fits you. It takes about 2 minutes."));
     const list = el("div", "choice-list");
-    list.append(choiceButton("Yes, a little or a lot", "You'll read words you already know, like bâbâ and mâmân.", false, () => startFirst("heard"), "obfirst-yes"));
+    list.append(choiceButton("Yes, a little or a lot", "You'll start with words you may have heard, like bâbâ and mâmân.", false, () => startFirst("heard"), "obfirst-yes"));
     list.append(choiceButton("No, I'm new to Persian", "You'll learn two letters and read your first words.", false, () => startFirst("new"), "obfirst-no"));
     main.append(list);
     next.hidden = true;
