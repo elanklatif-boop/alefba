@@ -91,12 +91,8 @@ with sync_playwright() as p:
     # easy to find: from the welcome screen, and from links a teacher can share
     c = ctx(b); pg = c.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(URL); pg.wait_for_timeout(1200)
-    check("the welcome shows little mode and tracing sheets", pg.is_visible("#obLittleBtn") and pg.is_visible("#obSheetsBtn"))
+    check("the welcome shows little mode and the teachers' page", pg.is_visible("#obLittleBtn") and pg.is_visible("#obTeachersBtn") and pg.get_attribute("#obTeachersBtn", "href") == "teachers.html")
     pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/little/welcome.png", full_page=True)
-    pg.click("#obSheetsBtn"); pg.wait_for_timeout(400)
-    check("Teaching a class? opens the sheets on top of the welcome", pg.is_visible("#sheetsPrint") and pg.evaluate("document.elementFromPoint(200, 300).closest('#sheets') !== null"))
-    pg.click("#sheetsBack"); pg.wait_for_timeout(300)
-    check("and Back returns to the welcome", pg.is_visible("#obLittleBtn"))
     pg.click("#obLittleBtn"); pg.wait_for_timeout(300)
     check("Ages 4 to 6? goes straight to the name", pg.is_visible("#obName") and "little one called" in pg.inner_text("#onboard"))
     c.close()
