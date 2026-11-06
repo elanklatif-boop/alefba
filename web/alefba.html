@@ -841,6 +841,99 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ===== Little learners (ages 4 to 6): big letters to tap and hear, a picture word, tracing with a finger. Nothing to read. ===== */
+.little-head { display: flex; align-items: center; gap: 10px; padding-block: 8px; }
+.little-home { width: 52px; height: 52px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; flex: none; }
+.little-home svg { width: 28px; height: 28px; }
+.little-stars { flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 1.6rem; font-weight: 700; color: var(--saffron); font-variant-numeric: tabular-nums; }
+.little-grown { position: relative; overflow: hidden; isolation: isolate; font: inherit; font-size: 0.8rem; color: var(--muted); background: none; border: 1px dashed var(--line); border-radius: 999px; padding: 8px 12px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.little-grown .fill { position: absolute; inset: 0; z-index: -1; background: var(--turq-soft); transform: scaleX(0); transform-origin: left; }
+.little-grown.holding .fill { transform: scaleX(1); transition: transform 1.2s linear; }
+.little-main { padding-block: 16px 48px; display: grid; gap: 16px; }
+.little-hello { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.little-title { font-family: var(--font-display); font-size: 3.2rem; line-height: 1.2; color: var(--lapis-text); }
+.little-say { width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--turq); color: var(--bg); display: grid; place-items: center; cursor: pointer; flex: none; }
+.little-say svg { width: 34px; height: 34px; }
+.little-unit { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 12px; padding: 12px; border-radius: 22px; background: var(--u, var(--turq-soft)); }
+.little-tile { position: relative; aspect-ratio: 1 / 1; border: 0; border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 0 var(--line); display: grid; place-items: center; align-content: center; gap: 2px; cursor: pointer; font: inherit; }
+.little-tile .g { font-family: var(--font-fa); font-size: 3rem; line-height: 1.15; }
+.little-tile .p { font-size: 1.5rem; line-height: 1; }
+.little-tile .star { position: absolute; top: 6px; inset-inline-start: 8px; font-size: 1.05rem; }
+.little-tile:active, .little-big:active, .little-pic:active, .little-round:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
+.little-tile:focus-visible, .little-big:focus-visible, .little-pic:focus-visible, .little-round:focus-visible, .little-say:focus-visible, .little-home:focus-visible { outline: 3px solid var(--turq); outline-offset: 3px; }
+.little-letter { display: grid; gap: 16px; justify-items: center; }
+.little-top { display: flex; gap: 14px; justify-content: center; align-items: stretch; flex-wrap: wrap; }
+.little-big, .little-pic { border: 0; border-radius: 24px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 0 var(--line); cursor: pointer; display: grid; place-items: center; align-content: center; gap: 2px; min-width: 132px; padding: 10px 22px; font: inherit; }
+.little-big span { font-family: var(--font-fa); font-size: 5.4rem; line-height: 1.15; }
+.little-pic .p { font-size: 4rem; line-height: 1.1; }
+.little-pic .w { font-family: var(--font-fa); font-size: 1.7rem; line-height: 1.3; }
+.little-trace { width: min(100%, 340px); aspect-ratio: 1 / 1; background: var(--surface); border: 3px dashed var(--line); border-radius: 26px; overflow: hidden; touch-action: none; }
+.little-tools, .little-nav { display: flex; gap: 18px; justify-content: center; align-items: center; }
+.little-nav { width: min(100%, 340px); justify-content: space-between; }
+.little-round { width: 72px; height: 72px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: var(--surface); color: var(--muted-strong); box-shadow: 0 3px 0 var(--line); }
+.little-round svg { width: 38px; height: 38px; }
+.little-round.ok { width: 92px; height: 92px; background: var(--good); color: var(--bg); box-shadow: 0 3px 0 color-mix(in srgb, var(--good) 60%, #000); }
+.little-round.ok svg { width: 52px; height: 52px; }
+.little-round.next { background: var(--cta); color: var(--cta-ink); box-shadow: 0 3px 0 color-mix(in srgb, var(--cta) 60%, #000); }
+.little-round.next.pulse { animation: littlePulse 1s ease-in-out infinite; }
+@keyframes littlePulse { 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .little-round.next.pulse { animation: none; outline: 4px solid var(--cta); outline-offset: 4px; } .little-grown.holding .fill { transition: none; } }
+.little-grownups { display: grid; gap: 12px; max-width: 34rem; }
+.little-grownups h2 { margin: 0; font-family: var(--font-head); }
+.little-grownups p { margin: 0; color: var(--muted-strong); }
+.little-grownups .btn { justify-self: start; }
+.little-card { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--saffron-soft); border-radius: 18px; padding: 14px 16px; }
+.little-card p { margin: 0; }
+#alphaMode .sheets-link { margin-inline-start: auto; }
+.teach-sheets { display: grid; gap: 6px; justify-items: start; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.teach-sheets h3 { margin: 0; }
+
+/* ===== Tracing sheets: printable homework. The pages are paper in both themes, so they keep their own colours. ===== */
+.sheets-main { padding-block: 16px 32px; display: grid; gap: 16px; }
+.sheets-main .lead { margin: 0; }
+.sheet-units { display: flex; flex-wrap: wrap; gap: 8px; }
+.sheet-units .pick .fa { font-family: var(--font-fa); margin-inline-start: 6px; }
+.sheet-letters { display: flex; flex-wrap: wrap; gap: 6px; direction: rtl; }
+.sheet-letters .pick { font-family: var(--font-fa); font-size: 1.35rem; min-width: 46px; padding: 4px 10px; line-height: 1.4; }
+.sheet-opts { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.sheet-opts label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.sheet-opts input { width: 20px; height: 20px; accent-color: var(--turq); }
+.sheet-count { color: var(--muted); margin: 0; }
+.sheet-preview { display: grid; gap: 16px; }
+.sheet-page { background: #ffffff; color: #13293a; border-radius: 6px; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); padding: 4%; display: grid; gap: 3%; font-family: var(--font-ui); font-size: clamp(8px, 1.6vw, 13px); max-width: 760px; width: 100%; justify-self: center; aspect-ratio: 210 / 297; overflow: hidden; }
+.sheet-top { display: flex; justify-content: space-between; gap: 12px; font-size: 1.1em; }
+.sheet-top b { font-family: var(--font-head); font-size: 1.3em; }
+.sheet-name { color: #5a7282; white-space: nowrap; }
+.sheet-letter { border: 1.5px solid #d8e3e7; border-radius: 1.2em; padding: 0.9em 1.1em; display: grid; gap: 0.6em; align-content: start; }
+.sl-head { display: flex; align-items: center; gap: 1.2em; }
+.sl-model { font-family: var(--font-fa); font-size: 4.2em; line-height: 1.1; font-weight: 600; }
+.sl-info { display: grid; gap: 0.1em; }
+.sl-info b { font-size: 1.5em; }
+.sl-info span { color: #5a7282; }
+.sl-word { margin-inline-start: auto; display: flex; align-items: center; gap: 0.6em; }
+.sl-word .pic { font-size: 2.6em; line-height: 1; }
+.sl-word .w { font-family: var(--font-fa); font-size: 2em; }
+.sl-word .tr { color: #5a7282; }
+.sl-row { display: flex; gap: 0.6em; direction: rtl; }
+.sl-row svg { flex: 1 1 0; min-width: 0; height: auto; }
+.sl-row .lbl { flex: none; writing-mode: horizontal-tb; }
+.sl-cap { color: #5a7282; font-size: 0.92em; margin: 0.2em 0 -0.3em; }
+.sheet-letter svg .base { stroke: #c6d2d8; stroke-width: 0.8; }
+.sheet-letter svg .mid { stroke: #e3eaed; stroke-width: 0.6; stroke-dasharray: 3 3; }
+.sheet-letter svg text { font-family: var(--font-fa); font-weight: 600; fill: none; stroke: #6f7f89; stroke-width: 1.3; stroke-dasharray: 3 2.4; stroke-linecap: round; }
+.sheet-foot { color: #5a7282; font-size: 0.9em; text-align: center; margin-top: auto; }
+#printSheets { display: none; }
+@media print {
+  @page { margin: 12mm; }
+  html, body { background: #ffffff !important; }
+  :root { padding: 0 !important; }
+  body > *:not(#printSheets) { display: none !important; }
+  #printSheets { display: block; }
+  #printSheets .sheet-page { box-shadow: none; border-radius: 0; padding: 0; max-width: none; aspect-ratio: auto; height: 250mm; font-size: 11pt; break-after: page; page-break-after: always; overflow: hidden; align-content: start; }
+  #printSheets .sheet-page:last-child { break-after: auto; page-break-after: auto; }
+  #printSheets .sheet-letter { break-inside: avoid; }
+}
 </style>
 
 <header class="band">
@@ -987,6 +1080,26 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   </div></div>
 </div>
 
+<div class="overlay little" id="little" hidden>
+  <div class="ov-top"><div class="shell gutter little-head">
+    <button class="little-home" id="littleHome" type="button" aria-label="All the letters"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg></button>
+    <div class="little-stars" id="littleStars"></div>
+    <button class="little-grown" id="littleGrown" type="button" aria-label="For grown-ups. Press and hold"><span class="fill" aria-hidden="true"></span>Grown-ups: hold</button>
+  </div></div>
+  <div class="ov-body" id="littleBody"><div class="shell gutter little-main" id="littleMain"></div></div>
+</div>
+
+<div class="overlay" id="sheets" hidden>
+  <div class="ov-top"><div class="shell gutter teach-head">
+    <button class="icon-btn" id="sheetsBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg></button>
+    <h2>Tracing sheets</h2>
+  </div></div>
+  <div class="ov-body" id="sheetsBody"><div class="shell gutter sheets-main" id="sheetsMain"></div></div>
+  <div class="ov-foot"><div class="shell gutter foot-row">
+    <button class="btn primary wide" id="sheetsPrint" type="button">Print</button>
+  </div></div>
+</div>
+
 <div class="overlay" id="onboard" hidden>
   <div class="ov-top"><div class="shell gutter ob-head">
     <button class="icon-btn" id="obBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg></button>
@@ -1009,6 +1122,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   </div></div>
 </div>
 
+<div id="printSheets" aria-hidden="true"></div>
 <script>
 // ================= DATA =================
 // On the Alefba website (not inside Claude) the page sets window.ALEFBA_WEB = { api, parentsUrl }.
@@ -2803,6 +2917,8 @@ function switchLearner(id) {
   loadState();
   renderAll();
   if (!S.profile) openOnboarding(); // a new learner starts with the welcome, like a first visit
+  else if (isLittle()) openLittle();
+  else if (!$("little").hidden) closeLittle();
 }
 function addLearner() {
   if (FAM.learners.length >= 8) return;
@@ -4210,7 +4326,7 @@ function openOverlay(id) {
 }
 function closeOverlay(id) {
   $(id).hidden = true;
-  if ($("lesson").hidden && $("talk").hidden && $("onboard").hidden && $("teach").hidden) {
+  if ($("lesson").hidden && $("talk").hidden && $("onboard").hidden && $("teach").hidden && $("little").hidden && $("sheets").hidden) {
     document.body.style.overflow = "";
     PAGE_PARTS().forEach(p => { p.inert = false; p.removeAttribute("aria-hidden"); });
     const back = FOCUS_BEFORE; FOCUS_BEFORE = null;
@@ -5753,6 +5869,8 @@ async function teachList() {
     err.textContent = { bad_name: "Use a short name, without email addresses or links.", too_many_classes: "You have 20 classes, the most there can be. Delete one first.", sign_in: "Please sign in again from the Plans tab." }[r2.error] || "The class couldn't be made just now. Try again.";
   });
   m.append(f);
+  const sh = el("section", "teach-sheets"); sh.append(el("h3", null, "Tracing sheets"), el("p", "note", "Print letter tracing homework for your class: dotted letters, their joined shapes, and a word with a picture."), sheetsButton("Make tracing sheets", "teachSheetsBtn"));
+  m.append(sh);
 }
 const seenText = t => { if (!t) return "not seen yet"; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? "active today" : d === 1 ? "active yesterday" : `active ${d} days ago`; };
 function learnerCard(c, mem) {
@@ -6552,18 +6670,19 @@ function renderOB() {
       alt.onclick = () => { S.profile = { skipped: true, goal: 2, adult: false }; buildLevels(); save(); closeOnboarding(); const ls = nextLesson(); if (ls) openLesson(ls); };
     }
   } else if (st === "who") {
-    main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "The lessons are the same for everyone. This only changes who you talk with in the conversations, and how the app speaks to you. Families learning together can pick either."));
+    main.append(el("h2", "ob-title", "Who's learning Persian?"), el("p", "ob-sub", "This changes who you talk with in the conversations and how the app speaks to you. Families learning together can pick either. For a little one who can't read yet, there's a simpler mode with pictures and tracing."));
     const list = el("div", "choice-list");
-    list.append(choiceButton("A child", "Ages 7–14. A parent signs in for the AI talks.", d.adult === false, () => { d.adult = false; renderOB(); }, "obwho-child"));
-    list.append(choiceButton("An adult", "Teens and grown-ups. Conversations with coworkers, in-laws, shopkeepers and friends.", d.adult === true, () => { d.adult = true; renderOB(); }, "obwho-adult"));
+    list.append(choiceButton("A child", "Ages 7–14. A parent signs in for the AI talks.", d.adult === false && !d.little, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
+    list.append(choiceButton("An adult", "Teens and grown-ups. Conversations with coworkers, in-laws, shopkeepers and friends.", d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
+    list.append(choiceButton("A little one", "Ages 4–6. Big letters to tap and hear, pictures and tracing. No reading needed.", d.adult === false && !!d.little, () => { d.adult = false; d.little = true; renderOB(); }, "obwho-little"));
     main.append(list);
     next.textContent = "Continue"; next.disabled = d.adult == null; next.onclick = () => obGo("name");
   } else if (st === "name") {
-    main.append(el("h2", "ob-title", "What should we call you?"), el("p", "ob-sub", "A first name or a nickname is perfect. It stays on this device, unless you later turn on progress on every device."));
+    main.append(el("h2", "ob-title", d.little ? "What's your little one called?" : "What should we call you?"), el("p", "ob-sub", "A first name or a nickname is perfect. It stays on this device, unless you later turn on progress on every device."));
     const inp = el("input", "text-input"); inp.id = "obName"; inp.type = "text"; inp.maxLength = 24; inp.autocomplete = "off"; inp.dir = "auto"; inp.placeholder = "Your name"; inp.value = d.name;
     inp.setAttribute("aria-label", "Your name");
     inp.addEventListener("input", () => (d.name = inp.value.trim()));
-    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); obGo("speak"); } });
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); d.little ? finishLittleOB() : obGo("speak"); } });
     main.append(inp);
     const lw = el("div", "setting"); lw.append(el("span", "setting-lbl", "Your language, for word meanings"));
     const picks = el("div", "picks");
@@ -6574,7 +6693,7 @@ function renderOB() {
       picks.append(b);
     });
     lw.append(picks); main.append(lw);
-    next.textContent = "Continue"; next.onclick = () => obGo("speak");
+    next.textContent = d.little ? "Start" : "Continue"; next.onclick = () => (d.little ? finishLittleOB() : obGo("speak"));
   } else if (st === "speak") {
     main.append(el("h2", "ob-title", d.name ? `How well do you understand spoken Persian, ${d.name}?` : "How well do you understand spoken Persian?"));
     main.append(el("p", "ob-sub", "Think about when your family or friends talk to you."));
@@ -6804,6 +6923,15 @@ function saveProfile(p) {
 // The profile (and so the child or adult conversations) is saved first, then the placement marks lessons, so the
 // marks land on the conversations the learner will actually see.
 function finishCheck() { const p = placementFrom(OB.test); saveProfile(p); applyPlacement(p); save(); renderAll(); obGo("plan"); }
+// A little one skips the questions and the level check: their lessons are the letters, in little mode.
+function finishLittleOB() {
+  const d = OB.draft;
+  S.profile = { name: d.name, adult: false, little: true, goal: 1, at: todayStr() };
+  S.prefs.order = "letters";
+  buildLevels(); save();
+  closeOnboarding();
+  openLittle(); setTimeout(() => sayEn("Tap a letter!"), 300);
+}
 function finishWithoutCheck() {
   const prev = activeProfile() && activeProfile().placed;  // redoing the setup without the check keeps the earlier result
   saveProfile(prev || null);
@@ -7016,6 +7144,7 @@ function planCard() {
 }
 function renderLessons() {
   const v = $("view-lessons"); v.replaceChildren();
+  if (isLittle()) v.append(littleCard());
   v.append(planCard());
   const cc = classCard(); if (cc) v.append(cc);
   const sc = stickerCard(); if (sc) v.append(sc);
@@ -7303,6 +7432,7 @@ function renderAlphabet() {
     b.addEventListener("click", () => { ALPHA_MODE = k; renderAlphabet(); });
     mr.append(b);
   });
+  if (WEB) { const sb = sheetsButton("Print tracing sheets", "alphaSheets"); sb.classList.add("sheets-link"); mr.append(sb); }
   const grid = $("grid"); grid.replaceChildren();
   LETTERS.forEach(L => {
     const b = el("button", "tile"); b.id = "tile-l-" + slug(L[1]);
@@ -7516,7 +7646,7 @@ function renderReview() {
     opts.forEach(([k, t]) => { const b = el("button", "pick", t); b.id = id + "-" + k; b.setAttribute("aria-pressed", String(cur === k)); b.addEventListener("click", () => { onPick(k); save(); renderAll(); }); row.append(b); });
     wrap.append(row); pb.append(wrap);
   };
-  setting("Who's learning", "who", [["child", "A child"], ["adult", "An adult"]], isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; buildLevels(); });
+  setting("Who's learning", "who", [["child", "A child"], ["adult", "An adult"], ["little", "A little one (4–6)"]], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
   const famRow = el("div", "setting"); famRow.append(el("span", "setting-lbl", `Learners on this device: ${FAM.learners.map(l => learnerInfo(l.id).name).join(", ")}`));
   const famBtn = el("button", "btn quiet", FAM.learners.length > 1 ? "Switch learner or add one" : "Add another learner"); famBtn.id = "familyBtn"; famBtn.type = "button"; famBtn.addEventListener("click", openFamily);
   famRow.append(famBtn); pb.append(famRow);
@@ -7589,6 +7719,248 @@ function showView(name) {
   document.querySelectorAll(".seg-btn").forEach(t => { const v = t.dataset.view; $("view-" + v).hidden = v !== name; t.setAttribute("aria-selected", String(v === name)); });
   window.scrollTo(0, 0);
 }
+
+// ================= LITTLE LEARNERS (ages 4 to 6) =================
+// For children who can't read yet, like a kindergarten class: big letters to tap and hear, a picture word for each,
+// and a big space to trace the letter with a finger. Nothing to read and nothing to type. Short spoken English prompts
+// say what to do, and every letter traced earns a star. Grown-ups leave by pressing and holding a small button.
+const isLittle = () => !!(S.profile && S.profile.little);
+const LITTLE_LETTERS = Array.from(ALPHA_UNITS.map(u => u.letters).join(""));
+const LITTLE_TONES = ["var(--turq-soft)", "var(--saffron-soft)", "var(--rose-soft)", "var(--lapis-soft)", "var(--good-soft)"];
+const LITTLE_ICON = {
+  next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.6 5 10 3.6l8.4 8.4-8.4 8.4L8.6 19l7-7z"/></svg>',
+};
+let LITTLE = { g: null, tracer: null, tries: 0 };
+// A picture word for each letter that starts with it, picked for young children. Letters with no such word
+// show just the letter.
+const LITTLE_PICK = { "ا": "asb", "ب": "bâbâ", "پ": "parvâne", "ت": "tup", "ث": "sâniye", "ج": "juje", "چ": "chây", "خ": "khargush", "د": "derakht",
+  "ر": "rang", "ز": "zemestân", "ژ": "zhele", "س": "sib", "ش": "shir", "ص": "sandali", "ع": "eyd", "غ": "ghazâ", "ف": "fil", "ق": "ghalb", "ک": "ketâb",
+  "گ": "gorbe", "م": "moz", "ن": "nân", "ه": "hendevâne", "ی": "yek" };
+const LITTLE_EMOJI = { "sâniye": "⏱️", "zhele": "🍮" };
+function littleWord(g) {
+  const tr = LITTLE_PICK[g]; if (!tr) return null;
+  const W = ALL_WORDS().find(x => x.tr === tr) || EXTRA_EXAMPLES.find(x => x.tr === tr);
+  const pic = W && (picOf(W) || LITTLE_EMOJI[tr]);
+  return W && pic ? { W, pic } : null;
+}
+const littleDone = () => (S.little && S.little.done) || {};
+function littleMark(g) {
+  if (!S.little || typeof S.little !== "object") S.little = {};
+  if (!S.little.done) S.little.done = {};
+  S.little.done[g] = todayStr();
+  practised();
+}
+// Short spoken prompts in English, in the device's own voice. Only these few lines are said: the letters and words
+// themselves play as recordings.
+function enVoice() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    return vs.find(v => /^en[-_](US|GB)/i.test(v.lang) && /samantha|jenny|aria|zira|female|google us/i.test(v.name)) || vs.find(v => /^en[-_]/i.test(v.lang)) || null;
+  } catch (e) { return null; }
+}
+function sayEn(text, after) {
+  const id = ++SOUND_ID, next = () => { if (after && id === SOUND_ID) after(); };
+  try { PLAYER.onended = null; PLAYER.pause(); } catch (e) {}
+  try {
+    if (!window.speechSynthesis) return next();
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = "en-US";
+    const v = enVoice(); if (v) u.voice = v;
+    u.rate = 0.95; u.pitch = 1.1; u.onend = next; u.onerror = next;
+    speechSynthesis.speak(u);
+  } catch (e) { next(); }
+}
+function littleBtn(cls, icon, label, onClick) {
+  const b = el("button", cls); b.type = "button"; b.innerHTML = icon; b.setAttribute("aria-label", label); b.title = label;
+  b.addEventListener("click", onClick); return b;
+}
+function littleStars() {
+  const n = Object.keys(littleDone()).length, box = $("littleStars");
+  box.replaceChildren(el("span", null, "⭐"), el("b", null, String(n)));
+  box.setAttribute("aria-label", `${n} star${n === 1 ? "" : "s"}`);
+}
+function openLittle(g) {
+  if ($("little").hidden) openOverlay("little");
+  if (g) littleLetter(g); else littleHome();
+}
+function closeLittle() { stopSound(); LITTLE = { g: null, tracer: null, tries: 0 }; closeOverlay("little"); renderAll(); }
+function littleHome(talk) {
+  LITTLE = { g: null, tracer: null, tries: 0 };
+  littleStars();
+  const m = $("littleMain"); m.replaceChildren();
+  const hi = el("div", "little-hello");
+  hi.append(fa("span", "little-title", "الفبا"), littleBtn("little-say", ICON.sound, "Hear what to do", () => sayEn("Tap a letter!")));
+  m.append(hi);
+  ALPHA_UNITS.forEach((u, i) => {
+    const row = el("div", "little-unit"); row.dir = "rtl"; row.style.setProperty("--u", LITTLE_TONES[i % LITTLE_TONES.length]);
+    Array.from(u.letters).forEach(g => {
+      const L = BY_GLYPH[g], lw = littleWord(g), pic = lw && lw.pic, done = !!littleDone()[g];
+      const b = el("button", "little-tile"); b.type = "button"; b.id = "lt-" + slug(lid(L));
+      b.setAttribute("aria-label", L[1] + (done ? ", traced" : ""));
+      b.append(fa("span", "g", g));
+      if (pic) b.append(el("span", "p", pic));
+      if (done) b.append(el("span", "star", "⭐"));
+      b.addEventListener("click", () => littleLetter(g));
+      row.append(b);
+    });
+    m.append(row);
+  });
+  $("littleBody").scrollTop = 0;
+  if (talk) sayEn("Tap a letter!");
+}
+function littleLetter(g) {
+  const L = BY_GLYPH[g], lw = littleWord(g), W = lw && lw.W, pic = lw && lw.pic, n = LITTLE_LETTERS.length, i = LITTLE_LETTERS.indexOf(g);
+  LITTLE = { g, tracer: null, tries: 0 };
+  littleStars();
+  const m = $("littleMain"); m.replaceChildren();
+  const box = el("div", "little-letter"), top = el("div", "little-top");
+  const big = el("button", "little-big"); big.type = "button"; big.id = "littleBig"; big.setAttribute("aria-label", `${L[1]}. Tap to hear it`);
+  big.append(fa("span", null, g)); big.addEventListener("click", () => speak(letterAudio(L)));
+  top.append(big);
+  if (W && pic) {
+    const pb = el("button", "little-pic"); pb.type = "button"; pb.id = "littlePic"; pb.setAttribute("aria-label", `${W.tr}. Tap to hear it`);
+    pb.append(el("span", "p", pic), fa("span", "w", W.fa)); pb.addEventListener("click", () => speak(wordAudio(W)));
+    top.append(pb);
+  }
+  box.append(top);
+  const wrap = el("div", "little-trace"), cv = document.createElement("canvas");
+  cv.className = "trace"; cv.id = "littleCanvas"; cv.setAttribute("aria-label", `Space to trace ${L[1]} with your finger`);
+  wrap.append(cv); box.append(wrap);
+  const tools = el("div", "little-tools");
+  const again = littleBtn("little-round again", ICON.redo, "Start again", () => { if (LITTLE.tracer) LITTLE.tracer.clear(); });
+  again.id = "littleAgain";
+  const ok = littleBtn("little-round ok", ICON.check, "I'm done", littleCheck); ok.id = "littleOk";
+  tools.append(again, ok); box.append(tools);
+  const nav = el("div", "little-nav"); nav.dir = "rtl";
+  const prev = littleBtn("little-round", LITTLE_ICON.prev, "The letter before", () => littleLetter(LITTLE_LETTERS[(i - 1 + n) % n])); prev.id = "littlePrev";
+  const next = littleBtn("little-round next", LITTLE_ICON.next, "The next letter", () => littleLetter(LITTLE_LETTERS[(i + 1) % n])); next.id = "littleNext";
+  nav.append(prev, next); box.append(nav);
+  m.append(box);
+  $("littleBody").scrollTop = 0;
+  LITTLE.tracer = makeTracer(cv, g, () => {}, {});
+  if (!LITTLE.tracer) { wrap.remove(); tools.remove(); }
+  speak(letterAudio(L), () => sayEn("Now trace it with your finger."));
+}
+// Tracing is never marked wrong: a letter that's mostly on the gray one gets its star, and so does a second try.
+function littleCheck() {
+  const g = LITTLE.g, t = LITTLE.tracer;
+  if (!g || !t) return;
+  if (!t.hasInk()) return sayEn("Trace the gray letter with your finger.");
+  const sc = t.score(); LITTLE.tries++;
+  const good = sc.coverage >= 0.35 && sc.precision >= 0.4;
+  if (good || LITTLE.tries >= 2) {
+    littleMark(g); littleStars(); confetti(); chime();
+    $("littleOk").hidden = true; $("littleNext").classList.add("pulse");
+    speak(letterAudio(BY_GLYPH[g]), () => sayEn(good ? pick(["Great job!", "Wonderful!", "You did it!"]) : "Good try! Let's do the next one."));
+    return;
+  }
+  sayEn(sc.coverage < 0.35 ? "Almost! Draw over the whole gray letter." : "Almost! Stay on the gray letter.");
+  setTimeout(() => { if (LITTLE.tracer === t) t.clear(); }, 1400);
+}
+function littleGrownUps() {
+  stopSound(); LITTLE = { g: null, tracer: null, tries: 0 };
+  const m = $("littleMain"); m.replaceChildren();
+  const box = el("div", "little-grownups");
+  const n = Object.keys(littleDone()).length;
+  box.append(el("h2", null, "For grown-ups"),
+    el("p", null, "Little mode is for children who can't read yet. They tap a letter to hear it, see a picture word that uses it, and trace the letter with a finger. A short voice tells them what to do, and each letter they trace gets a star."),
+    el("p", null, n ? `So far: ${n} of 32 letters traced.` : "No letters traced yet."));
+  const b = (t, id, fn, cls = "btn quiet") => { const x = el("button", cls, t); x.type = "button"; x.id = id; x.addEventListener("click", fn); box.append(x); };
+  b("Back to the letters", "littleBackBtn", () => littleHome(), "btn primary");
+  if (WEB) b("Print tracing sheets", "littleSheetsBtn", () => openSheets());
+  b("Open the full app", "littleFullBtn", closeLittle);
+  b("Turn off little mode", "littleOffBtn", () => { if (S.profile) S.profile.little = false; save(); closeLittle(); });
+  m.append(box);
+  $("littleBody").scrollTop = 0;
+  setTimeout(() => { const f = $("littleBackBtn"); if (f) f.focus(); }, 0);
+}
+// Press and hold, so a child tapping around doesn't leave little mode by accident. On a keyboard, Enter opens it.
+(function () {
+  const btn = $("littleGrown"); let timer = null;
+  const end = () => { clearTimeout(timer); btn.classList.remove("holding"); };
+  btn.addEventListener("pointerdown", e => { e.preventDefault(); btn.classList.add("holding"); clearTimeout(timer); timer = setTimeout(() => { end(); littleGrownUps(); }, 1200); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => btn.addEventListener(t, end));
+  btn.addEventListener("click", e => { if (e.detail === 0) littleGrownUps(); }); // keyboard
+  btn.addEventListener("contextmenu", e => e.preventDefault());
+  $("littleHome").addEventListener("click", () => littleHome(true));
+})();
+function littleCard() {
+  const c = el("section", "little-card"); c.id = "littleCard";
+  c.append(el("p", null, `${(S.profile && S.profile.name) || "This learner"} uses little mode: big letters, pictures and tracing, with nothing to read.`));
+  const b = el("button", "btn primary", "Open little mode"); b.type = "button"; b.id = "openLittleBtn"; b.addEventListener("click", () => openLittle());
+  c.append(b); return c;
+}
+
+// ================= TRACING SHEETS =================
+// Printable homework for teachers and parents: for each letter picked, the letter and a word with a picture, then
+// dotted letters to trace, its joined shapes and the word. The pages show as a preview before printing.
+const SHEETS = { picked: new Set(Array.from(ALPHA_UNITS[0].letters)), forms: true, word: true };
+const escX = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// one writing space: a baseline, a faint middle line and the text in dots (or solid, for the model)
+function sheetBox(text, w, h = 95) {
+  const base = Math.round(h * 0.66), mid = Math.round(h * 0.34);
+  return `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true"><line class="mid" x1="2" y1="${mid}" x2="${w - 2}" y2="${mid}"/><line class="base" x1="2" y1="${base}" x2="${w - 2}" y2="${base}"/>` +
+    (text ? `<text x="${w / 2}" y="${base}" text-anchor="middle" direction="rtl" font-size="${Math.round(h * 0.62)}">${escX(text)}</text>` : "") + "</svg>";
+}
+function sheetLetter(g) {
+  const L = BY_GLYPH[g], lw = littleWord(g), W = lw ? lw.W : LETTER_EXAMPLE[g], pic = lw ? lw.pic : picOf(W);
+  let h = `<section class="sheet-letter"><div class="sl-head"><div class="sl-model" lang="fa">${g}</div><div class="sl-info"><b>${escX(L[1])}</b><span>sound: ${escX(L[2])}</span></div>`;
+  if (SHEETS.word && W) h += `<div class="sl-word">${pic ? `<span class="pic">${pic}</span>` : ""}<span class="w" lang="fa">${escX(W.fa)}</span><span class="tr">${escX(W.tr)} · ${escX(W.en)}</span></div>`;
+  h += `</div><div class="sl-row">${Array(4).fill(sheetBox(g, 100)).join("")}</div><div class="sl-row">${Array(4).fill(sheetBox(g, 100)).join("")}</div>`;
+  if (SHEETS.forms && !NON_JOINING.includes(g)) {
+    const f = formsOf(g).slice(1);
+    h += `<p class="sl-cap">Joined to other letters: at the start, in the middle and at the end</p><div class="sl-row">${f.map(x => sheetBox(x[1], 150)).join("")}</div>`;
+  }
+  if (SHEETS.word && W) h += `<p class="sl-cap">The word, then on your own</p><div class="sl-row">${sheetBox(W.fa, 210, 90)}${sheetBox("", 210, 90)}</div>`;
+  return h + "</section>";
+}
+function sheetPages() {
+  const pages = LITTLE_LETTERS.filter(g => SHEETS.picked.has(g)).map(g => [g]); // a page for each letter: big enough for small hands
+  return pages.map(ls => `<div class="sheet-page"><div class="sheet-top"><b>Persian letters</b><span class="sheet-name">Name: ____________________</span></div>${ls.map(sheetLetter).join("")}<p class="sheet-foot">Alefba · learnalefba.com</p></div>`).join("");
+}
+function openSheets() { openOverlay("sheets"); renderSheets(); }
+function renderSheets() {
+  const m = $("sheetsMain"); m.replaceChildren();
+  m.append(el("p", "lead", "Pick the letters, then print. Each letter gets dotted letters to trace, its joined shapes, and a word with a picture. Each letter gets its own page."));
+  const units = el("div", "sheet-units");
+  ALPHA_UNITS.forEach((u, i) => {
+    const ls = Array.from(u.letters), on = ls.every(g => SHEETS.picked.has(g));
+    const b = el("button", "pick", u.title); b.type = "button"; b.id = "sheetUnit-" + i; b.setAttribute("aria-pressed", String(on));
+    b.append(fa("span", "fa", ls.join(" ")));
+    b.addEventListener("click", () => { ls.forEach(g => (on ? SHEETS.picked.delete(g) : SHEETS.picked.add(g))); renderSheets(); });
+    units.append(b);
+  });
+  const all = el("button", "pick", "All 32"); all.type = "button"; all.id = "sheetAll";
+  all.addEventListener("click", () => { LITTLE_LETTERS.forEach(g => SHEETS.picked.add(g)); renderSheets(); });
+  const none = el("button", "pick", "None"); none.type = "button"; none.id = "sheetNone";
+  none.addEventListener("click", () => { SHEETS.picked.clear(); renderSheets(); });
+  units.append(all, none);
+  const letters = el("div", "sheet-letters");
+  LITTLE_LETTERS.forEach(g => {
+    const L = BY_GLYPH[g], b = fa("button", "pick", g); b.type = "button"; b.id = "sheetL-" + slug(lid(L));
+    b.setAttribute("aria-pressed", String(SHEETS.picked.has(g))); b.setAttribute("aria-label", L[1]);
+    b.addEventListener("click", () => { SHEETS.picked.has(g) ? SHEETS.picked.delete(g) : SHEETS.picked.add(g); renderSheets(); });
+    letters.append(b);
+  });
+  const opts = el("div", "sheet-opts");
+  [["forms", "Joined shapes"], ["word", "A word with a picture"]].forEach(([k, t]) => {
+    const lab = el("label"), c = el("input"); c.type = "checkbox"; c.id = "sheetOpt-" + k; c.checked = SHEETS[k];
+    c.addEventListener("change", () => { SHEETS[k] = c.checked; renderSheets(); });
+    lab.append(c, document.createTextNode(t)); opts.append(lab);
+  });
+  const n = SHEETS.picked.size;
+  m.append(units, letters, opts, el("p", "sheet-count", n ? `${n} letter${n === 1 ? "" : "s"}, so ${n} page${n === 1 ? "" : "s"}.` : "Pick at least one letter."));
+  const pv = el("div", "sheet-preview"); pv.id = "sheetPreview"; pv.innerHTML = sheetPages(); m.append(pv);
+  $("sheetsPrint").disabled = !n;
+}
+$("sheetsBack").addEventListener("click", () => closeOverlay("sheets"));
+$("sheetsPrint").addEventListener("click", () => {
+  if (!SHEETS.picked.size) return;
+  $("printSheets").innerHTML = sheetPages();
+  try { window.print(); } catch (e) {}
+});
+function sheetsButton(label, id) { const b = el("button", "btn quiet", label); b.type = "button"; b.id = id; b.addEventListener("click", openSheets); return b; }
 
 // ================= WIRING =================
 const NAV_ICON = {
@@ -7701,6 +8073,7 @@ renderAll();
 if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register("sw.js").catch(() => {}); } catch (e) {} }
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
+else if (isLittle()) openLittle();
 findVoice();
 try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
 checkMp3();
