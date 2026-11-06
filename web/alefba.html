@@ -7412,17 +7412,21 @@ function moveNudge(nx) {
   apiPost("/nudge", { token: n.token, next: nudgeNext(nx) }).then(r => { if (r.status === 404) setNudge(null); }); // stopped from the email: forget it
 }
 const NUDGE_ERRORS = { bad_email: "That email address doesn't look right.", agree: "Please tick the box first.", too_many: "That's a lot of tries. Please try again tomorrow.", network: "No internet connection. Try again when you're back online." };
+// Not said yet who's learning: the first lesson was started straight from the welcome, without the questions.
+const whoUnknown = () => !!(S.profile && S.profile.skipped && !S.profile.whoSet && !S.profile.little);
 function nudgeCard(nx, fromSettings) {
   if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && nudgeAsked())) return null;
   if (!fromSettings) markNudgeAsked(); // offered once; it's in Settings after that
-  const grown = isAdult();
+  // who's learning: an adult, a child, or not said yet (straight into the first lesson), when it doesn't assume either
+  const who = isAdult() ? "adult" : whoUnknown() ? "unknown" : "child", grown = who !== "child";
   const c = el("div", "plan-card install nudge"); c.id = fromSettings ? "nudgeSetCard" : "nudgeCard";
-  c.append(el("b", null, grown ? "Want an email when your next lesson is ready?" : "Grown-ups: want an email when the next lesson is ready?"));
+  c.append(el("b", null, grown ? "Want an email when the next lesson is ready?" : "Grown-ups: want an email when the next lesson is ready?"));
   c.append(el("p", "note", "One short email the day after a lesson, so it's easy to come back for the next one. Nothing else, and you can stop it any time."));
   const em = el("input", "text-input"); em.type = "email"; em.id = fromSettings ? "nudgeSetEmail" : "nudgeEmail"; em.autocomplete = "email"; em.inputMode = "email";
   em.placeholder = grown ? "Your email" : "A grown-up's email"; em.setAttribute("aria-label", em.placeholder);
   const agree = el("label", "gate-agree"), cb = el("input"); cb.type = "checkbox"; cb.id = fromSettings ? "nudgeSetAgree" : "nudgeAgree";
-  agree.append(cb, el("span", null, grown ? "I'm an adult, and this is my email." : "I'm this child's parent or guardian, and this is my email."));
+  agree.append(cb, el("span", null, who === "adult" ? "I'm an adult, and this is my email." : who === "child" ? "I'm this child's parent or guardian, and this is my email."
+    : "This is my email, and I'm an adult (or the parent or guardian of the child who's learning)."));
   const msg = el("p", "note"); msg.setAttribute("role", "status");
   const row = el("div", "remind-row");
   const go = el("button", "btn primary", "Email me tomorrow"); go.type = "button"; go.id = fromSettings ? "nudgeSetGo" : "nudgeGo";
@@ -7749,7 +7753,7 @@ function renderReview() {
     opts.forEach(([k, t]) => { const b = el("button", "pick", t); b.id = id + "-" + k; b.setAttribute("aria-pressed", String(cur === k)); b.addEventListener("click", () => { onPick(k); save(); renderAll(); }); row.append(b); });
     wrap.append(row); pb.append(wrap);
   };
-  setting("Who's learning", "who", [["child", "A child"], ["adult", "An adult"], ["little", "A little one (4–6)"]], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
+  setting("Who's learning", "who", [["child", "A child"], ["adult", "An adult"], ["little", "A little one (4–6)"]], isLittle() ? "little" : isAdult() ? "adult" : "child", k => { if (!S.profile) S.profile = { skipped: true, goal: 2 }; S.profile.adult = k === "adult"; S.profile.little = k === "little"; S.profile.whoSet = true; buildLevels(); if (k === "little") setTimeout(() => openLittle(), 0); });
   const famRow = el("div", "setting"); famRow.append(el("span", "setting-lbl", `Learners on this device: ${FAM.learners.map(l => learnerInfo(l.id).name).join(", ")}`));
   const famBtn = el("button", "btn quiet", FAM.learners.length > 1 ? "Switch learner or add one" : "Add another learner"); famBtn.id = "familyBtn"; famBtn.type = "button"; famBtn.addEventListener("click", openFamily);
   famRow.append(famBtn); pb.append(famRow);

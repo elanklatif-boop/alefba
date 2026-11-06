@@ -57,6 +57,13 @@ with sync_playwright() as p:
     pg.locator("#nudgeSetCard").scroll_into_view_if_needed(); pg.screenshot(path="nudge/settings_form.png")
     check("no page errors", not errs, errs)
     c.close()
+    # straight into the first lesson, without saying who's learning: it doesn't assume a child or an adult
+    c, pg, errs = page(b, {**st(), "profile": {"skipped": True, "goal": 2, "adult": False, "first": "new"}})
+    finish_first(pg)
+    t = pg.inner_text("#nudgeCard") if pg.is_visible("#nudgeCard") else ""
+    check("not said who's learning: no 'Grown-ups', no 'this child'", t and "Grown-ups" not in t and "this child's" not in t and "parent or guardian of the child" in t and pg.get_attribute("#nudgeEmail", "placeholder") == "Your email", t)
+    check("no page errors", not errs, errs)
+    c.close()
     # an adult, saying no thanks
     c, pg, errs = page(b, st(adult=True))
     finish_first(pg)
