@@ -91,6 +91,9 @@ function plans(env) {
     unlimited: money(env.PRICE_UNLIMITED, 649),
     yearly: money(env.PRICE_YEARLY, 3900),                  // unlimited talks, paid once a year
     school: money(env.PRICE_SCHOOL, 4900),                  // one class: all the levels for every learner in it, for a year
+    schoolTalks: money(env.PRICE_SCHOOL_TALKS, 5999),       // the same, with talks for every learner too
+    classTalks: count(env.CLASS_TALKS, 5, 100),             // talks each learner in such a class has a month
+    classTalksCap: count(env.CLASS_TALKS_CAP, 150, 100000), // talks a whole class can have in a month, at most
     dailyBudget: micro(env.DAILY_BUDGET, 5e6),            // millionths of a dollar a day, everyone together
     freeBudget: micro(env.FREE_DAILY_BUDGET, 2e6),        // millionths of a dollar a day, all free talks together
     familyBudget: micro(env.FAMILY_DAILY_BUDGET, 4e5),    // millionths of a dollar a day, one family (a talk costs under a cent)
@@ -416,7 +419,8 @@ async function accountView(env, fam, s) {
     hear: !!(s.ai && activePlan(fam)), hearReady: s.ai,
     voice: !!(s.voice && activePlan(fam)), voiceReady: s.voice, // spoken conversations: the character's lines read aloud
     free: p.free, basicTalks: p.basicTalks, perDay: p.perDay,
-    prices: { basic: dollars(p.basic), unlimited: dollars(p.unlimited), yearly: dollars(p.yearly), school: dollars(p.school) },
+    prices: { basic: dollars(p.basic), unlimited: dollars(p.unlimited), yearly: dollars(p.yearly), school: dollars(p.school), schoolTalks: dollars(p.schoolTalks), schoolUpgrade: dollars(upgradePrice(p)) },
+    classTalks: p.classTalks,
     sync: !!fam.sync_on, fam: (await sha256("alefba-fam:" + fam.id)).slice(0, 16), // which family a device's learners belong to
   };
 }
@@ -457,6 +461,51 @@ async function allowance(env, fam, p) {
 }
 // A new talk is held first, so two at once can't go over the limit. It is given back only if Claude
 // didn't answer at all (an answer, even a refused one, is paid for).
+// Who a talk, a clip, a voice line or a gloss is for: a signed-in family with a plan, or a learner in a class whose
+// school plan includes talks (their device sends its class key instead of signing in). A class learner is counted as
+// a family of their own ("m:" and their id) for the daily limits and the talks table. Gives { fam, member } or { res }.
+async function speakerFor(request, env, s, needPlan = true) {
+  const token = String(request.headers.get("x-alefba-class") || "").trim();
+  if (token) {
+    let m = await memberOf(env, token);
+    if (!m) return { res: reply({ error: "not_in_class" }, 404) };
+    m = await schoolCheckForMember(env, s, m);
+    if (!(Number(m.talks_until) > Date.now())) return { res: reply({ error: "needs_plan" }, 402) };
+    return { fam: { id: "m:" + m.id, member: true }, member: m };
+  }
+  let fam = await currentFamily(request, env);
+  if (!fam) return { res: reply({ error: "sign_in" }, 401) };
+  if (needPlan) {
+    if (s.stripe) fam = await refreshPlan(env, fam, quickCheck(env, fam));
+    if (!activePlan(fam)) return { res: reply({ error: "needs_plan" }, 402) };
+  }
+  return { fam, member: null };
+}
+// A class learner's talks this month: their own allowance, and the whole class's (so one class can't run up a bill).
+async function memberTalks(env, m) {
+  const p = plans(env), now = Date.now(), until = Number(m.talks_until) || 0;
+  if (until <= now) return null;
+  const month = monthKey(now);
+  const used = await countTalks(env, "m:" + m.id, "month = ?", month);
+  const all = await env.DB.prepare("SELECT COUNT(*) AS n FROM talks WHERE month = ? AND family_id IN (SELECT 'm:' || id FROM class_members WHERE class_id = ?)").bind(month, m.cid).first();
+  const classLeft = Math.max(0, p.classTalksCap - (all ? Number(all.n) : 0));
+  return { until, per: p.classTalks, left: Math.min(Math.max(0, p.classTalks - used), classLeft), classUsedUp: classLeft === 0 };
+}
+async function reserveClassTalk(env, m, clientKey) {
+  const p = plans(env), now = Date.now(), id = randomId(), month = monthKey(now), fid = "m:" + m.id;
+  if (clientKey) await env.DB.prepare("UPDATE talks SET client_key = NULL WHERE family_id = ? AND client_key = ? AND started_at <= ?").bind(fid, clientKey, now - TALK_HOURS * 3600e3).run();
+  try {
+    await env.DB.prepare("INSERT INTO talks (id, family_id, started_at, month, kind, requests, client_key) VALUES (?, ?, ?, ?, 'class', 1, ?)").bind(id, fid, now, month, clientKey || null).run();
+  } catch (e) { return { ok: false, duplicate: true }; }
+  // counted after it's in, so two started at once can't both squeeze past the limit
+  const mine = await countTalks(env, fid, "month = ?", month);
+  const all = await env.DB.prepare("SELECT COUNT(*) AS n FROM talks WHERE month = ? AND family_id IN (SELECT 'm:' || id FROM class_members WHERE class_id = ?)").bind(month, m.cid).first();
+  if (mine > p.classTalks || (all && Number(all.n) > p.classTalksCap)) {
+    await env.DB.prepare("DELETE FROM talks WHERE id = ?").bind(id).run();
+    return { ok: false, why: mine > p.classTalks ? "no_talks" : "class_talks_used" };
+  }
+  return { ok: true, id, kind: "class" };
+}
 async function reserveTalk(env, fam, clientKey) {
   const p = plans(env), kind = activePlan(fam) || "free", now = Date.now(), id = randomId();
   // a key from a talk that's long over can be used again
@@ -521,9 +570,11 @@ async function settleBudget(env, keys, change) {
 // ---------- talks ----------
 async function talk(request, env, url, s, ctx) {
   if (!talksReady(s)) return reply({ error: "not_configured" }, 503);
-  let fam = await currentFamily(request, env);
-  if (!fam) return reply({ error: "sign_in" }, 401);
-  if (tooMany(request, "talk")) return reply({ error: "rate_limited" }, 429);
+  const who = await speakerFor(request, env, s, false); // a family without a plan still has its free talks
+  if (who.res) return who.res;
+  let fam = who.fam;
+  const member = who.member;
+  if (tooMany(request, "talk", undefined, undefined, member ? "m:" + member.id : null)) return reply({ error: "rate_limited" }, 429);
   const body = await readJson(request, 160000);
   const turns = checkTurns(body && body.turns);
   if (!turns) return reply({ error: "bad_request" }, 400);
@@ -536,14 +587,15 @@ async function talk(request, env, url, s, ctx) {
     const again = clientKey && (await env.DB.prepare("SELECT id FROM talks WHERE family_id = ? AND client_key = ? AND started_at > ?").bind(fam.id, clientKey, openSince).first());
     if (again) talkId = again.id;
     else {
-      if (s.stripe) fam = await refreshPlan(env, fam, quickCheck(env, fam));
-      const held = await reserveTalk(env, fam, clientKey);
+      if (s.stripe && !member) fam = await refreshPlan(env, fam, quickCheck(env, fam));
+      const held = member ? await reserveClassTalk(env, member, clientKey) : await reserveTalk(env, fam, clientKey);
       if (held.ok) { talkId = held.id; kind = held.kind; isNew = true; }
       else if (held.duplicate) {
         const twin = await env.DB.prepare("SELECT id FROM talks WHERE family_id = ? AND client_key = ?").bind(fam.id, clientKey).first();
         if (!twin) return reply({ error: "server_error" }, 500);
         talkId = twin.id;
-      } else return reply({ error: "no_talks", account: await accountView(env, fam, s) }, 402);
+      } else if (member) return reply({ error: held.why || "no_talks", class: memberClass(member, await memberTalks(env, member)) }, 402);
+      else return reply({ error: "no_talks", account: await accountView(env, fam, s) }, 402);
     }
   } else talkId = typeof body.talk_id === "string" ? body.talk_id.slice(0, 64) : "";
   if (!isNew) {
@@ -580,7 +632,7 @@ async function talk(request, env, url, s, ctx) {
     if (r.status === 429) return reply({ error: "rate_limited" }, 429);
     return reply({ error: "server_error" }, 502);
   }
-  const done = { env, fam, s, hold, talkId, kind, isNew, first: turns.length === 1 };
+  const done = { env, fam, s, hold, talkId, kind, isNew, first: turns.length === 1, member };
   if (streamed) return talkStream(r.res, done, ctx);
   await settleBudget(env, hold.keys, costMicro(r.data.usage) - hold.amount);
   const [out, status] = await talkResult(r.data, done);
@@ -594,7 +646,8 @@ async function talkResult(data, d) {
   try { out = JSON.parse(text); } catch (e) { out = null; }
   if (!out || typeof out !== "object" || Array.isArray(out)) return [{ error: "invalid_json", talk_id: d.talkId }, 502];
   out.talk_id = d.talkId;
-  if (d.first) out.account = await accountView(d.env, (await familyById(d.env, d.fam.id)) || d.fam, d.s);
+  if (d.first && d.member) out.class = memberClass(d.member, await memberTalks(d.env, d.member)); // how many talks are left now
+  else if (d.first) out.account = await accountView(d.env, (await familyById(d.env, d.fam.id)) || d.fam, d.s);
   return [out, 200];
 }
 // The character's line, once Claude has finished writing it: the reply's first field, so it comes early.
@@ -658,11 +711,10 @@ function talkStream(res, d, ctx) {
 // it exists only while this request runs, which is what the US children's privacy rule asks of voice recordings.
 async function hear(request, env, url, s) {
   if (!s.ai || !s.db) return reply({ error: "not_configured" }, 503);
-  let fam = await currentFamily(request, env);
-  if (!fam) return reply({ error: "sign_in" }, 401);
-  if (s.stripe) fam = await refreshPlan(env, fam, quickCheck(env, fam));
-  if (!activePlan(fam)) return reply({ error: "needs_plan" }, 402);
-  if (tooMany(request, "hear", 30, 400)) return reply({ error: "rate_limited" }, 429);
+  const who = await speakerFor(request, env, s);
+  if (who.res) return who.res;
+  const fam = who.fam;
+  if (tooMany(request, "hear", 30, 400, who.member ? fam.id : null)) return reply({ error: "rate_limited" }, 429);
   const type = String(request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   if (type !== "audio/wav") return reply({ error: "bad_request" }, 400);
   const buf = await readBounded(request, HEAR_MAX_BYTES);
@@ -722,11 +774,10 @@ const GLOSS_LANGS = { en: "English", fr: "French", de: "German", sv: "Swedish", 
 const GLOSS_SCHEMA = { type: "object", properties: { translit: { type: "string" }, meaning: { type: "string" } }, required: ["translit", "meaning"], additionalProperties: false };
 async function gloss(request, env, url, s) {
   if (!s.claude || !s.db) return reply({ error: "not_configured" }, 503);
-  let fam = await currentFamily(request, env);
-  if (!fam) return reply({ error: "sign_in" }, 401);
-  if (s.stripe) fam = await refreshPlan(env, fam, quickCheck(env, fam));
-  if (!activePlan(fam)) return reply({ error: "needs_plan" }, 402);
-  if (tooMany(request, "gloss", 40, 600)) return reply({ error: "rate_limited" }, 429);
+  const who = await speakerFor(request, env, s);
+  if (who.res) return who.res;
+  const fam = who.fam;
+  if (tooMany(request, "gloss", 40, 600, who.member ? fam.id : null)) return reply({ error: "rate_limited" }, 429);
   const body = await readJson(request, 4000);
   const text = String((body && body.text) || "").normalize("NFC").replace(/\s+/g, " ").trim();
   if (!text || text.length > SAY_MAX_CHARS || !SAY_TEXT.test(text) || !/[ء-ی]/.test(text)) return reply({ error: "bad_request" }, 400);
@@ -764,11 +815,10 @@ function base64(bytes) {
 const SAY_TEXT = /^[؀-ۿ‌\s0-9.,!?؟،:;()"'«»…-]+$/;
 async function say(request, env, url, s) {
   if (!s.voice || !s.db) return reply({ error: "not_configured" }, 503);
-  let fam = await currentFamily(request, env);
-  if (!fam) return reply({ error: "sign_in" }, 401);
-  if (s.stripe) fam = await refreshPlan(env, fam, quickCheck(env, fam));
-  if (!activePlan(fam)) return reply({ error: "needs_plan" }, 402);
-  if (tooMany(request, "say", 40, 600)) return reply({ error: "rate_limited" }, 429);
+  const who = await speakerFor(request, env, s);
+  if (who.res) return who.res;
+  const fam = who.fam;
+  if (tooMany(request, "say", 40, 600, who.member ? fam.id : null)) return reply({ error: "rate_limited" }, 429);
   const body = await readJson(request, 4000);
   const text = String((body && body.text) || "").normalize("NFC").replace(/\s+/g, " ").trim();
   if (!text || text.length > SAY_MAX_CHARS || !SAY_TEXT.test(text) || !/[ء-ی]/.test(text)) return reply({ error: "bad_request" }, 400);
@@ -1458,7 +1508,7 @@ async function parentsPage(request, env) {
   const res = await env.ASSETS.fetch(new Request(request.url, { method: request.method, headers: ask }));
   if (res.status !== 200) return res;
   let html = request.method === "HEAD" ? "" : await res.text();
-  const p = plans(env), values = { free: String(p.free), basicTalks: String(p.basicTalks), perDay: String(p.perDay), basicPrice: dollars(p.basic), unlimitedPrice: dollars(p.unlimited), yearlyPrice: dollars(p.yearly), schoolPrice: dollars(p.school), freeLevels: String(FREE_LEVELS) };
+  const p = plans(env), values = { free: String(p.free), basicTalks: String(p.basicTalks), perDay: String(p.perDay), basicPrice: dollars(p.basic), unlimitedPrice: dollars(p.unlimited), yearlyPrice: dollars(p.yearly), schoolPrice: dollars(p.school), schoolTalksPrice: dollars(p.schoolTalks), classTalks: String(p.classTalks), freeLevels: String(FREE_LEVELS) };
   html = html.replace(/<!--v:(\w+)-->[\s\S]*?<!--\/v-->/g, (m, k) => (k in values ? values[k] : m)); // the plans as they're set now
   const sv = services(env), on = { turnstile: sv.turnstile, hear: sv.ai, voice: sv.voice && sv.ai };
   html = html.replace(/<!--if:(\w+)-->([\s\S]*?)<!--\/if-->/g, (m, k, inner) => (on[k] ? inner : "")); // the robot check and speaking practice, only if they're on
@@ -1513,9 +1563,11 @@ async function teacherAndClass(request, env, s, body) {
   if (!c) return { res: reply({ error: "not_found" }, 404) };
   return { fam, c };
 }
-const classOut = (c, members) => ({ id: c.id, name: c.name, code: c.code, assigned: parseList(c.assigned), paidUntil: Number(c.paid_until) || 0, pending: !!c.checkout_id, ...(members == null ? {} : { members }) });
-// What a learner's device is told about its class: the name, the assigned lessons, and whether the class has a school plan.
-const memberClass = c => { const until = Number(c.paid_until) || 0; return { name: c.class_name || c.name, assigned: parseList(c.assigned), fullUntil: until > Date.now() ? until : 0 }; };
+const classOut = (c, members) => ({ id: c.id, name: c.name, code: c.code, assigned: parseList(c.assigned), paidUntil: Number(c.paid_until) || 0, talksUntil: Number(c.talks_until) || 0, pending: !!c.checkout_id, ...(members == null ? {} : { members }) });
+// What a learner's device is told about its class: the name, the assigned lessons, whether the class has a school
+// plan, and (when the plan includes talks) how many talks this learner has left this month.
+const memberClass = (c, talks) => { const until = Number(c.paid_until) || 0; return { name: c.class_name || c.name, assigned: parseList(c.assigned), fullUntil: until > Date.now() ? until : 0, talks: talks || null }; };
+const upgradePrice = p => Math.max(100, p.schoolTalks - p.school); // adding talks to a class that has the school plan already
 async function classCreate(request, env, url, s) {
   const t = await teacherAndClass(request, env, s);
   if (t.res) return t.res;
@@ -1596,13 +1648,13 @@ async function classJoin(request, env, url, s) {
   if (!c) return reply({ error: "bad_code" }, 404);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM class_members WHERE class_id = ?").bind(c.id).first();
   if (n && n.n >= CLASS.maxMembers) return reply({ error: "class_full" }, 409);
-  const token = randomToken(), now = Date.now();
-  await env.DB.prepare("INSERT INTO class_members (id, class_id, token_hash, name, joined_at, seen_at, progress) VALUES (?, ?, ?, ?, ?, ?, NULL)").bind(randomId(), c.id, await sha256(token), name, now, now).run();
-  return reply({ token, name, class: memberClass(c) });
+  const token = randomToken(), now = Date.now(), mid = randomId();
+  await env.DB.prepare("INSERT INTO class_members (id, class_id, token_hash, name, joined_at, seen_at, progress) VALUES (?, ?, ?, ?, ?, ?, NULL)").bind(mid, c.id, await sha256(token), name, now, now).run();
+  return reply({ token, name, class: memberClass(c, await memberTalks(env, { id: mid, cid: c.id, talks_until: c.talks_until })) });
 }
 async function memberOf(env, token) {
   if (typeof token !== "string" || !/^[A-Za-z0-9_-]{40,50}$/.test(token)) return null;
-  return env.DB.prepare("SELECT m.id, m.name, c.id AS cid, c.name AS class_name, c.assigned, c.paid_until, c.checkout_id FROM class_members m JOIN classes c ON c.id = m.class_id WHERE m.token_hash = ?").bind(await sha256(token)).first();
+  return env.DB.prepare("SELECT m.id, m.name, c.id AS cid, c.name AS class_name, c.assigned, c.paid_until, c.talks_until, c.checkout_id, c.checkout_kind FROM class_members m JOIN classes c ON c.id = m.class_id WHERE m.token_hash = ?").bind(await sha256(token)).first();
 }
 async function classMine(request, env, url, s) {
   if (!s.db) return reply({ error: "not_configured" }, 503);
@@ -1611,7 +1663,7 @@ async function classMine(request, env, url, s) {
   if (!m) return reply({ error: "not_in_class" }, 404);
   m = await schoolCheckForMember(env, s, m);
   await env.DB.prepare("UPDATE class_members SET seen_at = ? WHERE id = ?").bind(Date.now(), m.id).run();
-  return reply({ name: m.name, class: memberClass(m) });
+  return reply({ name: m.name, class: memberClass(m, await memberTalks(env, m)) });
 }
 async function classProgress(request, env, url, s) {
   if (!s.db) return reply({ error: "not_configured" }, 503);
@@ -1624,7 +1676,7 @@ async function classProgress(request, env, url, s) {
   const p = cleanProgress(body.progress);
   if (!p) return reply({ error: "bad_request" }, 400);
   await env.DB.prepare("UPDATE class_members SET progress = ?, seen_at = ? WHERE id = ?").bind(JSON.stringify(p), Date.now(), m.id).run();
-  return reply({ name: m.name, class: memberClass(m) });
+  return reply({ name: m.name, class: memberClass(m, await memberTalks(env, m)) });
 }
 async function classLeave(request, env, url, s) {
   if (!s.db) return reply({ error: "not_configured" }, 503);
@@ -1638,34 +1690,50 @@ async function classLeave(request, env, url, s) {
 // Paid once through Stripe Checkout (no subscription, so nothing renews by itself). When the teacher comes back, or next
 // opens teacher mode, the payment is checked with Stripe and the class gets a year (added to any time it still has).
 const SCHOOL_DAYS = 365;
+// kind "school": all the levels for a year. kind "talks": all the levels and talks for a year; for a class that has
+// the school plan already, it adds talks until that plan ends, for the difference in price. Talks need the teacher
+// to agree, for the school, that they're teaching the class and its families have been told (agree: true).
 async function classCheckout(request, env, url, s) {
   if (!plansReady(s)) return reply({ error: "not_configured" }, 503);
   const body = (await readJson(request, 1000)) || {};
   const t = await teacherAndClass(request, env, s, body);
   if (t.res) return t.res;
   if (tooMany(request, "plans", 10, 60)) return reply({ error: "too_many" }, 429);
+  const wantsTalks = body.kind === "talks";
+  if (wantsTalks && body.agree !== true) return reply({ error: "needs_agree" }, 400);
   const c = t.c.checkout_id ? await schoolPaidCheck(env, t.c) : t.c;
   if (c.checkout_id && c.checkout_status === "complete") return reply({ error: "pending_payment", class: classOut(c) }, 409); // paid, still being confirmed: never replaced
-  if (Number(c.paid_until) > Date.now() + 60 * 864e5) return reply({ error: "has_plan", class: classOut(c) }, 409); // more than two months left: renew later
+  const now = Date.now(), paid = Number(c.paid_until) || 0, talks = Number(c.talks_until) || 0, p = plans(env);
+  let kind, amount, label;
+  if (!wantsTalks) {
+    if (paid > now + 60 * 864e5) return reply({ error: "has_plan", class: classOut(c) }, 409); // more than two months left: renew later
+    kind = "school"; amount = p.school; label = `Alefba school plan: ${c.name}, one year`;
+  } else if (paid > now + 30 * 864e5 && talks < paid) { // the school plan, without talks, with a month or more left
+    kind = "talks_upgrade"; amount = upgradePrice(p); label = `Alefba school plan: talks for ${c.name}, until ${new Date(paid).toISOString().slice(0, 10)}`;
+  } else {
+    if (talks > now + 60 * 864e5) return reply({ error: "has_plan", class: classOut(c) }, 409);
+    kind = "school_talks"; amount = p.schoolTalks; label = `Alefba school plan with talks: ${c.name}, one year`;
+  }
   const customer = await ensureCustomer(env, t.fam);
   if (!customer) return reply({ error: "payment_error" }, 502);
   const mode = stripeMode(env), prevRaw = c.checkout_id || null, prev = String(prevRaw || "");
   if (prev.startsWith(mode + ":") && !(await expireCheckout(env, prev.slice(mode.length + 1)))) return reply({ error: "payment_error" }, 502);
-  const p = plans(env);
   const r = await stripe(env, "POST", "/checkout/sessions", {
     mode: "payment", customer, client_reference_id: t.fam.id,
     "line_items[0][quantity]": 1,
     "line_items[0][price_data][currency]": "usd",
-    "line_items[0][price_data][unit_amount]": p.school,
-    "line_items[0][price_data][product_data][name]": `Alefba school plan: ${c.name}, one year`,
-    "line_items[0][price_data][product_data][metadata][alefba_plan]": "school",
-    "metadata[class_id]": c.id, "payment_intent_data[metadata][class_id]": c.id,
+    "line_items[0][price_data][unit_amount]": amount,
+    "line_items[0][price_data][product_data][name]": label,
+    "line_items[0][price_data][product_data][metadata][alefba_plan]": kind === "school" ? "school" : "school_talks",
+    "metadata[class_id]": c.id, "metadata[alefba_kind]": kind, "payment_intent_data[metadata][class_id]": c.id,
     allow_promotion_codes: "true",
     expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
     success_url: url.origin + "/?school=done&class=" + c.id, cancel_url: url.origin + "/?school=cancel",
   });
   if (!r.ok || !r.data || !/^https?:\/\//.test(String(r.data.url))) return reply({ error: "payment_error" }, 502);
-  const saved = await env.DB.prepare("UPDATE classes SET checkout_id = ? WHERE id = ? AND checkout_id IS ?").bind(mode + ":" + r.data.id, c.id, prevRaw).run();
+  // the teacher's agreement is kept with the class: when they gave it (they tick it each time they buy talks)
+  const saved = await env.DB.prepare(`UPDATE classes SET checkout_id = ?, checkout_kind = ?${wantsTalks ? ", agreed_at = ?" : ""} WHERE id = ? AND checkout_id IS ?`)
+    .bind(...[mode + ":" + r.data.id, kind, ...(wantsTalks ? [now] : []), c.id, prevRaw]).run();
   if (!saved.meta || saved.meta.changes !== 1) { await expireCheckout(env, r.data.id); return reply({ error: "busy" }, 409); }
   return reply({ url: r.data.url });
 }
@@ -1684,9 +1752,13 @@ async function schoolPaidCheck(env, c) {
   if (!r.ok || !r.data) { if (r.status === 404) await env.DB.prepare("UPDATE classes SET checkout_id = NULL WHERE id = ? AND checkout_id = ?").bind(c.id, v).run(); return r.status === 404 ? { ...c, checkout_id: null } : c; }
   const meta = r.data.metadata || {};
   if (SCHOOL_PAID.includes(r.data.payment_status) && meta.class_id === c.id) {
-    const now = Date.now(), until = Math.max(Number(c.paid_until) || 0, now) + SCHOOL_DAYS * 864e5;
-    const u = await env.DB.prepare("UPDATE classes SET paid_until = ?, checkout_id = NULL WHERE id = ? AND checkout_id = ?").bind(until, c.id, v).run();
-    if (u.meta && u.meta.changes === 1) return { ...c, paid_until: until, checkout_id: null };
+    const now = Date.now(), year = SCHOOL_DAYS * 864e5, kind = meta.alefba_kind || c.checkout_kind || "school";
+    let paid = Number(c.paid_until) || 0, talks = Number(c.talks_until) || 0;
+    if (kind === "talks_upgrade") talks = Math.max(talks, paid); // talks until the school plan ends
+    else if (kind === "school_talks") { talks = Math.max(talks, now) + year; paid = Math.max(paid, now) + year; paid = Math.max(paid, talks); }
+    else paid = Math.max(paid, now) + year;
+    const u = await env.DB.prepare("UPDATE classes SET paid_until = ?, talks_until = ?, checkout_id = NULL, checkout_kind = NULL WHERE id = ? AND checkout_id = ?").bind(paid, talks || null, c.id, v).run();
+    if (u.meta && u.meta.changes === 1) return { ...c, paid_until: paid, talks_until: talks || null, checkout_id: null, checkout_kind: null };
     return (await env.DB.prepare("SELECT * FROM classes WHERE id = ?").bind(c.id).first()) || c;
   }
   if (r.data.status === "expired") { await env.DB.prepare("UPDATE classes SET checkout_id = NULL WHERE id = ? AND checkout_id = ?").bind(c.id, v).run(); return { ...c, checkout_id: null }; }
@@ -1700,8 +1772,8 @@ async function schoolCheckForMember(env, s, m) {
   if (now - (schoolAsked.get(m.cid) || 0) < 60e3) return m;
   schoolAsked.set(m.cid, now);
   if (schoolAsked.size > 2000) schoolAsked.clear();
-  const c = await schoolPaidCheck(env, { id: m.cid, checkout_id: m.checkout_id, paid_until: m.paid_until });
-  return { ...m, paid_until: c.paid_until };
+  const c = await schoolPaidCheck(env, { id: m.cid, checkout_id: m.checkout_id, checkout_kind: m.checkout_kind, paid_until: m.paid_until, talks_until: m.talks_until });
+  return { ...m, paid_until: c.paid_until, talks_until: c.talks_until };
 }
 
 // ---------- progress on every device ----------
@@ -1835,7 +1907,7 @@ function mergeProgress(a, b) {
 
 // ---------- storage (D1) ----------
 // The tables are made the first time they're needed, and brought up to date if an earlier version made them.
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS families (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, stripe_test TEXT, stripe_live TEXT, checkout_id TEXT, sub_id TEXT, plan TEXT, plan_status TEXT, plan_checked INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS free_ledger (h TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)",
@@ -1846,7 +1918,7 @@ const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS counters (k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS usage (day TEXT NOT NULL, name TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, name))", // daily totals only
   "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-  "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT)",
+  "CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, assigned TEXT NOT NULL DEFAULT '[]', paid_until INTEGER, checkout_id TEXT, talks_until INTEGER, agreed_at INTEGER, checkout_kind TEXT)",
   "CREATE TABLE IF NOT EXISTS progress (family_id TEXT NOT NULL, sid TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (family_id, sid))",
   "CREATE TABLE IF NOT EXISTS nudges (h TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, email_id TEXT, send_at INTEGER, stopped INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS class_members (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, name TEXT NOT NULL, joined_at INTEGER NOT NULL, seen_at INTEGER NOT NULL, progress TEXT)",
@@ -1860,6 +1932,9 @@ const SCHEMA_ADDED = [ // columns an earlier version's tables don't have yet (ea
   "ALTER TABLE families ADD COLUMN sync_gone TEXT",
   "ALTER TABLE classes ADD COLUMN paid_until INTEGER",
   "ALTER TABLE classes ADD COLUMN checkout_id TEXT",
+  "ALTER TABLE classes ADD COLUMN talks_until INTEGER",
+  "ALTER TABLE classes ADD COLUMN agreed_at INTEGER",
+  "ALTER TABLE classes ADD COLUMN checkout_kind TEXT",
 ];
 const SCHEMA_INDEXES = [
   "CREATE INDEX IF NOT EXISTS talks_by_family ON talks (family_id, started_at)",
@@ -1981,8 +2056,8 @@ function readCookie(request, url) {
 // The daily limits in the database and the monthly spending limit in the Claude Console are the real caps on cost.
 const seen = new Map();
 let lastSweep = 0;
-function tooMany(request, bucket, perMinute = LIMITS.perMinute, perHour = LIMITS.perHour) {
-  const who = bucket + ":" + (request.headers.get("CF-Connecting-IP") || "unknown");
+function tooMany(request, bucket, perMinute = LIMITS.perMinute, perHour = LIMITS.perHour, key) {
+  const who = bucket + ":" + (key || request.headers.get("CF-Connecting-IP") || "unknown");
   const now = Date.now();
   if (now - lastSweep > 60e3) { // addresses not seen for an hour are forgotten
     lastSweep = now;

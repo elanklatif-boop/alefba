@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>A note for families</title>
+<meta property="og:title" content="Alefba in class: a note for families">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alefba">
+<meta property="og:image" content="https://learnalefba.com/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Alefba: learn to read and speak Persian">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://learnalefba.com/icons/og-image.png">
+<meta name="description" content="A note teachers can send home: what Alefba is, how the AI talks work in class, and what it keeps.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c3780'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f2b23c' font-family='Tahoma,sans-serif'%3E%D8%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* A note a teacher sends home before the class uses talks: copy it, print it, or send the link. */
+:root {
+  --bg: #f2f6f7; --surface: #ffffff; --ink: #13293a; --muted: #5a7282; --line: #d8e3e7;
+  --band: #1c3780; --band-ink: #ffffff; --band-muted: #c3d0f0; --cta: #f2b23c; --lapis-text: #1f3d8a; --turq: #0a7170; --turq-soft: #dbeeed;
+  --font-ui: "Lexend", "Segoe UI", system-ui, sans-serif; --font-head: "Literata", "Iowan Old Style", Georgia, serif; --font-fa: "Vazirmatn", "Tahoma", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0b1820; --surface: #112430; --ink: #e4eef1; --muted: #8fa8b3; --line: #23404e; --band: #142a63; --band-muted: #aebde6; --lapis-text: #a3b8ff; --turq: #3bbfba; --turq-soft: #123a3c; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-ui); }
+.wrap { max-width: 42rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { background: var(--band); color: var(--band-ink); padding-top: env(safe-area-inset-top, 0px); }
+header .wrap { padding-block: 28px 26px; display: grid; gap: 8px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand b { font-family: var(--font-head); font-size: 1.6rem; }
+.brand span { font-family: var(--font-fa); font-size: 1.8rem; color: var(--cta); }
+header h1 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.9rem; line-height: 1.2; text-wrap: balance; }
+header p { margin: 0; color: var(--band-muted); max-width: 60ch; }
+main .wrap { padding-block: 24px 48px; display: grid; gap: 22px; }
+.short { background: var(--turq-soft); border-radius: 14px; padding: 16px 18px; }
+.short p { margin: 0; }
+section h2 { margin: 0 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.25rem; text-wrap: balance; }
+section p, section ul { margin: 0 0 8px; max-width: 65ch; }
+section ul { padding-left: 1.2em; }
+section li + li { margin-top: 4px; }
+a { color: var(--lapis-text); font-weight: 600; }
+.prices { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); margin: 4px 0 10px; }
+.price { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 2px; }
+.price b { font-size: 1.05rem; }
+.price span { color: var(--muted); font-size: 0.92rem; }
+.contact { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+footer { color: var(--muted); font-size: 0.9rem; }
+.hi { font-size: 1.15rem; }
+.contact .mail { font-weight: 700; user-select: all; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; }
+.tools button { font: inherit; font-weight: 600; border-radius: 12px; padding: 10px 16px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 44px; }
+.tools button.primary { background: var(--band); color: var(--band-ink); border-color: var(--band); }
+.tools .done { color: var(--turq); font-weight: 600; align-self: center; }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 14px; }
+.note h2 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.3rem; }
+.note h3 { margin: 0 0 4px; font-size: 1rem; }
+.note p, .note ul { margin: 0; }
+.note ul { padding-left: 1.2em; }
+.note li + li { margin-top: 4px; }
+.lead { color: var(--muted); }
+@media print {
+  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #333; --line: #fff; }
+  header, .tools, footer, .lead { display: none !important; }
+  main .wrap { padding: 0; }
+  .note { border: 0; padding: 0; }
+  a { color: #000; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><b>Alefba</b><span lang="fa">الفبا</span></div>
+    <h1>A note for families</h1>
+    <p>For teachers: send this home before your class starts talking with the characters.</p>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <p class="lead">Copy it into an email or a class group, print it, or send this page's link. Put your class's name at the top by adding it to the link: learnalefba.com/class-note?class=Saturday%20class</p>
+    <div class="tools">
+      <button type="button" class="primary" id="copyNote">Copy the note</button>
+      <button type="button" id="printNote">Print it</button>
+      <span class="done" id="copied" hidden>Copied</span>
+    </div>
+
+    <article class="note" id="note">
+      <h2>Our class is using Alefba<span id="className"></span></h2>
+      <p>Dear families,</p>
+      <p>This year our class is using Alefba (learnalefba.com) to practise reading and speaking Persian, at school and at home. Alefba teaches the alphabet and everyday words, with recordings of how people really say them.</p>
+      <div>
+        <h3>Talks with the characters</h3>
+        <p>Our class plan includes short practice conversations with characters in the app, such as a new classmate or a shopkeeper. The characters' lines are written by an AI (Claude, made by Anthropic) and are kept to Persian practice at the learner's level. Each learner has 5 talks a month. Learners can type or say their answers out loud.</p>
+      </div>
+      <div>
+        <h3>What Alefba keeps, and what it doesn't</h3>
+        <ul>
+          <li>To join the class, your child types a first name or a nickname. Please don't use a full name.</li>
+          <li>The teacher sees that name and your child's progress: which lessons are done, the days they practised, and how many letters and words they know.</li>
+          <li>The talks themselves are not saved or kept by Alefba, and your child's voice is never recorded or stored: it's turned into text to answer, then gone.</li>
+          <li>The characters are told never to ask for personal details, such as a surname, address, school or phone number.</li>
+          <li>There are no ads, and nothing is sold or shared for advertising.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Your choice</h3>
+        <p>If you'd rather your child didn't use the talks, or you want your child removed from the class and their class progress deleted, just tell me and I'll take care of it. Children can still use the lessons without the talks.</p>
+        <p>You can read more about how Alefba keeps children safe at learnalefba.com/parents, or email its maker at hello@learnalefba.com.</p>
+      </div>
+      <p>Thank you,<br>Your child's teacher</p>
+    </article>
+
+    <footer><p><a href="./">Alefba</a> · <a href="teachers">For teachers</a> · <a href="parents">For parents</a> · <a href="about">About</a></p></footer>
+  </div>
+</main>
+<script>
+(function () {
+  var name = "";
+  try { name = (new URLSearchParams(location.search).get("class") || "").replace(/\s+/g, " ").trim().slice(0, 40); } catch (e) {}
+  if (name) document.getElementById("className").textContent = ": " + name;
+  document.getElementById("printNote").addEventListener("click", function () { window.print(); });
+  document.getElementById("copyNote").addEventListener("click", function () {
+    var text = document.getElementById("note").innerText;
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+  });
+})();
+</script>
+</body>
+</html>

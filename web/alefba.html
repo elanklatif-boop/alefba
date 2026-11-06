@@ -191,6 +191,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible, [role="button"
 .heard { align-self: stretch; background: var(--surface); border: 1.5px solid var(--turq); border-radius: 14px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
 .heard .fa-line { font-size: 1.2rem; }
 .heard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.school-opts { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.school-agree { display: flex; gap: 10px; align-items: flex-start; font-size: .95em; line-height: 1.45; cursor: pointer; }
+.school-agree input { width: 20px; height: 20px; margin: 2px 0 0; flex: none; accent-color: var(--turq); }
+.school-note { font-weight: 600; align-self: flex-start; }
 .heard-bar { height: 4px; border-radius: 4px; background: var(--line, rgba(0,0,0,.08)); overflow: hidden; }
 .heard-bar > span { display: block; height: 100%; width: 100%; background: var(--turq); transform-origin: left; animation: heardGo 1.8s linear forwards; }
 @keyframes heardGo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
@@ -3107,6 +3111,17 @@ const nextLesson = () => { const open = pathLessons().filter(l => !S.done[l.id] 
 const FREE_LEVELS = 3;
 const hasPlan = () => !!(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn && ACCT.plan);
 const classFull = () => !!(WEB && S.cls && S.cls.token && Number(S.cls.fullUntil) > Date.now()); // the learner's class has a school plan
+// The learner's class has the school plan with talks: they talk (and answer out loud) with their class key, nobody
+// signs in. A family's own paid plan comes first when there is one.
+const classTalks = () => !!(WEB && S.cls && S.cls.token && S.cls.talks && Number(S.cls.talks.until) > Date.now());
+const useClassTalks = () => classTalks() && !(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn && ACCT.plan);
+const classHeaders = () => (useClassTalks() ? { "x-alefba-class": S.cls.token } : {});
+function classTalksLine() {
+  const t = S.cls.talks;
+  return t.left > 0 ? `${t.left} of ${t.per} class talk${t.per === 1 ? "" : "s"} left this month` : t.classUsedUp ? "Your class has used all its talks for this month" : `This month's ${t.per} class talks are used up`;
+}
+// The class's talks, as the website last said (after a talk, or a check-in)
+function classTalksFrom(c) { if (!S.cls || !c) return; S.cls.talks = c.talks || null; if (c.fullUntil != null) S.cls.fullUntil = Number(c.fullUntil) || 0; save(true); }
 const lessonLocked = ls => !!(WEB && ls && ls.level && !ls.level.season && ls.level.index >= FREE_LEVELS && !hasPlan() && !classFull());
 // Finglish under Persian words. "auto" (the default) shows it while you're still learning a word,
 // so it fades away word by word as you learn the alphabet.
@@ -3252,7 +3267,7 @@ function speakSeq(list, done, gap = 350) {
 // (and forgets the sound). heardMatches below compares heard text with a word, treating same-sounding letters as the
 // same (س ص ث, ز ذ ض ظ, ت ط, ه ح, غ ق); it's kept for checks that may come later.
 const micSupported = () => !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext || window.webkitAudioContext));
-const canHear = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ACCT.signedIn && ACCT.hear && !SAY.off && micSupported());
+const canHear = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ((ACCT.signedIn && ACCT.hear) || (useClassTalks() && ACCT.hearReady)) && !SAY.off && micSupported());
 // The website has speaking practice but this family has no plan yet: the app shows it's there, locked, so people know.
 const hearLocked = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ACCT.hearReady && ACCT.plans && !ACCT.hear && !SAY.off && micSupported());
 const SAY = { off: false }; // "Can't talk right now" turns speaking off until the page is opened again
@@ -3372,7 +3387,7 @@ async function toWav(blob) {
 // Send a clip to the website to be written down. Returns { ok, text } or { ok: false, error }.
 async function hearClip(wav, expect) {
   let r, j = null;
-  try { r = await fetch(WEB.api + "/hear" + (expect ? "?expect=" + encodeURIComponent(expect) : ""), { method: "POST", headers: { "content-type": "audio/wav" }, credentials: "same-origin", body: wav }); }
+  try { r = await fetch(WEB.api + "/hear" + (expect ? "?expect=" + encodeURIComponent(expect) : ""), { method: "POST", headers: { "content-type": "audio/wav", ...classHeaders() }, credentials: "same-origin", body: wav }); }
   catch (e) { return { ok: false, error: "network" }; }
   try { j = await r.json(); } catch (e) {}
   if (r.ok && j && typeof j.text === "string") return { ok: true, text: j.text };
@@ -3386,7 +3401,7 @@ async function hearClip(wav, expect) {
 // Microsoft's Persian voices (Dilara, the voice of the app's recordings, and Farid for the men). Without that, the
 // device's own Persian voice is used when it has one. Lines already fetched are kept for the visit, so Play again
 // and Slower are instant and free.
-const voiceReady = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ACCT.signedIn && ACCT.voice);
+const voiceReady = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ((ACCT.signedIn && ACCT.voice) || (useClassTalks() && ACCT.voiceReady)));
 const canSayText = () => voiceReady() || !!faVoice;
 // The website has the voices but this family has no plan yet
 const voiceLocked = () => !!(WEB && typeof ACCT !== "undefined" && ACCT && ACCT.voiceReady && ACCT.plans && !ACCT.voice);
@@ -3402,7 +3417,7 @@ async function sayText(text, opts = {}) {
     let url = SAID.get(k);
     if (!url) {
       let r = null;
-      try { r = await fetch(WEB.api + "/say", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ text, rate: opts.slow ? "slow" : "normal", voice }) }); } catch (e) { r = null; }
+      try { r = await fetch(WEB.api + "/say", { method: "POST", headers: { "content-type": "application/json", ...classHeaders() }, credentials: "same-origin", body: JSON.stringify({ text, rate: opts.slow ? "slow" : "normal", voice }) }); } catch (e) { r = null; }
       if (r && r.ok) { try { url = URL.createObjectURL(await r.blob()); if (SAID.size > 300) SAID.clear(); SAID.set(k, url); } catch (e) { url = null; } }
       else if (r) {
         let j = null; try { j = await r.json(); } catch (e) {}
@@ -5595,7 +5610,7 @@ async function glossLine(text) {
   if (!WEB || !/[ء-ی]/.test(text)) return null;
   const key = langOf().k + "|" + text;
   if (GLOSSED.has(key)) return GLOSSED.get(key);
-  const r = await apiPost("/gloss", { text, lang: langOf().k });
+  const r = await apiPost("/gloss", { text, lang: langOf().k }, classHeaders());
   const out = r.ok && (r.data.translit || r.data.meaning) ? { translit: r.data.translit || "", meaning: r.data.meaning || "" } : null;
   if (out) GLOSSED.set(key, out);
   return out;
@@ -5613,6 +5628,9 @@ function updateTalkStart() {
     g.addEventListener("click", () => openSignIn(updateTalkStart));
     box.append(g);
     box.append(el("p", "note", c.dialogue ? "Until then, you can read and listen to the example above." : "Until then, you can practice the useful phrases above."));
+  } else if (aiState === "ready" && !canTalkNow() && useClassTalks()) {
+    box.append(el("p", "note talks-left", classTalksLine() + ". There are more next month."));
+    box.append(el("p", "note", c.dialogue ? "You can still read and listen to the example above." : "You can still practice the useful phrases above."));
   } else if (aiState === "ready" && !canTalkNow()) {
     box.append(el("p", "note talks-left", talksLeftText(ACCT) + "."));
     if (ACCT.plans && ACCT.kind !== "unlimited") { const p = el("button", "btn primary wide", isAdult() ? "See the plans" : "Ask a grown-up about plans"); p.id = "plansBtn"; p.addEventListener("click", () => openAccount(updateTalkStart)); box.append(p); }
@@ -5626,7 +5644,7 @@ function updateTalkStart() {
     box.append(el("p", "note", AI && AI.web
       ? `${name} talks at your level (${SPEAK_NAMES[speakLevel()]}) and helps when you get stuck. Talks are written by Claude, an AI made by Anthropic.`
       : `${name} talks at your level (${SPEAK_NAMES[speakLevel()]}) and helps when you get stuck. This uses your Claude account, and the first time Claude asks if this page may use it.`));
-    if (webAccount()) box.append(el("p", "note talks-left", talksLeftText(ACCT) + "."));
+    if (webAccount()) box.append(el("p", "note talks-left", talksLine() + "."));
   } else if (aiState === "checking") {
     box.append(el("p", "note", "Getting the conversation ready…"));
   } else {
@@ -5670,7 +5688,8 @@ async function webTalkAI(api) {
         keyFor = turns[0].content; talkId = null;
       }
       let r;
-      try { r = await fetch(api + "/talk", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ turns, talk_id: talkId, talk_key: talkKey, stream: true }), signal: opts && opts.signal }); }
+      const byClass = useClassTalks(); // the class's talks: sent with the class key instead of a signed-in family
+      try { r = await fetch(api + "/talk", { method: "POST", headers: { "content-type": "application/json", ...(byClass ? classHeaders() : {}) }, credentials: "same-origin", body: JSON.stringify({ turns, talk_id: talkId, talk_key: talkKey, stream: true }), signal: opts && opts.signal }); }
       catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "network" }; }
       let j = null;
       if (r.ok && /ndjson/.test(r.headers.get("content-type") || "") && r.body && r.body.getReader) {
@@ -5680,13 +5699,15 @@ async function webTalkAI(api) {
         if (!j) throw { code: "network" };
       } else { try { j = await r.json(); } catch (e) {} }
       if (j && j.account) ACCT = j.account;
+      if (j && j.class && byClass) classTalksFrom(j.class);
       if (!r.ok || (j && j.error)) {
-        const code = (j && j.error) || (r.status === 429 ? "rate_limited" : "server_error");
+        let code = (j && j.error) || (r.status === 429 ? "rate_limited" : "server_error");
+        if (byClass && ["no_talks", "class_talks_used", "needs_plan", "not_in_class"].includes(code)) { code = "class_" + code.replace(/^class_/, ""); if (code === "class_not_in_class" && S.cls) { S.cls = null; save(); } }
         if (code === "sign_in" && ACCT) ACCT = { ...ACCT, signedIn: false };
         throw { code };
       }
       if (j.talk_id) talkId = j.talk_id;
-      delete j.talk_id; delete j.account;
+      delete j.talk_id; delete j.account; delete j.class;
       return j;
     },
   };
@@ -5720,9 +5741,9 @@ async function refreshAccount(refresh, api) {
   if (ACCT && ACCT.signedIn && $("obSignIn")) $("obSignIn").hidden = true; // already signed in: nothing to offer on the welcome
   return ACCT;
 }
-async function apiPost(path, body) {
+async function apiPost(path, body, headers) {
   let r, j = null;
-  try { r = await fetch(WEB.api + path, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify(body || {}) }); }
+  try { r = await fetch(WEB.api + path, { method: "POST", headers: { "content-type": "application/json", ...(headers || {}) }, credentials: "same-origin", body: JSON.stringify(body || {}) }); }
   catch (e) { return { ok: false, error: "network", data: {} }; }
   try { j = await r.json(); } catch (e) {}
   return { ok: r.ok, status: r.status, error: (j && j.error) || (r.ok ? null : "server_error"), data: j || {} };
@@ -5730,8 +5751,9 @@ async function apiPost(path, body) {
 function randomKey() { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, x => x.toString(16).padStart(2, "0")).join(""); }
 const webAccount = () => !!(AI && AI.web);
 // On the website, talks need a grown-up signed in and talks left. Inside Claude there's nothing to sign in to.
-const grownUpOK = () => !webAccount() || !!(ACCT && ACCT.signedIn);
-const canTalkNow = () => !webAccount() || !!(ACCT && ACCT.signedIn && ACCT.canTalk);
+const grownUpOK = () => !webAccount() || !!(ACCT && ACCT.signedIn) || classTalks(); // a class with talks: nobody signs in
+const canTalkNow = () => !webAccount() || (useClassTalks() ? S.cls.talks.left > 0 : !!(ACCT && ACCT.signedIn && ACCT.canTalk));
+const talksLine = () => (useClassTalks() ? classTalksLine() : talksLeftText(ACCT));
 const toLatinDigits = s => s.replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 function talksLeftText(a) {
   if (!a || !a.signedIn) return "";
@@ -5799,7 +5821,7 @@ function renderPlansTab() {
   v.append(card);
   if (ready) {
     const tc = el("div", "plan-card teach-card"); tc.id = "teachCard";
-    tc.append(el("h2", null, "For teachers"), el("p", null, `Make a class, give your students its code, assign lessons and see who's practising. Teacher mode is free, and a school plan${A.prices && A.prices.school ? ` (${A.prices.school} a year)` : ""} opens every level for a whole class.`));
+    tc.append(el("h2", null, "For teachers"), el("p", null, `Make a class, give your students its code, assign lessons and see who's practising. Teacher mode is free. A school plan${A.prices && A.prices.school ? ` (${A.prices.school} a year)` : ""} opens every level for a whole class, and with talks${A.prices && A.prices.schoolTalks ? ` (${A.prices.schoolTalks} a year)` : ""} every student can also talk with the characters.`));
     const tb = el("button", "btn quiet", A.signedIn ? "Open teacher mode" : "Sign in to use teacher mode"); tb.id = "teachBtn"; tb.type = "button"; tb.addEventListener("click", openTeacher);
     tc.append(tb);
     if (WEB.teachersUrl) { const a = el("a", "plans-link", "What teachers get"); a.href = WEB.teachersUrl; a.target = "_blank"; a.rel = "noopener"; tc.append(a); }
@@ -5972,11 +5994,12 @@ function syncClass(soon) {
     const r = await apiPost("/class/progress", { token: mine.token, progress: classSummary() });
     if (S.cls !== mine) return; // a different learner now, or they left meanwhile
     if (r.ok && r.data.class) {
-      const before = JSON.stringify([mine.cname, mine.assigned, mine.fullUntil]);
+      const before = JSON.stringify([mine.cname, mine.assigned, mine.fullUntil, mine.talks]);
       mine.cname = r.data.class.name; mine.assigned = (r.data.class.assigned || []).slice(0, 40); if (r.data.name) mine.name = r.data.name;
       mine.fullUntil = Number(r.data.class.fullUntil) || 0;
+      mine.talks = r.data.class.talks || null;
       save(true);
-      if (JSON.stringify([mine.cname, mine.assigned, mine.fullUntil]) !== before) { renderLessons(); renderReview(); }
+      if (JSON.stringify([mine.cname, mine.assigned, mine.fullUntil, mine.talks]) !== before) { renderLessons(); renderReview(); accountChanged(); }
     } else if (r.error === "not_in_class") { S.cls = null; save(); renderLessons(); renderReview(); } // the teacher removed them, or deleted the class
   }, soon ? 0 : 2500);
 }
@@ -5999,6 +6022,7 @@ function classCard() {
   const c = el("div", "plan-card class-card"); c.id = "classCard";
   c.append(el("b", null, `From your teacher: ${S.cls.cname}`));
   if (classFull()) c.append(el("p", "note good", `Your class has the school plan: all ${LEVELS.length} levels are open.`));
+  if (classTalks()) c.append(el("p", "note good", `Talks with the characters are included. ${classTalksLine()}.`));
   if (!items.length) { c.append(el("p", "note", "Nothing assigned right now. Carry on with your lessons.")); return c; }
   const doneN = items.filter(l => S.done[l.id] === true).length;
   c.append(el("p", "note" + (doneN === items.length ? " good" : ""), doneN === items.length ? "All done. Nice work!" : `${doneN} of ${items.length} done`));
@@ -6065,7 +6089,7 @@ function showJoinForm() {
     const r = await apiPost("/class/join", { code: code.value, name: name.value });
     ok.disabled = false;
     if (r.ok && r.data.token) {
-      S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0 };
+      S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0, talks: r.data.class.talks || null };
       save(); wrap.remove();
       syncClass(true); renderLessons(); renderReview(); showView("lessons");
       return;
@@ -6098,7 +6122,7 @@ async function teachList() {
   m.append(el("p", "lead", "Make a class and give your students its code. They join from the Review tab on their own device. Then you can assign lessons and see who's practising."));
   list.forEach(c => {
     const b = el("button", "class-row"); b.id = "tcls-" + c.id; b.type = "button";
-    b.append(el("b", null, c.name), el("span", "note", `${c.members} learner${c.members === 1 ? "" : "s"} · code ${c.code}${c.paidUntil > Date.now() ? " · school plan" : ""}`));
+    b.append(el("b", null, c.name), el("span", "note", `${c.members} learner${c.members === 1 ? "" : "s"} · code ${c.code}${c.talksUntil > Date.now() ? " · school plan with talks" : c.paidUntil > Date.now() ? " · school plan" : ""}`));
     b.addEventListener("click", () => teachClass(c.id));
     m.append(b);
   });
@@ -6196,25 +6220,51 @@ const longDate = t => new Date(t).toLocaleDateString(undefined, { day: "numeric"
 function schoolPlanSec(c) {
   const sec = el("section", "teach-sec school-sec"); sec.id = "schoolSec";
   sec.append(el("h3", null, "School plan"));
-  const A = ACCT || {}, price = (A.prices && A.prices.school) || "";
-  const on = c.paidUntil > Date.now(), soon = on && c.paidUntil - Date.now() < 60 * 864e5;
-  if (on) sec.append(el("p", "note good", `On until ${longDate(c.paidUntil)}. Everyone in this class has all ${LEVELS.length} levels, on any device.`));
-  else sec.append(el("p", null, `Open all ${LEVELS.length} levels (${WORDS.length} words, the stories and the games) for everyone in this class, for a year${price ? `: ${price}, paid once` : ""}. It doesn't renew by itself, and families don't need their own plan for the lessons.`));
-  if (c.pending && !on) sec.append(el("p", "note", "A payment was started. If you've paid, tap Refresh below in a moment."));
-  if (A.plans === false) { sec.append(el("p", "note", "Payments aren't set up on this website yet.")); return sec; }
-  if (!on || soon) {
-    const b = el("button", on ? "btn quiet" : "btn primary", on ? `Add another year${price ? ` (${price})` : ""}` : `Get the school plan${price ? ` (${price})` : ""}`); b.id = "schoolBuy"; b.type = "button";
-    const err = el("p", "gate-err"); err.hidden = true; err.setAttribute("aria-live", "polite");
-    b.addEventListener("click", async () => {
-      b.disabled = true; err.hidden = true;
-      const r = await apiPost("/class/checkout", { id: c.id });
-      if (r.ok && r.data.url) { location.href = r.data.url; return; }
-      b.disabled = false; err.hidden = false;
-      err.textContent = { has_plan: "This class already has the school plan.", not_configured: "Payments aren't set up on this website yet.", sign_in: "Please sign in again from the Plans tab.", busy: "A payment is already starting. Wait a moment, then try again." }[r.error] || "The payment page couldn't be opened. Try again in a moment.";
-    });
-    sec.append(b, err);
+  const A = ACCT || {}, pr = A.prices || {}, per = A.classTalks || 5, now = Date.now(), day = 864e5;
+  const on = c.paidUntil > now, talks = c.talksUntil > now;
+  const soon = on && c.paidUntil - now < 60 * day, talksSoon = talks && c.talksUntil - now < 60 * day;
+  const canUpgrade = on && !talks && c.paidUntil - now > 30 * day; // talks added until the plan ends, for the difference
+  if (talks) sec.append(el("p", "note good", `On until ${longDate(c.talksUntil)}, with talks. Everyone in this class has all ${LEVELS.length} levels, and ${per} talks a month each with the characters (Voice mode too). Learners don't sign in: joining with the class code is enough.`));
+  else if (on) sec.append(el("p", "note good", `On until ${longDate(c.paidUntil)}. Everyone in this class has all ${LEVELS.length} levels, on any device. Talks with the characters aren't included yet.`));
+  else {
+    sec.append(el("p", null, `Open all ${LEVELS.length} levels (${WORDS.length} words, the stories and the games) for everyone in this class, for a year, paid once. It doesn't renew by itself.`));
+    const opts = el("ul", "school-opts");
+    opts.append(el("li", null, `With talks${pr.schoolTalks ? `, ${pr.schoolTalks} a year` : ""}: every learner also gets ${per} talks a month with the characters, typing or out loud. Nobody needs to sign in.`));
+    opts.append(el("li", null, `Lessons only${pr.school ? `, ${pr.school} a year` : ""}: families can add talks with their own plan.`));
+    sec.append(opts);
   }
-  sec.append(el("p", "note", "Talks with the AI characters and speaking practice aren't included: families can add those with their own plan."));
+  if (c.pending) sec.append(el("p", "note", "A payment was started. If you've paid, tap Refresh below in a moment."));
+  if (A.plans === false) { sec.append(el("p", "note", "Payments aren't set up on this website yet.")); return sec; }
+  const err = el("p", "gate-err"); err.hidden = true; err.setAttribute("aria-live", "polite");
+  const buy = async (b, kind) => {
+    err.hidden = true;
+    if (kind === "talks" && !agree.querySelector("input").checked) { err.hidden = false; err.textContent = "Tick the box first, so the families are covered."; agree.querySelector("input").focus(); return; }
+    b.disabled = true;
+    const r = await apiPost("/class/checkout", { id: c.id, kind, agree: kind === "talks" });
+    if (r.ok && r.data.url) { location.href = r.data.url; return; }
+    b.disabled = false; err.hidden = false;
+    err.textContent = { has_plan: "This class already has the school plan.", not_configured: "Payments aren't set up on this website yet.", sign_in: "Please sign in again from the Plans tab.", busy: "A payment is already starting. Wait a moment, then try again.", needs_agree: "Tick the box first, so the families are covered." }[r.error] || "The payment page couldn't be opened. Try again in a moment.";
+  };
+  // talks for children: the teacher agrees for the class, having told the families (the note does that)
+  const agree = el("label", "school-agree"); agree.id = "schoolAgree";
+  const box = el("input"); box.type = "checkbox"; box.id = "schoolAgreeBox";
+  agree.append(box, el("span", null, "I teach this class, and I've told its families about Alefba and the talks. For learners under 13, I'm agreeing for the school (or, for a private class, for their parents) that they can use the talks for class."));
+  const note = el("a", "school-note", "A note to send to families"); note.href = "class-note?class=" + encodeURIComponent(c.name); note.target = "_blank"; note.rel = "noopener"; note.id = "schoolNoteLink";
+  const wantTalks = !talks || talksSoon;
+  if (wantTalks) {
+    const label = canUpgrade ? `Add talks until ${longDate(c.paidUntil)}${pr.schoolUpgrade ? ` (${pr.schoolUpgrade})` : ""}`
+      : talks ? `Add another year with talks${pr.schoolTalks ? ` (${pr.schoolTalks})` : ""}` : `Get the plan with talks${pr.schoolTalks ? ` (${pr.schoolTalks} a year)` : ""}`;
+    const b = el("button", "btn primary", label); b.id = "schoolBuyTalks"; b.type = "button";
+    b.addEventListener("click", () => buy(b, "talks"));
+    sec.append(agree, note, b);
+  }
+  if (!talks && (!on || soon)) {
+    const b = el("button", "btn quiet", on ? `Add another year without talks${pr.school ? ` (${pr.school})` : ""}` : `Lessons only${pr.school ? ` (${pr.school} a year)` : ""}`); b.id = "schoolBuy"; b.type = "button";
+    b.addEventListener("click", () => buy(b, "school"));
+    sec.append(b);
+  }
+  sec.append(err);
+  if (talks) sec.append(note);
   return sec;
 }
 // Back from paying for a school plan: teacher mode opens, and the class view checks the payment.
@@ -6228,7 +6278,8 @@ async function schoolReturn() {
   $("onboard").inert = !$("onboard").hidden; openOverlay("teach");
   await teachClass(id);
   const c = TEACH.cur;
-  if (c && c.paidUntil > Date.now()) showNotice("Thank you!", `${c.name} has the school plan until ${longDate(c.paidUntil)}. Everyone in the class has all ${LEVELS.length} levels now.`);
+  if (c && c.talksUntil > Date.now()) showNotice("Thank you!", `${c.name} has the school plan with talks until ${longDate(c.talksUntil)}. Everyone in the class has all ${LEVELS.length} levels, and ${(ACCT && ACCT.classTalks) || 5} talks a month each. Learners just join with the class code.`);
+  else if (c && c.paidUntil > Date.now()) showNotice("Thank you!", `${c.name} has the school plan until ${longDate(c.paidUntil)}. Everyone in the class has all ${LEVELS.length} levels now.`);
   else showNotice("Almost there", "Your payment is still being confirmed. Tap Refresh in the class in a minute.");
 }
 const ASSIGN_MAX = 40;
@@ -6755,8 +6806,12 @@ function showTalkError(code) {
     talk_over: "This talk has gone on for a long time. Start a new one!",
     resting: "That's a lot of talking for one day! Come back tomorrow.",
     free_resting: "Free talks are resting for today. Come back tomorrow!",
+    class_no_talks: "You've had this month's class talks. There are more next month!",
+    class_talks_used: "Your class has used all its talks for this month. There are more next month!",
+    class_needs_plan: "Your class's talks have ended. Your teacher can add more.",
+    class_not_in_class: "This device isn't in the class any more, so class talks are off.",
   }[code] || (permanent ? "Live conversations aren't available here." : `${name} didn't answer properly. Try again.`);
-  const final = ["sign_in", "no_talks", "talk_over", "resting", "free_resting"].includes(code);
+  const final = ["sign_in", "no_talks", "talk_over", "resting", "free_resting", "class_no_talks", "class_talks_used", "class_needs_plan", "class_not_in_class"].includes(code);
   const card = el("div", "err-card"); card.id = "talkErr";
   card.append(el("span", null, msg));
   if (permanent) {
@@ -7524,6 +7579,7 @@ function renderTalkTab() {
   top.append(row);
   if (aiState === "none" || aiState === "blocked") top.append(el("p", "note", WEB ? "Live talks aren't available right now, so each one shows an example or useful phrases to practice." : "Live conversations need Claude. Without it, each one shows an example or useful phrases to practice."));
   else if (aiState === "ready" && !grownUpOK()) top.append(el("p", "note", `Live talks use AI, so ${isAdult() ? "you sign in" : "a grown-up signs in"} the first time.${ACCT && ACCT.free ? ` The first ${ACCT.free} talks are free.` : ""}`));
+  else if (aiState === "ready" && webAccount() && useClassTalks()) top.append(el("p", "note talks-left", classTalksLine() + "."));
   else if (aiState === "ready" && webAccount() && ACCT && ACCT.signedIn) top.append(el("p", "note talks-left", talksLeftText(ACCT) + "."));
   if (canVoiceMode() || (voiceModeLocked() && voiceLocked())) {
     const locked = !canVoiceMode();

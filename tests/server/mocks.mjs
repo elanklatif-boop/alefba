@@ -135,7 +135,7 @@ export function stripeServer(port = 9788) {
     if (req.method === "POST" && path === "/checkout/sessions" && p.get("mode") === "payment") {
       const cust = p.get("customer"), amount = Number(p.get("line_items[0][price_data][unit_amount]"));
       if (!S.customers[cust] || !(amount > 0) || p.get("line_items[0][price_data][currency]") !== "usd" || !p.get("line_items[0][price_data][product_data][name]") || !p.get("success_url") || !p.get("cancel_url")) return send(res, 400, { error: { type: "invalid_request_error", message: "Bad checkout request" } });
-      const cs = { id: nid("cs"), object: "checkout.session", mode: "payment", url: `http://127.0.0.1:${port}/pay/`, customer: cust, amount, name: p.get("line_items[0][price_data][product_data][name]"), metadata: { class_id: p.get("metadata[class_id]") }, success_url: p.get("success_url"), cancel_url: p.get("cancel_url"), status: "open", payment_status: "unpaid" };
+      const cs = { id: nid("cs"), object: "checkout.session", mode: "payment", url: `http://127.0.0.1:${port}/pay/`, customer: cust, amount, name: p.get("line_items[0][price_data][product_data][name]"), metadata: { class_id: p.get("metadata[class_id]"), ...(p.get("metadata[alefba_kind]") ? { alefba_kind: p.get("metadata[alefba_kind]") } : {}) }, success_url: p.get("success_url"), cancel_url: p.get("cancel_url"), status: "open", payment_status: "unpaid" };
       cs.url += cs.id; S.sessions[cs.id] = cs; return send(res, 200, cs);
     }
     if (req.method === "GET" && (m = /^\/checkout\/sessions\/(cs_\d+)$/.exec(path))) {
