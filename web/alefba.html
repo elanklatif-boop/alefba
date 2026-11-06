@@ -887,6 +887,56 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .little-card { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--saffron-soft); border-radius: 18px; padding: 14px 16px; }
 .little-card p { margin: 0; }
 #alphaMode .sheets-link { margin-inline-start: auto; }
+.little-home[hidden] { display: grid !important; visibility: hidden; }
+.little-worlds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (min-width: 640px) { .little-worlds { grid-template-columns: repeat(3, 1fr); } }
+.little-world { position: relative; aspect-ratio: 1 / 1; border: 0; border-radius: 26px; background: var(--u); color: var(--ink); cursor: pointer; display: grid; place-items: center; align-content: center; gap: 4px; font: inherit; box-shadow: 0 4px 0 color-mix(in srgb, var(--u) 70%, #000); }
+.little-world .ic { font-size: 4rem; line-height: 1.1; }
+.little-world .w { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.3; color: var(--muted-strong); }
+.little-world .stars { display: flex; gap: 2px; font-size: 1.1rem; color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.little-world .stars .on { color: #f2b23c; }
+.little-world:active, .little-game:active, .little-opt:active, .little-mcard:active, .little-card-big:active { transform: translateY(3px); box-shadow: none; }
+.little-world:focus-visible, .little-game:focus-visible, .little-opt:focus-visible, .little-mcard:focus-visible, .little-card-big:focus-visible { outline: 3px solid var(--turq); outline-offset: 3px; }
+.little-wtop { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--u); border-radius: 26px; padding: 14px; }
+.little-wtop .ic { font-size: 4.4rem; line-height: 1.1; }
+.little-wtop .w { font-family: var(--font-display); font-size: 1.6rem; color: var(--muted-strong); }
+.little-games { display: grid; gap: 12px; }
+.little-game { position: relative; display: flex; align-items: center; gap: 16px; border: 0; border-radius: 22px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 0 var(--line); padding: 14px 18px; cursor: pointer; font: inherit; text-align: start; }
+.little-game .ic { font-size: 3rem; line-height: 1; }
+.little-game .lbl { font-size: 1rem; color: var(--muted); }
+.little-game .star { margin-inline-start: auto; font-size: 1.6rem; }
+.little-card-big { width: min(100%, 320px); aspect-ratio: 4 / 5; justify-self: center; border: 0; border-radius: 30px; background: var(--surface); color: var(--ink); box-shadow: 0 4px 0 var(--line); display: grid; place-items: center; align-content: center; gap: 10px; cursor: pointer; font: inherit; }
+.little-card-big .p { font-size: 8rem; line-height: 1.1; }
+.little-card-big .w { font-family: var(--font-fa); font-size: 2.4rem; }
+.little-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.little-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.little-dots i.seen { background: var(--turq); opacity: 0.5; }
+.little-dots i.on { background: var(--turq); transform: scale(1.3); }
+.little-card-big + .little-dots, .little-letter .little-nav { justify-self: center; }
+.little-main > .little-nav { justify-self: center; }
+.little-ask { display: grid; justify-items: center; gap: 12px; }
+.little-say.big { width: 96px; height: 96px; }
+.little-say.big svg { width: 52px; height: 52px; }
+.little-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.little-opt { aspect-ratio: 1 / 1; border: 3px solid transparent; border-radius: 24px; background: var(--surface); box-shadow: 0 3px 0 var(--line); cursor: pointer; display: grid; place-items: center; font: inherit; }
+.little-opt .p { font-size: clamp(3rem, 14vw, 4.6rem); line-height: 1; }
+.little-opt.right { border-color: var(--good); background: var(--good-soft); }
+.little-opt.wrong { animation: littleShake 0.4s; }
+@keyframes littleShake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.little-memory { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 420px) { .little-memory { grid-template-columns: repeat(2, 1fr); width: min(100%, 280px); justify-self: center; } }
+.little-mcard { aspect-ratio: 1 / 1; border: 0; border-radius: 20px; background: var(--lapis); color: var(--lapis-ink); box-shadow: 0 3px 0 color-mix(in srgb, var(--lapis) 60%, #000); cursor: pointer; display: grid; place-items: center; font: inherit; }
+.little-mcard .back { font-family: var(--font-display); font-size: 2.4rem; opacity: 0.7; }
+.little-mcard .p { display: none; font-size: 3rem; line-height: 1; }
+.little-mcard.up { background: var(--surface); box-shadow: 0 3px 0 var(--line); }
+.little-mcard.up .back { display: none; }
+.little-mcard.up .p { display: block; }
+.little-mcard.found { background: var(--good-soft); }
+.little-win { display: grid; justify-items: center; gap: 10px; padding-top: 30px; }
+.little-win .big { font-size: 7rem; line-height: 1.1; }
+.little-win .w { font-family: var(--font-display); font-size: 3rem; color: var(--saffron); }
+@media (prefers-reduced-motion: reduce) { .little-opt.wrong { animation: none; outline: 3px solid var(--bad); } }
+
 #sheets { z-index: 25; }
 #little { z-index: 21; }
 .ob-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1094,7 +1144,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 
 <div class="overlay little" id="little" hidden>
   <div class="ov-top"><div class="shell gutter little-head">
-    <button class="little-home" id="littleHome" type="button" aria-label="All the letters"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg></button>
+    <button class="little-home" id="littleHome" type="button" aria-label="Back" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg></button>
     <div class="little-stars" id="littleStars"></div>
     <button class="little-grown" id="littleGrown" type="button" aria-label="For grown-ups. Press and hold"><span class="fill" aria-hidden="true"></span>Grown-ups: hold</button>
   </div></div>
@@ -7883,7 +7933,7 @@ function littleBtn(cls, icon, label, onClick) {
   b.addEventListener("click", onClick); return b;
 }
 function littleStars() {
-  const n = Object.keys(littleDone()).length, box = $("littleStars");
+  const n = littleStarCount(), box = $("littleStars");
   box.replaceChildren(el("span", null, "⭐"), el("b", null, String(n)));
   box.setAttribute("aria-label", `${n} star${n === 1 ? "" : "s"}`);
 }
@@ -7892,8 +7942,166 @@ function openLittle(g) {
   if (g) littleLetter(g); else littleHome();
 }
 function closeLittle() { stopSound(); LITTLE = { g: null, tracer: null, tries: 0 }; closeOverlay("little"); renderAll(); }
+// ----- worlds: picture words a small child hears and taps, in three games each. Letters are a world too. -----
+const LITTLE_WORLDS = [
+  { id: "animals", icon: "🐾", fa: "حیوون‌ها", en: "Animals", tone: "var(--good-soft)", words: ["gorbe", "sag", "fil", "mâhi", "parande", "asb", "gâv", "gusfand", "khargush", "khers", "meymun", "juje", "ordak", "parvâne", "mush", "babr"] },
+  { id: "colors", icon: "🎨", fa: "رنگ‌ها", en: "Colours", tone: "var(--rose-soft)", words: ["ghermez", "âbi", "zard", "sabz", "nârenji", "banafsh", "sefid", "siyâh", "ghahvei"] },
+  { id: "family", icon: "👪", fa: "خانواده", en: "Family", tone: "var(--saffron-soft)", words: ["mâmân", "bâbâ", "barâdar", "khâhar", "mâdarbozorg", "pedarbozorg", "bache", "khânevâde"] },
+  { id: "food", icon: "🍎", fa: "خوراکی‌ها", en: "Food", tone: "var(--turq-soft)", words: ["sib", "moz", "porteghâl", "nân", "shir", "âb", "panir", "tokhm-e morgh", "berenj", "morgh", "chây", "kabâb", "mive"] },
+  { id: "body", icon: "👀", fa: "بدن من", en: "My body", tone: "var(--lapis-soft)", words: ["cheshm", "gush", "bini", "dahân", "dandân", "dast", "pâ", "ghalb"] },
+  { id: "letters", icon: "✏️", fa: "الفبا", en: "Letters", tone: "var(--saffron-soft)" },
+];
+const LITTLE_GAMES = [["cards", "🃏", "Picture cards"], ["where", "👂", "Where is it?"], ["memory", "🧠", "Memory"]];
+// a world's words: only those with a picture and a sound, so nothing shows that can't be heard
+function worldWords(w) { return (w.words || []).map(wordByTr).filter(W => W && picOf(W) && hasAudio(wordAudio(W))); }
+const littleGamesDone = id => ((S.little && S.little.games && S.little.games[id]) || {});
+function littleGameDone(id, game) {
+  if (!S.little || typeof S.little !== "object") S.little = {};
+  if (!S.little.games) S.little.games = {};
+  (S.little.games[id] = S.little.games[id] || {})[game] = todayStr();
+  practised();
+}
+const littleStarCount = () => Object.keys(littleDone()).length + Object.values((S.little && S.little.games) || {}).reduce((n, g) => n + Object.keys(g).length, 0);
+// the round button at the top left goes back one step: from a game to its world, from a world to the worlds
+function littleBack(to) { const b = $("littleHome"); b.hidden = !to; b.onclick = to || null; }
 function littleHome(talk) {
   LITTLE = { g: null, tracer: null, tries: 0 };
+  littleStars(); littleBack(null);
+  const m = $("littleMain"); m.replaceChildren();
+  const hi = el("div", "little-hello");
+  hi.append(fa("span", "little-title", "الفبا"), littleBtn("little-say", ICON.sound, "Hear what to do", () => sayEn("Pick a picture!")));
+  m.append(hi);
+  const grid = el("div", "little-worlds");
+  LITTLE_WORLDS.forEach(w => {
+    const n = w.id === "letters" ? Math.min(3, Math.floor(Object.keys(littleDone()).length / 4)) : Object.keys(littleGamesDone(w.id)).length;
+    const b = el("button", "little-world"); b.type = "button"; b.id = "lw-" + w.id; b.style.setProperty("--u", w.tone);
+    b.setAttribute("aria-label", w.en + (n ? `, ${n} of 3 stars` : ""));
+    b.append(el("span", "ic", w.icon), fa("span", "w", w.fa));
+    const st = el("span", "stars"); for (let k = 0; k < 3; k++) st.append(el("i", k < n ? "on" : "", "★")); b.append(st);
+    b.addEventListener("click", () => (w.id === "letters" ? littleLetters(true) : littleWorld(w.id, true)));
+    grid.append(b);
+  });
+  m.append(grid);
+  $("littleBody").scrollTop = 0;
+  if (talk) sayEn("Pick a picture!");
+}
+function littleWorld(id, talk) {
+  const w = LITTLE_WORLDS.find(x => x.id === id); if (!w) return littleHome();
+  LITTLE = { g: null, tracer: null, tries: 0, world: id };
+  littleStars(); littleBack(() => littleHome(true));
+  const m = $("littleMain"); m.replaceChildren();
+  const head = el("div", "little-wtop"); head.style.setProperty("--u", w.tone);
+  head.append(el("span", "ic", w.icon), fa("span", "w", w.fa));
+  m.append(head);
+  const done = littleGamesDone(id), row = el("div", "little-games");
+  LITTLE_GAMES.forEach(([g, ic, label]) => {
+    const b = el("button", "little-game"); b.type = "button"; b.id = "lg-" + g; b.setAttribute("aria-label", label);
+    b.append(el("span", "ic", ic), el("span", "lbl", label));
+    if (done[g]) b.append(el("span", "star", "⭐"));
+    b.addEventListener("click", () => ({ cards: littleCards, where: littleWhere, memory: littleMemory })[g](id));
+    row.append(b);
+  });
+  m.append(row);
+  $("littleBody").scrollTop = 0;
+  if (talk) sayEn("Pick a game!");
+}
+// the end of a game: a big star, then play again or go back to the world
+function littleWin(id, game, again) {
+  littleGameDone(id, game); littleStars(); confetti(); chime();
+  const m = $("littleMain"); m.replaceChildren();
+  const box = el("div", "little-win");
+  box.append(el("div", "big", "🌟"), fa("div", "w", "آفرین!"));
+  const row = el("div", "little-tools");
+  const a = littleBtn("little-round", ICON.replay, "Play again", again); a.id = "littleAgainGame";
+  const n = littleBtn("little-round next pulse", LITTLE_ICON.next, "Back to the games", () => littleWorld(id, true)); n.id = "littleWinNext";
+  row.dir = "rtl"; row.append(n, a); box.append(row); m.append(box);
+  setTimeout(() => sayEn(pick(["Great job!", "Wonderful!", "You did it!"])), 400);
+}
+// Picture cards: one big picture at a time; it says its word, and says it again when tapped
+function littleCards(id) {
+  const w = LITTLE_WORLDS.find(x => x.id === id), Ws = worldWords(w);
+  if (!Ws.length) return littleWorld(id);
+  let i = 0; const seen = new Set();
+  littleBack(() => littleWorld(id, true));
+  const show = () => {
+    const W = Ws[i]; seen.add(i);
+    const m = $("littleMain"); m.replaceChildren();
+    const card = el("button", "little-card-big"); card.type = "button"; card.id = "littleCardBig"; card.setAttribute("aria-label", `${W.tr}. Tap to hear it`);
+    card.append(el("span", "p", picOf(W)), fa("span", "w", W.fa));
+    card.addEventListener("click", () => speak(wordAudio(W)));
+    const dots = el("div", "little-dots"); Ws.forEach((_, k) => dots.append(el("i", k === i ? "on" : seen.has(k) ? "seen" : "")));
+    const nav = el("div", "little-nav"); nav.dir = "rtl";
+    const prev = littleBtn("little-round", LITTLE_ICON.prev, "The one before", () => { i = (i - 1 + Ws.length) % Ws.length; show(); }); prev.id = "littleCardPrev";
+    const last = seen.size === Ws.length;
+    const next = littleBtn("little-round next" + (last ? " pulse" : ""), LITTLE_ICON.next, last ? "Finish" : "The next one", () => {
+      if (seen.size === Ws.length && i === Ws.length - 1) return littleWin(id, "cards", () => littleCards(id));
+      i = (i + 1) % Ws.length; show();
+    }); next.id = "littleCardNext";
+    nav.append(prev, next);
+    m.append(card, dots, nav);
+    speak(wordAudio(W));
+  };
+  show();
+}
+// Where is it? The word plays, and the child taps its picture out of three. Six rounds.
+function littleWhere(id) {
+  const w = LITTLE_WORLDS.find(x => x.id === id), Ws = worldWords(w);
+  if (Ws.length < 3) return littleWorld(id);
+  littleBack(() => littleWorld(id, true));
+  const rounds = shuffle(Ws.slice()).slice(0, 6);
+  let r = 0, first = true;
+  const ask = () => {
+    const W = rounds[r], opts = shuffle([W, ...shuffle(Ws.filter(x => x !== W)).slice(0, 2)]), key = {}; LITTLE.round = key;
+    const m = $("littleMain"); m.replaceChildren();
+    const top = el("div", "little-ask");
+    const hear = littleBtn("little-say big", ICON.sound, "Hear the word again", () => speak(wordAudio(W))); hear.id = "littleHear";
+    const dots = el("div", "little-dots"); rounds.forEach((_, k) => dots.append(el("i", k < r ? "seen" : k === r ? "on" : "")));
+    top.append(hear, dots); m.append(top);
+    const row = el("div", "little-opts");
+    opts.forEach((O, k) => {
+      const b = el("button", "little-opt"); b.type = "button"; b.id = "littleOpt-" + k; b.dataset.right = String(O === W);
+      b.setAttribute("aria-label", `Picture ${k + 1}`); b.append(el("span", "p", picOf(O)));
+      b.addEventListener("click", () => {
+        if (O === W) {
+          b.classList.add("right"); row.querySelectorAll("button").forEach(x => (x.disabled = true)); chime();
+          speak(wordAudio(W)); // move on after a moment, whether or not the sound could play
+          setTimeout(() => { if (LITTLE.round !== key) return; r++; r < rounds.length ? ask() : littleWin(id, "where", () => littleWhere(id)); }, 1300);
+        } else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); speak(wordAudio(W)); }
+      });
+      row.append(b);
+    });
+    m.append(row);
+    if (first) { first = false; sayEn("Tap the picture you hear!", () => speak(wordAudio(W))); } else speak(wordAudio(W));
+  };
+  ask();
+}
+// Memory: four pairs of picture cards face down. Each card says its word when it turns over.
+function littleMemory(id) {
+  const w = LITTLE_WORLDS.find(x => x.id === id), Ws = shuffle(worldWords(w)).slice(0, 4);
+  if (Ws.length < 2) return littleWorld(id);
+  littleBack(() => littleWorld(id, true));
+  const deck = shuffle([...Ws, ...Ws]); let open = [], found = 0, busy = false;
+  const m = $("littleMain"); m.replaceChildren();
+  const grid = el("div", "little-memory");
+  deck.forEach((W, k) => {
+    const b = el("button", "little-mcard"); b.type = "button"; b.id = "littleMem-" + k; b.dataset.w = W.tr; b.setAttribute("aria-label", `Card ${k + 1}`);
+    b.append(el("span", "back", "؟"), el("span", "p", picOf(W)));
+    b.addEventListener("click", () => {
+      if (busy || b.classList.contains("up")) return;
+      b.classList.add("up"); speak(wordAudio(W)); open.push(b);
+      if (open.length < 2) return;
+      const [x, y] = open; open = [];
+      if (x.dataset.w === y.dataset.w) { x.classList.add("found"); y.classList.add("found"); found++; chime(); if (found === Ws.length) setTimeout(() => littleWin(id, "memory", () => littleMemory(id)), 900); }
+      else { busy = true; setTimeout(() => { x.classList.remove("up"); y.classList.remove("up"); busy = false; }, 1100); }
+    });
+    grid.append(b);
+  });
+  m.append(grid);
+  sayEn("Find the pairs!");
+}
+function littleLetters(talk) {
+  LITTLE = { g: null, tracer: null, tries: 0 };
+  littleBack(() => littleHome(true));
   littleStars();
   const m = $("littleMain"); m.replaceChildren();
   const hi = el("div", "little-hello");
@@ -7919,7 +8127,7 @@ function littleHome(talk) {
 function littleLetter(g) {
   const L = BY_GLYPH[g], lw = littleWord(g), W = lw && lw.W, pic = lw && lw.pic, n = LITTLE_LETTERS.length, i = LITTLE_LETTERS.indexOf(g);
   LITTLE = { g, tracer: null, tries: 0 };
-  littleStars();
+  littleStars(); littleBack(() => littleLetters());
   const m = $("littleMain"); m.replaceChildren();
   const box = el("div", "little-letter"), top = el("div", "little-top");
   const big = el("button", "little-big"); big.type = "button"; big.id = "littleBig"; big.setAttribute("aria-label", `${L[1]}. Tap to hear it`);
@@ -7971,10 +8179,10 @@ function littleGrownUps() {
   const box = el("div", "little-grownups");
   const n = Object.keys(littleDone()).length;
   box.append(el("h2", null, "For grown-ups"),
-    el("p", null, "Little mode is for children who can't read yet. They tap a letter to hear it, see a picture word that uses it, and trace the letter with a finger. A short voice tells them what to do, and each letter they trace gets a star."),
-    el("p", null, n ? `So far: ${n} of 32 letters traced.` : "No letters traced yet."));
+    el("p", null, "Little mode is for children who can't read yet. In each world (animals, colours, family, food and the body) they hear Persian words and play three picture games: picture cards, Where is it? and a memory game. In the letters world they hear each letter and trace it with a finger. A short voice says what to do, and every game and letter earns a star."),
+    el("p", null, `So far: ${littleStarCount()} star${littleStarCount() === 1 ? "" : "s"}, and ${n} of 32 letters traced.`));
   const b = (t, id, fn, cls = "btn quiet") => { const x = el("button", cls, t); x.type = "button"; x.id = id; x.addEventListener("click", fn); box.append(x); };
-  b("Back to the letters", "littleBackBtn", () => littleHome(), "btn primary");
+  b("Back to the games", "littleBackBtn", () => littleHome(), "btn primary");
   if (WEB) b("Print tracing sheets", "littleSheetsBtn", () => openSheets());
   b("Open the full app", "littleFullBtn", closeLittle);
   b("Turn off little mode", "littleOffBtn", () => { if (S.profile) S.profile.little = false; save(); closeLittle(); });
@@ -7990,7 +8198,7 @@ function littleGrownUps() {
   ["pointerup", "pointerleave", "pointercancel"].forEach(t => btn.addEventListener(t, end));
   btn.addEventListener("click", e => { if (e.detail === 0) littleGrownUps(); }); // keyboard
   btn.addEventListener("contextmenu", e => e.preventDefault());
-  $("littleHome").addEventListener("click", () => littleHome(true));
+  // the back button's action is set by each screen (littleBack)
 })();
 function littleCard() {
   const c = el("section", "little-card"); c.id = "littleCard";
