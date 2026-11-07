@@ -6184,7 +6184,10 @@ function agePicker(cur, onPick) {
 const joinLink = code => "https://learnalefba.com/#join=" + code;
 function openTeacher(asTeacher) {
   if (!WEB) return;
-  const open = () => { $("onboard").inert = !$("onboard").hidden; openOverlay("teach"); teachList(); };
+  const open = () => {
+    $("onboard").inert = !$("onboard").hidden; openOverlay("teach");
+    if (TEACH.openId) { const id = TEACH.openId; TEACH.openId = null; teachClass(id); } else teachList(); // back from the note for families: that class
+  };
   if (!(ACCT && ACCT.signedIn)) { openSignIn(() => { renderAll(); if (ACCT && ACCT.signedIn) openTeacher(asTeacher); }, { teacher: true }); return; }
   if (asTeacher === true) return open(); // they said they're a teacher (and signed in with their email): no sum to answer
   grownUpGate("teachGate", "Teacher mode", "Teacher mode is for grown-ups: making classes, assigning lessons and seeing learners' progress.", () => { $("onboard").inert = !$("onboard").hidden; openOverlay("teach"); teachList(); });
@@ -6345,7 +6348,7 @@ function schoolPlanSec(c) {
   const agree = el("label", "school-agree"); agree.id = "schoolAgree";
   const box = el("input"); box.type = "checkbox"; box.id = "schoolAgreeBox";
   agree.append(box, el("span", null, "I teach this class, and I've told its families about Alefba and the talks. For learners under 13, I'm agreeing for the school (or, for a private class, for their parents) that they can use the talks for class."));
-  const note = el("a", "school-note", "A note to send to families"); note.href = "class-note?class=" + encodeURIComponent(c.name); note.target = "_blank"; note.rel = "noopener"; note.id = "schoolNoteLink";
+  const note = el("a", "school-note", "A note to send to families"); note.href = "class-note?class=" + encodeURIComponent(c.name) + "&from=" + encodeURIComponent(c.id); note.id = "schoolNoteLink"; // same tab: the note has a Back button to this class
   const wantTalks = !talks || talksSoon;
   if (wantTalks) {
     const label = canUpgrade ? `Add talks until ${longDate(c.paidUntil)}${pr.schoolUpgrade ? ` (${pr.schoolUpgrade})` : ""}`
@@ -8734,6 +8737,8 @@ if (PREVIEWING) { // a reminder that what's new isn't switched on for everyone y
 renderAll();
 if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register("sw.js").catch(() => {}); } catch (e) {} }
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
+// ?teach=<class id>: back from the note for families, straight to that class
+const TEACH_CLASS = (() => { const v = WEB ? new URLSearchParams(location.search).get("teach") || "" : ""; return /^[a-f0-9]{24}$/.test(v) ? v : ""; })();
 if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
@@ -8750,7 +8755,8 @@ checkMp3();
   if (WEB) { stripeReturn(); schoolReturn(); }
   if (WEB && TEACH_LINK) { // from the teachers page: straight to teacher mode
     history.replaceState(null, "", location.pathname + location.hash);
-    if (AI && ACCT) openTeacher(); else showNotice("Teacher mode", "Teacher mode isn't available right now. Please try again in a few minutes.");
+    if (TEACH_CLASS) TEACH.openId = TEACH_CLASS;
+    if (AI && ACCT) openTeacher(!!TEACH_CLASS); else showNotice("Teacher mode", "Teacher mode isn't available right now. Please try again in a few minutes.");
   }
 })();
 window.__alefba = { lessons: LESSONS, words: WORDS, levels: LEVELS, convs: CONVS, families: FAMILIES, sounds: allSounds, lineAudio, state: () => R, talk: () => TK, save: () => S, ai: () => aiState, ob: () => OB, acct: () => ACCT }; // used by automated tests

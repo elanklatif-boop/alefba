@@ -1,6 +1,6 @@
 # The school plan with talks, in the app: a learner in such a class talks (and answers out loud) with the class key,
 # nobody signs in; and the teacher can buy it only after ticking the box for the families, with a note to send home.
-import json, sys, time
+import json, re, sys, time
 from playwright.sync_api import sync_playwright
 URL = "http://127.0.0.1:8811/"
 PAD = "/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/"
@@ -15,8 +15,8 @@ def learner(left):
             "cls": {"token": "T" * 43, "name": "Sara", "cname": "Saturday class", "assigned": [], "fullUntil": now + 300 * DAY, "talks": {"until": now + 300 * DAY, "per": 5, "left": left}}}
 REPLY = {"fa": "سلام! حالت چطوره؟", "translit": "salâm! hâlet chetore?", "en": "Hi! How are you?", "written": "سلام!", "written_translit": "salâm!", "feedback": None,
          "suggestions": [{"fa": "خوبم.", "translit": "khubam.", "en": "I'm good."}], "new_words": [], "goals_done": [], "pace": "same", "done": False, "you_said": None, "talk_id": "T1"}
-def page(b, st, me=OUT, extra=None):
-    c = b.new_context(viewport={"width": 390, "height": 844})
+def page(b, st, me=OUT, extra=None, sw=True):
+    c = b.new_context(viewport={"width": 390, "height": 844}, service_workers="allow" if sw else "block")
     c.add_init_script("localStorage.setItem('alefba-v3', " + json.dumps(json.dumps(st)) + ")")
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(me)))
     c.route("**/api/usage", lambda r: r.fulfill(status=200, body="{}"))
@@ -80,7 +80,7 @@ with sync_playwright() as p:
         t = pg.inner_text("#schoolSec")
         if case == "none":
             check("a class with no plan sees both: with talks ($59.99 a year) and lessons only ($49)", "Get the plan with talks ($59.99 a year)" in t and "Lessons only ($49 a year)" in t and "5 talks a month" in t, t)
-            check("the agreement box and the note for families are there", pg.is_visible("#schoolAgreeBox") and pg.get_attribute("#schoolNoteLink", "href") == "class-note?class=Saturday%20class")
+            check("the agreement box and the note for families are there", pg.is_visible("#schoolAgreeBox") and pg.get_attribute("#schoolNoteLink", "href") == "class-note?class=Saturday%20class&from=" + "a" * 24 and pg.get_attribute("#schoolNoteLink", "target") is None)
             pg.screenshot(path=PAD + "class_teacher.png", full_page=True)
             pg.click("#schoolBuyTalks"); pg.wait_for_timeout(300)
             check("buying talks without ticking the box: it asks for it, nothing is bought", not bought and "Tick the box first" in pg.inner_text("#schoolSec"), bought)
@@ -101,6 +101,27 @@ with sync_playwright() as p:
     pg.goto(URL + "class-note.html?class=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E"); pg.wait_for_timeout(300)
     check("a name in the link is shown as text only", pg.locator("#note img").count() == 0)
     check("no page errors (note)", not errs, errs); c.close()
+    # from the class to the note and back: the note has a big Back button that reopens that class
+    VIEW = {"id": "a" * 24, "name": "Saturday class", "code": "ABC123", "ages": "kids", "assigned": [], "paidUntil": 0, "talksUntil": 0, "pending": False, "members": []}
+    def extra2(ctx):
+        ctx.route("**/api/class/view", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"class": VIEW})))
+        ctx.route("**/api/class/list", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"classes": []})))
+        # Cloudflare serves class-note.html at /class-note; this little test server doesn't
+        ctx.route(re.compile(r".*/class-note\?.*"), lambda r: r.fulfill(status=200, content_type="text/html", body=open("/home/claude/alefba-site/class-note.html").read()))
+    st = learner(4); del st["cls"]; st["profile"]["adult"] = True
+    c, pg, errs, talks = page(b, st, TEACHER, extra2, sw=False)  # so the test's routes reach the page
+    pg.evaluate("$('onboard').inert = true; openOverlay('teach'); teachClass('" + "a" * 24 + "'); 0"); pg.wait_for_timeout(800)
+    pg.click("#schoolNoteLink"); pg.wait_for_timeout(800)
+    check("the note opens in the same tab", "class-note" in pg.url and len(c.pages) == 1, pg.url)
+    bb = pg.locator("#backLink").bounding_box()
+    check(f"with a Back to your class button at the top, big enough to tap ({bb})", pg.inner_text("#backLink").strip() == "← Back to your class" and bb["height"] >= 44 and bb["y"] < 120)
+    pg.screenshot(path=PAD + "note_back.png")
+    pg.click("#backLink"); pg.wait_for_timeout(1500)
+    check("Back reopens teacher mode on that class", pg.is_visible("#teach") and "Saturday class" in pg.inner_text("#teach") and "ABC123" in pg.inner_text("#teachMain") and "teach" not in pg.url, pg.url)
+    check("no page errors (back)", not errs, errs); c.close()
+    c = b.new_context(); pg = c.new_page(); pg.goto(URL + "class-note.html"); pg.wait_for_timeout(300)
+    check("opened from a shared link, Back goes to Alefba", pg.inner_text("#backLink").strip() == "← Back to Alefba" and pg.get_attribute("#backLink", "href") == "./")
+    c.close()
     b.close()
 print(f"{sum(res)} of {len(res)} passed")
 sys.exit(0 if all(res) else 1)

@@ -31,6 +31,9 @@
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-ui); }
 .wrap { max-width: 42rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 header { background: var(--band); color: var(--band-ink); padding-top: env(safe-area-inset-top, 0px); }
+.back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 10px 20px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1.5px solid rgba(255,255,255,.45); color: inherit; font-weight: 600; font-size: 1.05rem; text-decoration: none; margin-bottom: 6px; }
+.back:hover { background: rgba(255,255,255,.26); }
+.back:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 header .wrap { padding-block: 28px 26px; display: grid; gap: 8px; }
 .brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .brand b { font-family: var(--font-head); font-size: 1.6rem; }
@@ -66,7 +69,7 @@ footer { color: var(--muted); font-size: 0.9rem; }
 .lead { color: var(--muted); }
 @media print {
   :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #333; --line: #fff; }
-  header, .tools, footer, .lead { display: none !important; }
+  header, .tools, footer, .lead, .back { display: none !important; }
   main .wrap { padding: 0; }
   .note { border: 0; padding: 0; }
   a { color: #000; }
@@ -76,6 +79,7 @@ footer { color: var(--muted); font-size: 0.9rem; }
 <body>
 <header>
   <div class="wrap">
+    <a class="back" id="backLink" href="./">← Back to Alefba</a>
     <div class="brand"><b>Alefba</b><span lang="fa">الفبا</span></div>
     <h1>A note for families</h1>
     <p>For teachers: send this home before your class starts talking with the characters.</p>
@@ -124,6 +128,8 @@ footer { color: var(--muted); font-size: 0.9rem; }
   var name = "";
   try { name = (new URLSearchParams(location.search).get("class") || "").replace(/\s+/g, " ").trim().slice(0, 40); } catch (e) {}
   if (name) document.getElementById("className").textContent = ": " + name;
+  // from teacher mode: Back goes to that class
+  try { var from = new URLSearchParams(location.search).get("from") || ""; if (/^[a-f0-9]{24}$/.test(from)) { var b = document.getElementById("backLink"); b.href = "./?teach=" + from; b.textContent = "← Back to your class"; } } catch (e) {}
   document.getElementById("printNote").addEventListener("click", function () { window.print(); });
   document.getElementById("copyNote").addEventListener("click", function () {
     var text = document.getElementById("note").innerText;
