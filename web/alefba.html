@@ -6118,9 +6118,9 @@ function applyClassAges(ages) {
 function classEntries() {
   const box = el("div", "ob-extra"); box.id = "obExtra";
   const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; b.append(el("span", "ob-extra-ic", ic), el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
-  mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => openJoinClass());
-  mk("obLittleBtn", "🧒", "Little one (3 to 6)", "Flashcards, picture games and tracing. No reading needed.", () => { OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
-  mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => openTeacher(true));
+  mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => { count("ob_join"); openJoinClass(); });
+  mk("obLittleBtn", "🧒", "Little one (3 to 6)", "Flashcards, picture games and tracing. No reading needed.", () => { count("ob_little"); OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
+  mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => { count("ob_teacher"); openTeacher(true); });
   return box;
 }
 function showJoinForm(prefill) {
@@ -6150,7 +6150,7 @@ function showJoinForm(prefill) {
       S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, ages: r.data.class.ages || null, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0, talks: r.data.class.talks || null };
       if (!S.profile) S.profile = { skipped: true, goal: 2, adult: false };
       if (!S.profile.name) S.profile.name = r.data.name;
-      applyClassAges(S.cls.ages);
+      applyClassAges(S.cls.ages); count("join_done");
       save(); wrap.remove();
       if (!$("onboard").hidden) closeOnboarding();
       syncClass(true); renderAll();
@@ -6223,7 +6223,7 @@ async function teachList() {
     ok.disabled = true;
     const r2 = await apiPost("/class/create", { name: inp.value, ages });
     ok.disabled = false;
-    if (r2.ok) return teachClass(r2.data.class.id);
+    if (r2.ok) { count("class_made"); return teachClass(r2.data.class.id); }
     err.hidden = false;
     err.textContent = { bad_name: "Use a short name, without email addresses or links.", bad_ages: "Pick who the class is for.", too_many_classes: "You have 20 classes, the most there can be. Delete one first.", sign_in: "Please sign in again from the Plans tab." }[r2.error] || "The class couldn't be made just now. Try again.";
   });
@@ -7088,20 +7088,20 @@ function renderOB() {
     }
     if (WEB && !(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn)) { // a family that already uses Alefba on another device: at the top, where it's easy to find
       const back = $("obSignIn"); back.hidden = false;
-      back.onclick = () => openSignIn(() => {
+      back.onclick = () => { count("ob_signin"); openSignIn(() => {
         renderAll();
         if (ACCT && ACCT.sync) syncNow();
         else if (ACCT && ACCT.signedIn) showNotice("You're signed in", "To bring progress from your other device, open the Review tab there and turn on Progress on every device. Then it shows here too.");
-      }, { restore: true });
+      }, { restore: true }); };
     }
-    next.textContent = S.profile ? "Set up my plan" : "Find my level"; next.onclick = () => obGo("who");
+    next.textContent = S.profile ? "Set up my plan" : "Find my level"; next.onclick = () => { if (!S.profile) count("ob_level"); obGo("who"); };
     alt.hidden = false;
     if (S.profile) { alt.textContent = "Not now"; alt.onclick = () => closeOnboarding(); }
     else {
       // a first visit: straight into the short first lesson is the big button (most visitors want to try it, not
       // answer questions); "Find my level" stays, as the smaller one under it
       alt.textContent = "Start learning: 2 minutes"; alt.classList.add("as-btn", "lead"); next.classList.add("second");
-      alt.onclick = () => obGo("first");
+      alt.onclick = () => { count("ob_start"); obGo("first"); };
     }
   } else if (st === "first") {
     main.append(el("h2", "ob-title", "Do you already speak some Persian?"), el("p", "ob-sub", "So your first lesson fits you. It takes about 2 minutes."));
@@ -7116,9 +7116,9 @@ function renderOB() {
     list.append(choiceButton(WHO.adult[0], WHO.adult[1], d.adult === true, () => { d.adult = true; d.little = false; renderOB(); }, "obwho-adult"));
     list.append(choiceButton(WHO.child[0], WHO.child[1], d.adult === false && !d.little, () => { d.adult = false; d.little = false; renderOB(); }, "obwho-child"));
     list.append(choiceButton(WHO.little[0], WHO.little[1], d.adult === false && !!d.little, () => { d.adult = false; d.little = true; renderOB(); }, "obwho-little"));
-    list.append(choiceButton(WHO.teacher[0], WHO.teacher[1], false, () => openTeacher(true), "obwho-teacher"));
+    list.append(choiceButton(WHO.teacher[0], WHO.teacher[1], false, () => { count("who_teacher"); openTeacher(true); }, "obwho-teacher"));
     main.append(list);
-    next.textContent = "Continue"; next.disabled = d.adult == null; next.onclick = () => obGo("name");
+    next.textContent = "Continue"; next.disabled = d.adult == null; next.onclick = () => { count(d.little ? "who_little" : d.adult ? "who_adult" : "who_child"); obGo("name"); };
   } else if (st === "name") {
     main.append(el("h2", "ob-title", d.little ? "What's your little one called?" : "What should we call you?"), el("p", "ob-sub", "A first name or a nickname is perfect. It stays on this device, unless you later turn on progress on every device."));
     const inp = el("input", "text-input"); inp.id = "obName"; inp.type = "text"; inp.maxLength = 24; inp.autocomplete = "off"; inp.dir = "auto"; inp.placeholder = "Your name"; inp.value = d.name;
@@ -7773,13 +7773,13 @@ function whoCard() {
     renderAll();
   };
   const pick = (id, t, d, fn) => { const b = el("button", "who-pick"); b.type = "button"; b.id = id; b.append(el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); row.append(b); };
-  pick("whoMe", WHO.adult[0], WHO.adult[1], () => set(true));
-  pick("whoChild", WHO.child[0], WHO.child[1], () => set(false));
-  pick("whoLittle", WHO.little[0], WHO.little[1], () => {
+  pick("whoMe", WHO.adult[0], WHO.adult[1], () => { count("who_adult"); set(true); });
+  pick("whoChild", WHO.child[0], WHO.child[1], () => { count("who_child"); set(false); });
+  pick("whoLittle", WHO.little[0], WHO.little[1], () => { count("who_little");
     Object.assign(S.profile, { adult: false, little: true, whoSet: true, goal: 1, at: todayStr() }); delete S.profile.skipped;
     S.prefs.order = "letters"; buildLevels(); save(); closeLesson(); openLittle();
   });
-  pick("whoTeacher", WHO.teacher[0], WHO.teacher[1], () => { set(true); openTeacher(true); });
+  pick("whoTeacher", WHO.teacher[0], WHO.teacher[1], () => { count("who_teacher"); set(true); openTeacher(true); });
   c.append(row);
   const j = el("button", "link-btn", "Have a class code? Join your class"); j.id = "whoJoin"; j.type = "button";
   j.addEventListener("click", () => { closeLesson(); openJoinClass(); });
