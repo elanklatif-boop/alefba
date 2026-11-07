@@ -189,7 +189,7 @@ async function api(request, env, url, ctx) {
   const routes = {
     "/api/talk": talk, "/api/auth/start": authStart, "/api/auth/verify": authVerify, "/api/auth/signout": signOut,
     "/api/confirm": confirmStart, "/api/checkout": checkout, "/api/plan": changePlan, "/api/portal": portal, "/api/account/delete": deleteAccount,
-    "/api/hear": hear, "/api/say": say, "/api/gloss": gloss,
+    "/api/hear": hear, "/api/say": say, "/api/gloss": gloss, "/api/name": nameInPersian,
     "/api/class/create": classCreate, "/api/class/list": classList, "/api/class/view": classView, "/api/class/assign": classAssign, "/api/class/ages": classAges,
     "/api/class/remove": classRemove, "/api/class/delete": classDelete,
     "/api/class/join": classJoin, "/api/class/mine": classMine, "/api/class/progress": classProgress, "/api/class/leave": classLeave,
@@ -212,7 +212,7 @@ async function api(request, env, url, ctx) {
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_on", "from_email",
-  "ob_start", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made"];
+  "ob_start", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start"];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
   const body = await readJson(request, 2000), now = Date.now();
@@ -247,7 +247,8 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const cols = [["open", "Opened the app"], ["new", "New"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
     ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"], ["nudge_on", "Asked for the email"], ["from_email", "Came from the email"],
     ["ob_start", "Welcome: Start learning"], ["ob_level", "Welcome: Find my level"], ["ob_join", "Welcome: Join your class"], ["ob_little", "Welcome: Little one"], ["ob_teacher", "Welcome: I'm a teacher"], ["ob_signin", "Welcome: Sign in"],
-    ["who_adult", "Said: teen or adult"], ["who_child", "Said: child"], ["who_little", "Said: little one"], ["who_teacher", "Said: teacher"], ["join_done", "Joined a class"], ["class_made", "Classes made"]];
+    ["who_adult", "Said: teen or adult"], ["who_child", "Said: child"], ["who_little", "Said: little one"], ["who_teacher", "Said: teacher"], ["join_done", "Joined a class"], ["class_made", "Classes made"],
+    ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
@@ -804,6 +805,40 @@ async function gloss(request, env, url, s) {
   const res = reply({ translit: String(out.translit || "").trim().slice(0, 300), meaning: String(out.meaning || "").trim().slice(0, 300) });
   if (cache) { try { const keep = new Response(res.clone().body, { headers: { "content-type": "application/json", "cache-control": `public, max-age=${30 * 86400}` } }); await cache.put(cacheKey, keep); } catch (e) {} }
   return res;
+}
+// ---------- your name in Persian (learnalefba.com/name) ----------
+// Anyone can try it, signed in or not. Only the name is sent; each name is asked once and kept, so the next person with
+// that name costs nothing. A visitor can try about 10 names an hour, and all names together share one daily budget.
+const NAME_MICRO = 300; // the most one name can cost, in millionths of a dollar (it's usually far less)
+const NAME_TEXT = /^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž' .-]{0,23}$/;
+const NAME_SCHEMA = { type: "object", properties: { ok: { type: "boolean" }, fa: { type: "string" }, alt: { type: "string" } }, required: ["ok", "fa", "alt"], additionalProperties: false };
+const FA_NAME = /^[آ-ی‌ ]{1,40}$/;
+async function nameInPersian(request, env, url, s) {
+  if (!s.claude || !s.db) return reply({ error: "not_configured" }, 503);
+  if (tooMany(request, "name", 10, 30)) return reply({ error: "rate_limited" }, 429);
+  const body = await readJson(request, 1000);
+  const name = String((body && body.name) || "").normalize("NFC").replace(/\s+/g, " ").trim();
+  if (!NAME_TEXT.test(name)) return reply({ error: "bad_name" }, 400);
+  const k = name.toLowerCase();
+  const hit = await env.DB.prepare("SELECT fa, alt, ok FROM names WHERE k = ?").bind(k).first();
+  if (hit) return hit.ok ? reply({ name, fa: hit.fa, alt: hit.alt || null }) : reply({ error: "not_a_name" }, 422);
+  const hold = await holdBudget(env, { id: "names" }, false, NAME_MICRO);
+  if (!hold.ok) return reply({ error: "busy_today" }, 429);
+  const r = await askClaude(env, {
+    model: MODEL, max_tokens: 120, thinking: { type: "disabled" },
+    system: `Write a person's name in Persian script, the way Iranians would usually spell that name for how it is normally said. Give "fa", the most usual spelling, and "alt", a second common spelling if there really is one, or "" if not. Use only Persian letters (ی and ک, not the Arabic forms), with a space between parts of a full name, and no vowel marks. If what you're given isn't something people use as a name (a rude word, an insult, a sentence, a brand or a joke), set "ok" to false and "fa" and "alt" to "".`,
+    output_config: { effort: "low", format: { type: "json_schema", schema: NAME_SCHEMA } },
+    messages: [{ role: "user", content: name }],
+  });
+  await settleBudget(env, hold.keys, (r.ok ? costMicro(r.data.usage) : 0) - hold.amount);
+  if (!r.ok) return reply({ error: r.status === 429 ? "rate_limited" : "server_error" }, r.status === 429 ? 429 : 502);
+  let out = null;
+  try { out = JSON.parse((r.data.content || []).filter(b => b.type === "text").map(b => b.text).join("")); } catch (e) {}
+  if (!out || typeof out !== "object") return reply({ error: "server_error" }, 502);
+  const fa = String(out.fa || "").replace(/ي/g, "ی").replace(/ك/g, "ک").trim(), alt0 = String(out.alt || "").replace(/ي/g, "ی").replace(/ك/g, "ک").trim();
+  const ok = !!out.ok && FA_NAME.test(fa), alt = FA_NAME.test(alt0) && alt0 !== fa ? alt0 : "";
+  await env.DB.prepare("INSERT OR IGNORE INTO names (k, fa, alt, ok, at) VALUES (?, ?, ?, ?, ?)").bind(k, ok ? fa : "", ok ? alt : "", ok ? 1 : 0, Date.now()).run();
+  return ok ? reply({ name, fa, alt: alt || null }) : reply({ error: "not_a_name" }, 422);
 }
 function base64(bytes) {
   let bin = "";
@@ -1925,7 +1960,7 @@ function mergeProgress(a, b) {
 
 // ---------- storage (D1) ----------
 // The tables are made the first time they're needed, and brought up to date if an earlier version made them.
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS families (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, stripe_test TEXT, stripe_live TEXT, checkout_id TEXT, sub_id TEXT, plan TEXT, plan_status TEXT, plan_checked INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS free_ledger (h TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)",
@@ -1933,6 +1968,7 @@ const SCHEMA_TABLES = [
   "CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, family_id TEXT NOT NULL, created_at INTEGER NOT NULL, seen_at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS talks (id TEXT PRIMARY KEY, family_id TEXT NOT NULL, started_at INTEGER NOT NULL, month TEXT NOT NULL, kind TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 1, client_key TEXT)",
   "CREATE TABLE IF NOT EXISTS spend (k TEXT PRIMARY KEY, micro INTEGER NOT NULL DEFAULT 0)",
+  "CREATE TABLE IF NOT EXISTS names (k TEXT PRIMARY KEY, fa TEXT NOT NULL, alt TEXT, ok INTEGER NOT NULL, at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS counters (k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS usage (day TEXT NOT NULL, name TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, name))", // daily totals only
   "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",

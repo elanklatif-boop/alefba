@@ -981,6 +981,11 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .age-picks { display: grid; gap: 8px; margin: 6px 0 4px; }
 .age-pick { display: flex; gap: 10px; align-items: flex-start; text-align: start; font: inherit; color: var(--ink); background: transparent; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; }
 .age-pick[aria-pressed="true"] { border-color: var(--turq); background: var(--turq-soft); }
+.name-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; text-decoration: none; color: var(--ink); background: var(--turq-soft); border: 1.5px solid color-mix(in srgb, var(--turq) 45%, transparent); border-radius: 16px; padding: 12px 16px; margin: 4px 0 14px; }
+.name-card:hover { border-color: var(--turq); }
+.name-card .ic { font-size: 1.5rem; }
+.name-card b { display: block; }
+.name-card .note { display: block; }
 .invite-link { font-weight: 600; word-break: break-all; color: var(--turq); margin: 2px 0 6px; }
 .age-pick b { display: block; } .age-pick span { color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 420px) { .ob-extra { grid-template-columns: 1fr; } }
@@ -1089,6 +1094,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   </div>
   <section class="lib-part" id="view-alphabet">
     <p class="lead">All 32 Persian letters. Persian is read from right to left, and most letters change shape depending on where they sit in a word: on their own, at the start, in the middle and at the end. Seven letters (<span class="fa" lang="fa">ا د ذ ر ز ژ و</span>) never join to the letter after them. Tap a letter to hear it, or switch to writing and trace it with your finger. The green bar shows how well you know it.</p>
+    <a class="name-card" id="nameCard" href="name" hidden><span class="ic" aria-hidden="true">✨</span><span><b>Your name in Persian</b><span class="note">See it written letter by letter, and share it.</span></span><span aria-hidden="true">→</span></a>
     <div class="mode-row" id="alphaMode"></div>
     <div class="grid" id="grid"></div>
   </section>
@@ -8752,7 +8758,7 @@ checkMp3();
   if (!AI && WEB && WEB.api) AI = await webTalkAI(WEB.api);
   aiState = AI ? "ready" : "none";
   accountChanged();
-  if (WEB) { stripeReturn(); schoolReturn(); }
+  if (WEB) { stripeReturn(); schoolReturn(); $("nameCard").hidden = false; }
   if (WEB && TEACH_LINK) { // from the teachers page: straight to teacher mode
     history.replaceState(null, "", location.pathname + location.hash);
     if (TEACH_CLASS) TEACH.openId = TEACH_CLASS;

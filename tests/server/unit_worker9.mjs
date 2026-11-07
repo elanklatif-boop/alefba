@@ -526,7 +526,7 @@ check("unknown API paths are 404", r.status === 404);
 r = await new Agent().call(env(), "/api/talk");
 check("the old talks check still answers", r.json && r.json.ok === true, r.json);
 const tables = db.q("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").map(x => x.name).join();
-check("the database holds only accounts, codes, sessions, talk counts, daily totals, usage totals, settings, classes, reminder-email addresses and (when a family turns it on) progress, never chats", tables === "class_members,classes,codes,counters,families,free_ledger,nudges,progress,sessions,settings,spend,talks,usage" && !JSON.stringify(db.q("SELECT * FROM talks")).includes("salam") && !JSON.stringify(db.q("SELECT * FROM free_ledger")).includes("@"), tables);
+check("the database holds only accounts, codes, sessions, talk counts, daily totals, usage totals, settings, classes, reminder-email addresses, the Persian spellings of names asked on the name page (with no one attached) and (when a family turns it on) progress, never chats", tables === "class_members,classes,codes,counters,families,free_ledger,names,nudges,progress,sessions,settings,spend,talks,usage" && !JSON.stringify(db.q("SELECT * FROM talks")).includes("salam") && !JSON.stringify(db.q("SELECT * FROM free_ledger")).includes("@"), tables);
 
 // ---------------- a database made by the earlier version ----------------
 const old = new D1();

@@ -50,7 +50,7 @@ HEAD = f"""<!doctype html>
 if os.path.exists(OUT): shutil.rmtree(OUT)
 os.makedirs(os.path.join(OUT, "audio"))
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "learn-persian.html","learn-persian-adults.html", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "learn-persian.html","learn-persian-adults.html", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
 shutil.copytree(os.path.join(HERE, "fonts"), os.path.join(OUT, "fonts"))
 shutil.copytree(os.path.join(HERE, "icons"), os.path.join(OUT, "icons"))

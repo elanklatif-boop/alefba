@@ -56,6 +56,11 @@ export function claudeServer(port = 9787) {
     if (fail) return send(res, fail[0], fail[1]);
     if (mode === "refusal") return b.stream ? sse(res, { content: [], stop_reason: "refusal" }) : send(res, 200, { content: [], stop_reason: "refusal" });
     if (mode === "garbled") return send(res, 200, { content: [{ type: "text", text: "{not json" }], stop_reason: "end_turn" });
+    // a name in Persian (learnalefba.com/name)
+    if (/name in Persian script/.test(String(b.system || ""))) {
+      const N = { sara: { ok: true, fa: "سارا", alt: "" }, elan: { ok: true, fa: "ایلان", alt: "الان" }, olivia: { ok: true, fa: "اولیويا", alt: "" }, "mary jane": { ok: true, fa: "مری جین", alt: "" }, noah: { ok: true, fa: "نوح<script>", alt: "" } }[text.toLowerCase()] || { ok: false, fa: "", alt: "" };
+      return send(res, 200, { content: [{ type: "text", text: JSON.stringify(N) }], stop_reason: "end_turn", usage: { input_tokens: 90, output_tokens: 20 } });
+    }
     // a gloss (what did I just say?): a tiny request with its own system prompt
     if (/Finglish/.test(String(b.system || "")) && /"translit"/.test(String(b.system || "")) && !Array.isArray(b.system)) {
       const lang = (/in (English|French|German|Swedish|Mandarin Chinese[^,.]*)/.exec(String(b.system)) || [])[1] || "English";

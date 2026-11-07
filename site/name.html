@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Your name in Persian</title>
+<meta property="og:title" content="What does your name look like in Persian?">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alefba">
+<meta property="og:image" content="https://learnalefba.com/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Alefba: learn to read and speak Persian">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://learnalefba.com/icons/og-image.png">
+<meta name="description" content="Type your name and see it written in Persian, letter by letter, with each letter's sound. Free, from Alefba.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c3780'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f2b23c' font-family='Tahoma,sans-serif'%3E%D8%A7%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Your name in Persian: type a name, see it in Persian letters with each letter's sound, and share it as a picture. */
+:root {
+  --bg: #f2f6f7; --surface: #ffffff; --ink: #13293a; --muted: #5a7282; --line: #d8e3e7;
+  --band: #1c3780; --band-ink: #ffffff; --band-muted: #c3d0f0; --cta: #f2b23c; --cta-ink: #13293a; --lapis-text: #1f3d8a; --turq: #0a7170; --turq-soft: #dbeeed; --bad: #a3322a;
+  --font-ui: "Lexend", "Segoe UI", system-ui, sans-serif; --font-head: "Literata", "Iowan Old Style", Georgia, serif; --font-fa: "Vazirmatn", "Tahoma", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0b1820; --surface: #112430; --ink: #e4eef1; --muted: #8fa8b3; --line: #23404e; --band: #142a63; --band-muted: #aebde6; --lapis-text: #a3b8ff; --turq: #3bbfba; --turq-soft: #123a3c; --bad: #ff8a80; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-ui); }
+.wrap { max-width: 40rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { background: var(--band); color: var(--band-ink); padding-top: env(safe-area-inset-top, 0px); }
+header .wrap { padding-block: 22px 30px; display: grid; gap: 8px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; color: inherit; text-decoration: none; }
+.brand b { font-family: var(--font-head); font-size: 1.5rem; }
+.brand span { font-family: var(--font-fa); font-size: 1.7rem; color: var(--cta); }
+.toapp { color: inherit; font-weight: 600; text-decoration: none; border: 1.5px solid rgba(255,255,255,.45); border-radius: 999px; padding: 8px 16px; min-height: 44px; display: inline-flex; align-items: center; }
+.toapp:hover { background: rgba(255,255,255,.14); }
+header h1 { margin: 10px 0 0; font-family: var(--font-head); font-weight: 600; font-size: 2rem; line-height: 1.15; text-wrap: balance; }
+header p { margin: 0; color: var(--band-muted); }
+form { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+form input { flex: 1 1 14rem; min-width: 0; font: inherit; font-size: 1.15rem; padding: 12px 16px; border-radius: 14px; border: 2px solid transparent; background: #fff; color: #13293a; min-height: 52px; }
+form input:focus-visible { outline: 3px solid var(--cta); outline-offset: 2px; }
+form button { font: inherit; font-weight: 700; font-size: 1.05rem; border: 0; border-radius: 14px; padding: 12px 22px; background: var(--cta); color: var(--cta-ink); cursor: pointer; min-height: 52px; }
+form button:disabled { opacity: .6; cursor: default; }
+form button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.msg { margin: 4px 0 0; color: var(--band-muted); min-height: 1.6em; }
+.msg.err { color: #ffd2cc; }
+main .wrap { padding-block: 24px 48px; display: grid; gap: 20px; }
+.result { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px 20px; display: grid; gap: 14px; text-align: center; }
+.big { font-family: var(--font-fa); font-weight: 700; font-size: clamp(3.4rem, 16vw, 6rem); line-height: 1.3; direction: rtl; color: var(--lapis-text); margin: 0; overflow-wrap: anywhere; }
+.latin { margin: -6px 0 0; color: var(--muted); font-size: 1.1rem; }
+.alt { margin: 0; color: var(--muted); }
+.alt b { font-family: var(--font-fa); font-size: 1.4rem; color: var(--ink); }
+.alt button { font: inherit; color: var(--lapis-text); font-weight: 600; background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 4px; }
+h2 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.25rem; }
+.how { margin: 0; color: var(--muted); }
+.letters { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; direction: rtl; }
+.lt { direction: ltr; display: grid; justify-items: center; gap: 0; min-width: 5.2rem; padding: 10px 10px 8px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
+.lt:hover { border-color: var(--turq); }
+.lt:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
+.lt .g { font-family: var(--font-fa); font-weight: 700; font-size: 2.4rem; line-height: 1.4; }
+.lt .n { font-weight: 600; font-size: .95rem; }
+.lt .s { color: var(--muted); font-size: .85rem; }
+.lt.space { visibility: hidden; min-width: 1rem; padding: 0; border: 0; }
+.lt.playing { border-color: var(--turq); background: var(--turq-soft); }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.tools button, .tools a { font: inherit; font-weight: 600; border-radius: 14px; padding: 12px 20px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 48px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+.tools .primary { background: var(--band); color: var(--band-ink); border-color: var(--band); }
+.tools .done { color: var(--turq); font-weight: 600; align-self: center; }
+.cta { background: var(--turq-soft); border-radius: 20px; padding: 20px; display: grid; gap: 10px; text-align: center; }
+.cta p { margin: 0; }
+.cta a { justify-self: center; background: var(--cta); color: var(--cta-ink); font-weight: 700; text-decoration: none; border-radius: 999px; padding: 12px 26px; min-height: 48px; display: inline-flex; align-items: center; }
+.ideas { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.ideas button { font: inherit; border-radius: 999px; padding: 6px 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 40px; }
+footer { color: var(--muted); font-size: .9rem; text-align: center; }
+footer p { margin: 0 0 6px; }
+@media (prefers-reduced-motion: no-preference) { .result { animation: up .35s ease-out; } @keyframes up { from { opacity: 0; transform: translateY(8px); } } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="./"><b>Alefba</b><span lang="fa">الفبا</span></a>
+      <a class="toapp" href="./" id="toApp">Learn Persian →</a>
+    </div>
+    <h1>What does your name look like in Persian?</h1>
+    <p>Type a name and see it written in Persian letters, letter by letter.</p>
+    <form id="nameForm" autocomplete="off">
+      <label for="nameIn" class="sr" hidden>Your name</label>
+      <input id="nameIn" name="name" maxlength="24" placeholder="Your name, like Sara" aria-label="Your name" enterkeyhint="go" autocapitalize="words" spellcheck="false" required>
+      <button type="submit" id="nameGo">Show me</button>
+    </form>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <section class="result" id="result" hidden aria-live="polite">
+      <p class="big" id="big" lang="fa"></p>
+      <p class="latin" id="latin"></p>
+      <p class="alt" id="alt" hidden></p>
+      <h2>Letter by letter</h2>
+      <p class="how">Persian is read from right to left. Tap a letter to hear its name.</p>
+      <div class="letters" id="letters"></div>
+      <div class="tools">
+        <button type="button" class="primary" id="shareBtn">Share it</button>
+        <button type="button" id="saveBtn">Save the picture</button>
+        <span class="done" id="saved" hidden>Saved</span>
+      </div>
+    </section>
+    <section class="cta" id="cta">
+      <h2>Learn to read every letter</h2>
+      <p>Alefba teaches the Persian alphabet and everyday Persian, the way people really talk. For kids and adults, and free to start.</p>
+      <a href="./" id="startBtn">Start learning, free</a>
+    </section>
+    <section>
+      <p class="how" style="text-align:center">Try a few:</p>
+      <div class="ideas" id="ideas"></div>
+    </section>
+    <footer><p>Names are written by AI, so a spelling can sometimes be different from the one a family uses.</p><p>Only the name you type is sent, and nothing else is kept about you.</p></footer>
+  </div>
+</main>
+<canvas id="card" width="1080" height="1920" hidden></canvas>
+<script>
+(function () {
+  "use strict";
+  // Each Persian letter: its name, its sound, and the app's real-voice recording of its name.
+  var L = {
+    "آ": ["alef", "â", "alef"], "ا": ["alef", "a, â", "alef"], "ب": ["be", "b", "be"], "پ": ["pe", "p", "pe"], "ت": ["te", "t", "te"], "ث": ["se", "s", "se"],
+    "ج": ["jim", "j", "jim"], "چ": ["che", "ch", "che"], "ح": ["he", "h", "he_jimi"], "خ": ["khe", "kh", "khe"], "د": ["dâl", "d", "daal"], "ذ": ["zâl", "z", "zaal"],
+    "ر": ["re", "r", "re"], "ز": ["ze", "z", "ze"], "ژ": ["zhe", "zh", "zhe"], "س": ["sin", "s", "sin"], "ش": ["shin", "sh", "shin"], "ص": ["sâd", "s", "saad"],
+    "ض": ["zâd", "z", "zaad"], "ط": ["tâ", "t", "taa"], "ظ": ["zâ", "z", "zaa"], "ع": ["eyn", "a short stop", "eyn"], "غ": ["gheyn", "gh", "gheyn"], "ف": ["fe", "f", "fe"],
+    "ق": ["ghâf", "gh", "ghaaf"], "ک": ["kâf", "k", "kaaf"], "گ": ["gâf", "g", "gaaf"], "ل": ["lâm", "l", "laam"], "م": ["mim", "m", "mim"], "ن": ["nun", "n", "nun"],
+    "و": ["vâv", "v, u, o", "vaav"], "ه": ["he", "h, or e at the end", "he_do_cheshm"], "ی": ["ye", "y, i", "ye"], "ء": ["hamze", "a short stop", ""], "ئ": ["hamze", "a short stop", ""]
+  };
+  var IDEAS = ["Sara", "Elan", "Noah", "Olivia", "Liam", "Emma", "Ava", "Leo"];
+  var $ = function (id) { return document.getElementById(id); };
+  var cur = null, audio = null, busy = false;
+  function count(e) {
+    try {
+      var d = new Date(), day = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      var body = JSON.stringify({ e: [e], d: day });
+      if (navigator.sendBeacon) navigator.sendBeacon("api/usage", new Blob([body], { type: "application/json" }));
+      else fetch("api/usage", { method: "POST", headers: { "content-type": "application/json" }, body: body, keepalive: true });
+    } catch (x) {}
+  }
+  function say(t, bad) { var m = $("msg"); m.textContent = t || ""; m.className = "msg" + (bad ? " err" : ""); }
+  var ERR = {
+    bad_name: "Type just one name, using English letters (up to 24).",
+    not_a_name: "That doesn't look like a name. Try a first name.",
+    rate_limited: "That's a lot of names! Wait a few minutes and try again.",
+    busy_today: "Lots of people are trying this today. Please come back tomorrow.",
+    not_configured: "This isn't available right now. Please try again later."
+  };
+  function show(name, fa, alt) {
+    cur = { name: name, fa: fa, alt: alt };
+    $("big").textContent = fa;
+    $("latin").textContent = name;
+    var a = $("alt");
+    if (alt) {
+      a.replaceChildren(document.createTextNode("Also written "));
+      var b = document.createElement("b"); b.lang = "fa"; b.textContent = alt; a.append(b, document.createTextNode(" "));
+      var sw = document.createElement("button"); sw.type = "button"; sw.textContent = "Use this one";
+      sw.addEventListener("click", function () { show(name, alt, fa); });
+      a.append(sw); a.hidden = false;
+    } else a.hidden = true;
+    var box = $("letters"); box.replaceChildren();
+    Array.from(fa).forEach(function (ch) {
+      if (ch === " ") { var sp = document.createElement("span"); sp.className = "lt space"; box.append(sp); return; }
+      var info = L[ch]; if (!info) return;
+      var t = document.createElement("button"); t.type = "button"; t.className = "lt";
+      t.setAttribute("aria-label", info[0] + ", sounds like " + info[1]);
+      var g = document.createElement("span"); g.className = "g"; g.lang = "fa"; g.textContent = ch;
+      var n = document.createElement("span"); n.className = "n"; n.textContent = info[0];
+      var s = document.createElement("span"); s.className = "s"; s.textContent = info[1];
+      t.append(g, n, s);
+      if (info[2]) t.addEventListener("click", function () {
+        try { if (audio) audio.pause(); audio = new Audio("audio/letter_" + info[2] + ".mp3"); audio.play().catch(function () {}); } catch (x) {}
+        document.querySelectorAll(".lt.playing").forEach(function (x) { x.classList.remove("playing"); });
+        t.classList.add("playing"); setTimeout(function () { t.classList.remove("playing"); }, 900);
+      });
+      box.append(t);
+    });
+    $("result").hidden = false; $("saved").hidden = true;
+    try { history.replaceState(null, "", "?n=" + encodeURIComponent(name)); } catch (x) {}
+  }
+  async function make(name) {
+    if (busy) return;
+    name = String(name || "").replace(/\s+/g, " ").trim();
+    if (!name) { say("Type a name first.", true); return; }
+    busy = true; $("nameGo").disabled = true; say("Writing it in Persian…");
+    try {
+      var r = await fetch("api/name", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: name }) });
+      var j = {}; try { j = await r.json(); } catch (x) {}
+      if (r.ok && j.fa) { say(""); show(j.name || name, j.fa, j.alt || null); count("name_made"); $("result").scrollIntoView({ behavior: "smooth", block: "start" }); }
+      else say(ERR[j.error] || "Something went wrong. Please try again.", true);
+    } catch (x) { say("You seem to be offline. Check your connection and try again.", true); }
+    busy = false; $("nameGo").disabled = false;
+  }
+  $("nameForm").addEventListener("submit", function (e) { e.preventDefault(); make($("nameIn").value); });
+  IDEAS.forEach(function (n) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = n;
+    b.addEventListener("click", function () { $("nameIn").value = n; make(n); });
+    $("ideas").append(b);
+  });
+  // the picture to share: sized for an Instagram story
+  async function drawCard() {
+    var c = $("card"), x = c.getContext("2d"), W = 1080, H = 1920;
+    try { await Promise.all([document.fonts.load('700 200px "Vazirmatn"', cur.fa), document.fonts.load('600 60px "Literata"'), document.fonts.load('600 40px "Lexend"')]); } catch (e) {}
+    x.fillStyle = "#1c3780"; x.fillRect(0, 0, W, H);
+    x.strokeStyle = "rgba(255,255,255,0.07)"; x.lineWidth = 4;
+    for (var gy = 75; gy < H; gy += 150) for (var gx = 75; gx < W; gx += 150) { x.beginPath(); x.arc(gx, gy, 32, 0, Math.PI * 2); x.stroke(); }
+    x.textAlign = "center"; x.textBaseline = "alphabetic";
+    x.fillStyle = "#ffffff"; x.font = '600 56px "Literata", Georgia, serif'; x.fillText("My name in Persian", W / 2, 470);
+    x.direction = "rtl";
+    var size = 300; x.font = "700 " + size + 'px "Vazirmatn", Tahoma, sans-serif';
+    while (x.measureText(cur.fa).width > W - 140 && size > 90) { size -= 10; x.font = "700 " + size + 'px "Vazirmatn", Tahoma, sans-serif'; }
+    x.fillStyle = "#f2b23c"; x.fillText(cur.fa, W / 2, 960);
+    x.direction = "ltr";
+    x.fillStyle = "#c3d0f0"; x.font = '500 64px "Lexend", system-ui, sans-serif'; x.fillText(cur.name, W / 2, 1110);
+    // the letters, right to left
+    var chars = Array.from(cur.fa).filter(function (ch) { return L[ch]; });
+    var names = chars.map(function (ch) { return L[ch][0]; }).reverse().join("  ·  ");
+    x.font = '400 38px "Lexend", system-ui, sans-serif'; x.fillStyle = "rgba(255,255,255,0.8)";
+    while (x.measureText(names).width > W - 120 && parseInt(x.font, 10) > 22) x.font = "400 " + (parseInt(x.font.replace(/^\d+ /, ""), 10) - 2) + 'px "Lexend", system-ui, sans-serif';
+    x.fillText(names, W / 2, 1220);
+    x.fillStyle = "#ffffff"; x.font = '600 50px "Literata", Georgia, serif'; x.fillText("Alefba", W / 2 - 70, 1640);
+    x.direction = "rtl"; x.fillStyle = "#f2b23c"; x.font = '700 56px "Vazirmatn", Tahoma, sans-serif'; x.fillText("الفبا", W / 2 + 120, 1642); x.direction = "ltr";
+    x.fillStyle = "#f2b23c"; var bw = 560, bh = 92, bx = (W - bw) / 2, by = 1690;
+    x.beginPath(); if (x.roundRect) x.roundRect(bx, by, bw, bh, 46); else x.rect(bx, by, bw, bh); x.fill();
+    x.fillStyle = "#13293a"; x.font = '600 44px "Lexend", system-ui, sans-serif'; x.fillText("learnalefba.com/name", W / 2, by + 62);
+    return new Promise(function (ok) { c.toBlob(ok, "image/png"); });
+  }
+  function fileName() { return "my-name-in-persian-" + cur.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".png"; }
+  async function saveIt() {
+    var blob = await drawCard(); if (!blob) return;
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fileName(); document.body.append(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    $("saved").hidden = false; count("name_share");
+  }
+  $("saveBtn").addEventListener("click", function () { if (cur) saveIt(); });
+  $("shareBtn").addEventListener("click", async function () {
+    if (!cur) return;
+    var blob = await drawCard();
+    var text = "My name in Persian: " + cur.fa + " ✨ See yours at learnalefba.com/name";
+    try {
+      var file = blob && new File([blob], fileName(), { type: "image/png" });
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text }); count("name_share"); return; }
+      if (navigator.share) { await navigator.share({ text: text, url: "https://learnalefba.com/name" }); count("name_share"); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    saveIt();
+  });
+  $("startBtn").addEventListener("click", function () { count("name_start"); });
+  $("toApp").addEventListener("click", function () { count("name_start"); });
+  count("name_open");
+  // a shared link with a name in it: learnalefba.com/name?n=Sara
+  try { var n0 = new URLSearchParams(location.search).get("n"); if (n0) { $("nameIn").value = n0.slice(0, 24); make(n0); } } catch (e) {}
+})();
+</script>
+</body>
+</html>
