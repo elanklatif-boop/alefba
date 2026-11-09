@@ -60,6 +60,8 @@ with sync_playwright() as p:
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"talks": True, "plans": True, "signedIn": False})))
     pg = c.new_page(); pg.goto(URL); pg.wait_for_timeout(1200); pg.evaluate("showView('alphabet'); 0"); pg.wait_for_timeout(300)
     check("the Library has a Your name in Persian card", pg.is_visible("#nameCard") and pg.get_attribute("#nameCard", "href") == "name")
+    check("and a Books for families card linking to Englisi Farsi's books, opening in a new tab", pg.is_visible("#booksCard") and pg.get_attribute("#booksCard", "href") == "https://englisifarsi.com/collections/all" and pg.get_attribute("#booksCard", "target") == "_blank")
+    pg.screenshot(path=PAD + "books_card.png")
     c.close(); b.close()
 print(f"{sum(res)} of {len(res)} passed")
 sys.exit(0 if all(res) else 1)
