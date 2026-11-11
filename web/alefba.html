@@ -530,6 +530,18 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .ob-title { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.5rem; line-height: 1.25; text-wrap: balance; }
 .ob-sub { margin: -6px 0 0; color: var(--muted); max-width: 56ch; }
 .ob-price { font-weight: 400; color: var(--muted); }
+.taarof-meter { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 0.85rem; color: var(--muted); }
+.taarof-meter .tm-lbl { font-weight: 600; white-space: nowrap; }
+.taarof-meter .tm-bar { flex: 1; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.taarof-meter .tm-bar i { display: block; height: 100%; background: var(--turq, #0a7170); border-radius: inherit; transition: width .4s ease; }
+.taarof-meter .tm-n { white-space: nowrap; }
+.taarof-line { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 6px 0 12px; display: grid; gap: 2px; justify-items: start; }
+.taarof-line .fa-line { margin: 0; font-size: 1.5rem; width: 100%; text-align: right; }
+.taarof-line .tl-tr { margin: 0; font-style: italic; color: var(--muted); }
+.taarof-line .tl-en { margin: 0 0 4px; }
+.taarof-ask { font-weight: 600; margin: 0 0 8px; }
+.taarof-opts .opt .t.fa { font-size: 1.4rem; line-height: 1.5; }
+.taarof-opts .sub { white-space: pre-line; }
 .ob-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 @media (min-width: 760px) { .ob-cards { grid-template-columns: repeat(4, 1fr); } }
 .ob-card { display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
@@ -2264,6 +2276,22 @@ const SITUATIONS = [
     goals: ["Say something nice about the food", "Thank her the Persian way", "Politely say you're full"],
     phrases: [["به|به! چه بویی!","bah bah! che buyi!","Mmm, what a smell!"],["دستت درد نکنه مامان|بزرگ.","dastet dard nakone mâmân bozorg.","Thank you so much, Grandma."],["خیلی خوشمزه بود!","kheyli khoshmaze bud!","It was delicious!"],["نه مرسی، سیر شدم.","na mersi, sir shodam.","No thanks, I'm full."]],
     ai: "Keep offering more food (befarmâ, ye kam dige bokhor!) so the child can practice thanking you and politely saying they're full." },
+  // taarof talks: also in the Taarof pack (see buildLevels)
+  { id: "tea", level: 11, title: "Tea at Auntie's", who: { name: "Khale Shirin", fa: "خاله شیرین", ini: "ش", role: "your aunt", tone: "rose" },
+    scene: "You're visiting Khale Shirin. She offers you tea and sweets again and again, the taarof way.",
+    goals: ["Politely say no the first time", "Accept and thank her when she insists", "Say something nice about the sweets"],
+    phrases: [["نه، مرسی. زحمت نکشید.","na, mersi. zahmat nakeshid.","No, thanks. Please don't go to any trouble."],["چشم، دستتون درد نکنه!","cheshm, dastetun dard nakone!","OK, thank you so much!"],["به|به، چه خوشمزه!","bah bah, che khoshmaze!","Mmm, how tasty!"]],
+    ai: "Offer tea, then sweets, the ta'arof way. When the child politely says no, insist warmly (zahmati nist, taârof nakon!). If they accept at once, tease them kindly and explain that a guest usually says no once first. Cheer when they get the back-and-forth right." },
+  { id: "bill", level: 11, title: "Who pays?", who: { name: "Amu Reza", fa: "عمو رضا", ini: "ر", role: "your uncle, at an ice cream shop", tone: "lapis" },
+    scene: "Amu Reza takes you out for ice cream. When it's time to pay, he insists it's his treat, the taarof way.",
+    goals: ["Choose an ice cream flavor", "Politely tell him not to pay", "Thank him when he insists"],
+    phrases: [["من بستنی شکلاتی می|خوام.","man bastani-ye shokolâti mikhâm.","I'd like chocolate ice cream."],["نه عمو، زحمت نکشید!","na amu, zahmat nakeshid!","No, Uncle, please don't!"],["دستتون درد نکنه عمو!","dastetun dard nakone amu!","Thank you so much, Uncle!"]],
+    ai: "When it's time to pay, insist it's your treat (hesâb bâ mane! ghâbel nadâre!). Pretend to argue over the bill a little, with a smile, then let the child thank you." },
+  { id: "fare", level: 11, title: "The taxi fare", who: { name: "Agha-ye Ranande", fa: "آقای راننده", ini: "ر", role: "a taxi driver in Tehran", tone: "turq" },
+    scene: "You and your family take a taxi in Tehran. When you ask how much it is, the driver says ghâbel nadâre (it's nothing). But that's just taarof!",
+    goals: ["Tell him where you're going", "Ask how much it is", "Insist on paying and thank him"],
+    phrases: [["لطفاً بازار تجریش.","lotfan bâzâr-e tajrish.","Tajrish Bazaar, please."],["چقدر می|شه؟","cheghadr mishe?","How much is it?"],["خواهش می|کنم، بفرمایید.","khâhesh mikonam, befarmâyid.","Please, here you go."],["خیلی ممنون، خسته نباشید!","kheyli mamnun, khaste nabâshid!","Thanks a lot, well done!"]],
+    ai: "Chat a little about Tehran's traffic on the way. When the child asks how much, say ghâbel nadâre (it's nothing) at least once, as taxi drivers do. When they insist politely, accept with thanks and say a price in tomans. If they try to leave without paying, explain with a laugh that ghâbel nadâre is only taarof." },
 ];
 
 // Word families: learn one piece and unlock a whole group of words.
@@ -2577,6 +2605,22 @@ const ADULT_SITUATIONS = [
     scene: "You've invited your older Iranian neighbor for tea. Now you're the host, and ta'arof is on you.",
     goals: ["Welcome him and offer a seat", "Offer tea and sweets", "Insist politely when he says no"],
     phrases: [["خوش اومدید! بفرمایید بشینید.","khosh umadid! befarmâyid beshinid.","Welcome! Please, sit down."],["چای میل دارید؟","chây meyl dârid?","Would you like tea?"],["تعارف نکنید، بردارید!","taârof nakonid, bardârid!","Don't be shy, take one!"],["قابل شما رو نداره.","ghâbel-e shomâ ro nadâre.","It's nothing, really."]] },
+  // taarof talks: also in the Taarof pack (see buildLevels)
+  { id: "a-tea", level: 11, title: "Tea at a friend's parents'", who: { name: "Khanom-e Ahmadi", fa: "خانم احمدی", ini: "ا", role: "your friend's mother, hosting you", tone: "rose" },
+    scene: "You're visiting a friend's parents for the first time. Their mother keeps offering tea, fruit and sweets, the taarof way.",
+    goals: ["Politely say no the first time", "Accept with thanks when she insists", "Compliment her hospitality"],
+    phrases: [["خیلی ممنون، زحمت نکشید.","kheyli mamnun, zahmat nakeshid.","Thank you, please don't go to any trouble."],["چشم، دستتون درد نکنه.","cheshm, dastetun dard nakone.","Of course, thank you so much."],["خیلی لطف دارید.","kheyli lotf dârid.","You're very kind."]],
+    ai: "Offer tea, then fruit, then sweets, the ta'arof way. When the learner politely refuses, insist warmly (khâhesh mikonam, taârof nakonid!). If they accept at once, smile and explain that a guest usually refuses once first." },
+  { id: "a-bill", level: 11, title: "Who pays the bill?", who: { name: "Dariush", fa: "داریوش", ini: "د", role: "an Iranian friend, at a restaurant", tone: "lapis" },
+    scene: "You've had dinner with your friend Dariush at a Persian restaurant. The bill arrives, and the taarof battle begins.",
+    goals: ["Offer to pay the bill", "Insist politely at least once", "Settle it, and promise the next one"],
+    phrases: [["حساب با من!","hesâb bâ man!","The bill's on me!"],["نه، خواهش می|کنم، این دفعه مهمون من باشید.","na, khâhesh mikonam, in dafe mehmun-e man bâshid.","No, please, this time you're my guest."],["باشه، ولی دفعه|ی بعد با من!","bâshe, vali dafe-ye bad bâ man!","OK, but next time it's on me!"]],
+    ai: "When the bill arrives, insist on paying (hesâb bâ man! ghâbel nadâre!). Argue over it two or three times with humor, then either let the learner win or win yourself and agree that next time is theirs." },
+  { id: "a-fare", level: 11, title: "The taxi fare", who: { name: "Agha-ye Ranande", fa: "آقای راننده", ini: "ر", role: "a taxi driver in Tehran", tone: "turq" },
+    scene: "You take a taxi across Tehran. When you ask the fare, the driver says ghâbel nadâre (it's nothing). That's taarof: you still pay.",
+    goals: ["Say where you're going", "Ask the fare", "Insist on paying and thank him"],
+    phrases: [["لطفاً میدون تجریش.","lotfan meydun-e tajrish.","Tajrish Square, please."],["چقدر تقدیم کنم؟","cheghadr taghdim konam?","How much do I owe you? (very polite)"],["خواهش می|کنم، بفرمایید.","khâhesh mikonam, befarmâyid.","Please, here you go."],["خسته نباشید!","khaste nabâshid!","Thank you for your work!"]],
+    ai: "Chat about Tehran's traffic on the way. When the learner asks the fare, say ghâbel nadâre at least once, as taxi drivers do. When they insist, accept with thanks and name a price in tomans. If they try to leave without paying, explain with a laugh that it was only taarof." },
 ];
 // >>> new content E
 // The new levels for teens and adults: the main conversations, one extra each, and Street Persian:
@@ -2653,7 +2697,7 @@ const STREET_WORDS = (SHOW_NEW ? [
 // Who says each line of a story, shown above it (narration has no name). [English, Persian]
 const SPEAKERS = { sara: ["Sara", "سارا"], dorsa: ["Dorsa", "درسا"], nima: ["Nima", "نیما"], mom: ["Mom", "مامان"], dad: ["Dad", "بابا"],
   grandma: ["Grandma", "مامان|بزرگ"], grandpa: ["Grandpa", "بابابزرگ"], khale: ["Auntie", "خاله"], nasrin: ["Aunt Nasrin", "زن|عمو نسرین"],
-  teacher: ["Teacher", "معلم"], fruit: ["Fruit seller", "میوه|فروش"], seller: ["Shopkeeper", "فروشنده"], all: ["Everyone", "همه"], pishi: ["Pishi", "پیشی"] };
+  teacher: ["Teacher", "معلم"], fruit: ["Fruit seller", "میوه|فروش"], seller: ["Shopkeeper", "فروشنده"], all: ["Everyone", "همه"], pishi: ["Pishi", "پیشی"], amu: ["Uncle", "عمو"] };
 const _ = null, STORY_WHO = {
   "A new friend": ["sara", "dorsa", "sara", "dorsa", "sara", "dorsa", "sara", "dorsa", "sara"],
   "Grandma's house": ["sara", "sara", "sara", "sara", "grandpa", "grandma", "sara", "sara"],
@@ -2672,6 +2716,7 @@ const _ = null, STORY_WHO = {
   "The haft-sin": [_, _, _, "nima", "sara", "nima", _, "all", _, "nima"],
   "At the bazaar": [_, _, "sara", "seller", "sara", "dad", "seller", "sara", "dad", _, _],
   "Yalda night": [_, _, _, _, "nima", _, _, _, _, _, _],
+  "Who pays?": [_, _, _, "amu", "dad", "amu", _, "nima", "sara", _, "nima"],
 };
 const storyLines = (title, lines) => lines.map(([f, tr, en], k) => { const w = SPEAKERS[(STORY_WHO[title] || [])[k]]; return { fa: Z(f), tr, en, who: w ? { en: w[0], fa: Z(w[1]) } : null }; });
 const STORIES = (SHOW_NEW ? [
@@ -2816,6 +2861,131 @@ const picOf = W => (W && PICS[W.tr]) || "";
 function picWords(pool) { const seen = new Set(); return shuffle(pool.filter(W => picOf(W) && !seen.has(picOf(W)) && seen.add(picOf(W)))); }
 const GAME_PAIRS = 6, BALLOON_ROUNDS = 6;
 const gameWords = lv => picWords(lv.words);
+// ================= THE TAAROF GAME =================
+// Six everyday scenes, two turns each. Someone offers, insists or thanks you, and you pick what to say: the polite
+// no first, then a yes with thanks when they insist (and in a taxi, you always pay). Every answer says why, and a
+// taarof meter fills as you go. Free for everyone, in the Taarof pack.
+// A turn: [who says it (Persian, Finglish, English) or null, a question for the player, the options]. An option:
+// [Persian or null, Finglish, English, right?, why]. An option with no Persian is an English answer.
+const TAAROF_TIPS = [
+  { title: "What is taarof?", art: "تعارف", text: "Taarof is the Persian way of being polite. Hosts offer again and again, guests say no once before saying yes, and everyone insists the other person goes first. It can look funny, but it's how people show they care." },
+  { title: "The golden rule", art: "نه… بله!", text: "The first time someone offers, say a polite no. If they offer again, they really mean it: say yes and thank them. And if someone says ghâbel nadâre (it's nothing) when you're paying, it's still not free!" },
+];
+const TAAROF_SCENES = [
+  { title: "Tea at Auntie's", pic: "🫖", who: ["Khale Shirin", "خاله شیرین"], set: "You're visiting your aunt.",
+    turns: [
+      [["چای می|خوری عزیزم؟", "chây mikhori azizam?", "Would you like some tea, dear?"], "What do you say?", [
+        ["آره، زود باش!", "âre, zud bâsh!", "Yes, hurry up!", false, "Too direct! A guest never rushes the host. Say a polite no first."],
+        ["نه، مرسی. زحمت نکشید.", "na, mersi. zahmat nakeshid.", "No, thanks. Please don't go to any trouble.", true, "Perfect taarof! The first time, you say no politely, even if you'd love some."],
+        ["نمی|دونم.", "nemidunam.", "I don't know.", false, "Auntie needs a clearer answer! The first time, say a polite no."]]],
+      [["زحمتی نیست! تعارف نکن.", "zahmati nist! taârof nakon.", "It's no trouble! Don't be shy."], "She offers again. Now what?", [
+        ["نه! گفتم که نمی|خوام.", "na! goftam ke nemikhâm.", "No! I said I don't want any.", false, "Too much taarof! When she offers again, she means it. Say yes and thank her."],
+        ["باشه.", "bâshe.", "OK.", false, "Nearly! Add a thank-you: dastetun dard nakone."],
+        ["چشم، دستتون درد نکنه!", "cheshm, dastetun dard nakone!", "OK, thank you so much!", true, "Afarin! She offered twice, so now you accept and thank her."]]]] },
+  { title: "Dinner at Grandma's", pic: "🍲", who: ["Grandma", "مامان|بزرگ"], set: "You've had two plates of Grandma's ghormeh sabzi.",
+    turns: [
+      [["یه کم دیگه بخور!", "ye kam dige bokhor!", "Have a little more!"], "What do you say?", [
+        ["نه، خوشمزه نیست.", "na, khoshmaze nist.", "No, it's not tasty.", false, "Ouch! Never say that to Grandma."],
+        ["نه، مرسی، سیر شدم. دستتون درد نکنه!", "na, mersi, sir shodam. dastetun dard nakone!", "No, thanks, I'm full. Thank you so much!", true, "Lovely! Say you're full, and thank her for the food."],
+        ["دیگه نمی|خوام!", "dige nemikhâm!", "I don't want any more!", false, "Too blunt. Say you're full, and thank her for the food."]]],
+      [["تعارف نکن! تو که چیزی نخوردی!", "taârof nakon! to ke chizi nakhordi!", "Don't be shy! You've hardly eaten a thing!"], "Grandma insists. What now?", [
+        ["باشه، فقط یه کم. مرسی مامان|بزرگ!", "bâshe, faghat ye kam. mersi mâmân bozorg!", "OK, just a little. Thanks, Grandma!", true, "That's the Persian way! A little more makes Grandma happy."],
+        ["گفتم نه!", "goftam na!", "I said no!", false, "Too strong for Grandma! Just a little more is the kind answer."],
+        ["خودتون بخورید.", "khodetun bokhorid.", "You eat it yourself.", false, "That sounds rude! Take just a little, with a thank-you."]]]] },
+  { title: "Who goes first?", pic: "🚪", who: ["Agha-ye Sharifi", "آقای شریفی"], set: "You and your neighbor reach the door at the same time.",
+    turns: [
+      [["بفرمایید، شما اول!", "befarmâyid, shomâ aval!", "Please, you go first!"], "What do you say?", [
+        ["نه، خواهش می|کنم، اول شما!", "na, khâhesh mikonam, aval shomâ!", "No, please, you first!", true, "Classic taarof! You offer back: aval shomâ."],
+        [null, "", "Walk in without saying anything", false, "Oops! First offer back: aval shomâ (you first)."],
+        ["باشه، خداحافظ!", "bâshe, khodâhâfez!", "OK, bye!", false, "That's goodbye! First offer back: aval shomâ (you first)."]]],
+      [["نه، نه، شما بفرمایید!", "na, na, shomâ befarmâyid!", "No, no, after you!"], "He insists. What now?", [
+        ["نه، شما!", "na, shomâ!", "No, you!", false, "You'd still be at the door tomorrow! After a couple of tries, accept."],
+        ["چشم، ممنون!", "cheshm, mamnun!", "OK, thank you!", true, "Right! He insisted, so go in and thank him."],
+        ["چرا؟", "cherâ?", "Why?", false, "Taarof doesn't need a why! He insisted, so go in and say thanks."]]]] },
+  { title: "Ice cream with Uncle", pic: "🍦", who: ["Amu Reza", "عمو رضا"], set: "Your uncle takes you to buy ice cream.",
+    turns: [
+      [["بستنی|ت رو من حساب می|کنم!", "bastanit ro man hesâb mikonam!", "I'll pay for your ice cream!"], "What do you say?", [
+        ["آخ جون! دو تا بخر!", "âkh jun! do tâ bekhar!", "Yay! Buy two!", false, "Ha! Too fast. Say a polite no first."],
+        ["نه عمو، زحمت نکشید!", "na amu, zahmat nakeshid!", "No, Uncle, please don't!", true, "Good taarof: a polite no first."],
+        ["باشه.", "bâshe.", "OK.", false, "Too quick! The first time, say a polite no."]]],
+      [["قابلی نداره! تعارف نکن.", "ghâbeli nadâre! taârof nakon.", "It's nothing! Don't be shy."], "Uncle insists. What now?", [
+        ["فقط یکی؟", "faghat yeki?", "Only one?", false, "Cheeky! Just thank him."],
+        ["نه، خودم حساب می|کنم!", "na, khodam hesâb mikonam!", "No, I'll pay myself!", false, "He really wants to treat you. Accept with a thank-you!"],
+        ["دستتون درد نکنه عمو!", "dastetun dard nakone amu!", "Thank you so much, Uncle!", true, "Afarin! He insisted, so you accept and thank him."]]]] },
+  { title: "The taxi in Tehran", pic: "🚕", who: ["The taxi driver", "راننده"], set: "You ask the taxi driver how much the ride is.",
+    turns: [
+      [["قابل نداره!", "ghâbel nadâre!", "It's nothing!"], "What does the driver mean?", [
+        [null, "", "The ride is free", false, "No! It's only taarof. He still expects you to pay."],
+        [null, "", "He's being polite, and you still pay", true, "Exactly! Ghâbel nadâre is taarof. You always pay."],
+        [null, "", "He doesn't like money", false, "Ha! It's only taarof. You still pay."]]],
+      [["نه، قابل نداره!", "na, ghâbel nadâre!", "No, really, it's nothing!"], "He says it again. What do you do?", [
+        ["باشه، مرسی، خداحافظ!", "bâshe, mersi, khodâhâfez!", "OK, thanks, bye!", false, "Oh no, you didn't pay! Ghâbel nadâre is only taarof."],
+        ["خواهش می|کنم، بفرمایید.", "khâhesh mikonam, befarmâyid.", "Please, here you go.", true, "Right: insist politely and hand over the money."],
+        ["نه، ممنون.", "na, mamnun.", "No, thanks.", false, "That doesn't answer him. Insist, and pay."]]]] },
+  { title: "Stay for dinner!", pic: "🏠", who: ["Your friend's mom", "مامانِ دوستت"], set: "It's getting late at your friend's house.",
+    turns: [
+      [["شام بمون!", "shâm bemun!", "Stay for dinner!"], "What do you say?", [
+        ["شام چی داریم؟", "shâm chi dârim?", "What's for dinner?", false, "Ha! Say a polite no first."],
+        ["مرسی، مزاحم نمی|شم.", "mersi, mozâhem nemisham.", "Thanks, I don't want to impose.", true, "Perfect taarof: a polite no first."],
+        ["نه، غذاتون خوب نیست.", "na, ghazâtun khub nist.", "No, your food isn't good.", false, "Ouch! Never say that."]]],
+      [["چه مزاحمتی؟ خوشحال می|شیم!", "che mozâhemati? khoshhâl mishim!", "Impose? We'd be happy to have you!"], "She insists. What now?", [
+        ["چشم، دستتون درد نکنه!", "cheshm, dastetun dard nakone!", "OK, thank you so much!", true, "Afarin! She asked twice, so she means it. Accept and thank her."],
+        ["نه، اصلاً!", "na, aslan!", "No, not at all!", false, "She asked twice, so she means it. Accept!"],
+        ["باشه، ولی فقط پیتزا!", "bâshe, vali faghat pitzâ!", "OK, but only pizza!", false, "Cheeky! Just thank her."]]]] },
+];
+function buildTaarof() {
+  const seq = TAAROF_TIPS.map(t => ({ type: "tip", title: t.title, art: t.art, text: t.text }));
+  const total = TAAROF_SCENES.reduce((n, s) => n + s.turns.length, 0);
+  TAAROF_SCENES.forEach((sc, si) => sc.turns.forEach(([line, ask, opts], ti) => seq.push({
+    type: "taarof", scene: sc, first: ti === 0, total, line: line && { fa: Z(line[0]), tr: line[1], en: line[2] }, ask,
+    opts: shuffle(opts.map(([f, tr, en, ok, why]) => ({ fa: f ? Z(f) : null, tr, en, ok, why }))), key: `taarof:${si}-${ti}` })));
+  seq.push({ type: "taarofEnd", total });
+  return seq;
+}
+const taarofAudio = l => (l && l.fa ? lineAudio(l.fa) : null);
+function taarofMeter(ok, total) {
+  const m = el("div", "taarof-meter"); m.id = "taarofMeter";
+  const bar = el("span", "tm-bar"), fill = el("i"); fill.style.width = `${Math.round((ok / total) * 100)}%`; bar.append(fill);
+  m.append(el("span", "tm-lbl", "Taarof meter"), bar, el("span", "tm-n", `${ok} of ${total}`));
+  m.setAttribute("role", "img"); m.setAttribute("aria-label", `Taarof meter: ${ok} of ${total}`);
+  return m;
+}
+function showTaarof(ex, box) {
+  if (R.taarofOk == null) R.taarofOk = 0;
+  box.append(el("span", "ex-tag", "Taarof game"), taarofMeter(R.taarofOk, ex.total));
+  box.append(el("h2", "ex-title", `${ex.scene.pic} ${ex.scene.title}`));
+  if (ex.first) box.append(el("p", "ex-sub", ex.scene.set));
+  if (ex.line) {
+    const b = el("div", "taarof-line");
+    b.append(speakerTag({ en: ex.scene.who[0], fa: Z(ex.scene.who[1]) }), fa("p", "fa-line", ex.line.fa), el("p", "tl-tr", ex.line.tr), el("p", "tl-en", ex.line.en));
+    const a = taarofAudio(ex.line);
+    if (hasAudio(a)) { b.append(playButton(a, false, "Hear it")); speak(a); }
+    box.append(b);
+  }
+  box.append(el("p", "taarof-ask", ex.ask));
+  const opts = optionsBox(ex.opts.map(o => (o.fa ? { t: o.fa, fa: true, sub: `${o.tr}\n${o.en}` } : { t: o.en })), "opt-", answerTaarof);
+  opts.classList.add("long", "taarof-opts"); box.append(opts); // one answer per row: they're whole sentences
+  return setMain("Continue", false, false);
+}
+function answerTaarof(i) {
+  if (R.phase !== "answer") return;
+  const ex = current(), o = ex.opts[i], right = ex.opts.find(x => x.ok);
+  document.querySelectorAll("#exBox .opt").forEach((b, j) => { b.disabled = true; if (ex.opts[j].ok) b.classList.add("correct"); else if (j === i) b.classList.add("wrong"); });
+  R.phase = "result"; R.graded++;
+  if (o.ok) R.taarofOk++; else { R.mistakes++; if (right.fa && !R.missed.includes(right.fa)) R.missed.push(right.fa); }
+  const m = $("taarofMeter"); if (m) m.replaceWith(taarofMeter(R.taarofOk, ex.total));
+  feedback(o.ok ? "good" : "bad", o.ok ? pick(["Afarin!", "Perfect taarof!", "Well done!"]) : "Not quite!", o.ok ? ["", o.why] : (right.fa ? [right.fa, ` (${right.tr.replace(/[.!?]+$/, "")}). ${o.why}`] : ["", o.why]));
+  if (right.fa) speak(lineAudio(right.fa));
+  setMain("Continue", true);
+  $("mainBtn").focus({ preventScroll: true });
+}
+function showTaarofEnd(ex, box) {
+  const ok = R.taarofOk || 0, n = ex.total;
+  const [t, s] = ok >= n - 1 ? ["Taarof master! 👑", "You'd be welcome in any Iranian home."] : ok >= Math.ceil(n * 0.6) ? ["Nearly a taarof pro! 🫖", "Play again to get them all."]
+    : ["Taarof beginner 🙂", "Taarof takes practice, even for Iranians! Play again."];
+  box.append(el("span", "ex-tag", "Taarof game"), el("h2", "ex-title", t), taarofMeter(ok, n), el("p", "tip-text", s));
+  return setMain("Continue", true);
+}
 // ================= SEASONAL PACKS =================
 // Short, free packs for the big family celebrations, outside the levels: their own words (with sentences and
 // meanings in every language), a story about Sara and Nima, and a game. Shown first on the Lessons tab in the weeks
@@ -2879,11 +3049,66 @@ const SEASON_DATA = [
         ["می|شینیم", "mishinim", "we sit"], ["شمع|ها", "sham-hâ", "the candles"], ["روشنن", "roshanan", "are lit"], ["پیشی", "pishi", "Pishi, the cat"], ["زیر", "zir-e", "under"], ["خوابه", "khâbe", "is asleep"],
         ["ولی", "vali", "but"], ["تا", "tâ", "until"], ["دیروقت", "dir-vaght", "late"], ["بیدارن", "bidâran", "are awake"], ["فردا", "fardâ", "tomorrow"], ["زمستون", "zemestun", "winter"], ["شروع", "shoru", "start"], ["می|شه", "mishe", "becomes (shoru mishe = begins)"]],
       qs: [["What does Nima want?", "A persimmon", "Watermelon", "A pomegranate"], ["What does Grandpa read?", "A poem by Hafez", "A storybook", "A newspaper"], ["Where is Pishi?", "Asleep under the table", "On Grandma's lap", "In the garden"]] } },
+  { id: "taarof", title: "Taarof", fa: "تعارف", emblem: "تعارف", pic: "🫖", always: true, when: "Persian manners", game: "taarof",
+    blurb: "Taarof is the Persian way of being polite: hosts offer again and again, guests say no before yes, and everyone insists the other person goes first. Learn what to say, then play the taarof game.",
+    // the order of the pack's words; befarmâ, taârof nakon and the other polite phrases are shared with Level 12
+    order: ["befarmâ", "taârof nakon", "zahmat nakeshid", "na, mersi", "sir shodam", "ghâbel nadâre", "dastet dard nakone", "khâhesh mikonam",
+      "aval shomâ", "hesâb bâ man", "mozâhem nemishavam", "sharmande", "ghorbunet beram", "cheshm, hatman", "nush-e jân"],
+    words: [["زحمت نکشید", "zahmat nakeshid", "please don't go to any trouble"], ["نه، مرسی", "na, mersi", "no, thank you"], ["سیر شدم", "sir shodam", "I'm full"],
+      ["اول شما", "aval shomâ", "you first"], ["حساب با من", "hesâb bâ man", "the bill's on me"],
+      ["مزاحم نمی|شوم", "mozâhem nemishavam", "I don't want to impose (a polite no to an invitation)"], ["شرمنده", "sharmande", "sorry, you're too kind (I'm embarrassed)"]],
+    spoken: { "mozâhem nemishavam": ["مزاحم نمی|شم", "mozâhem nemisham"] },
+    meanings: {
+      "zahmat nakeshid": ["ne vous dérangez pas", "machen Sie sich keine Mühe", "gör dig inget besvär", "别麻烦了"],
+      "na, mersi": ["non, merci", "nein, danke", "nej tack", "不了，谢谢"], "sir shodam": ["je n'ai plus faim", "ich bin satt", "jag är mätt", "我吃饱了"],
+      "aval shomâ": ["vous d'abord", "Sie zuerst", "du först", "您先请"], "hesâb bâ man": ["c'est moi qui paie", "die Rechnung geht auf mich", "jag bjuder", "我来买单"],
+      "mozâhem nemishavam": ["je ne veux pas déranger", "ich will nicht stören", "jag vill inte störa", "我就不打扰了"],
+      "sharmande": ["je suis confus, c'est trop gentil", "das ist mir peinlich, zu freundlich", "förlåt, du är för snäll", "不好意思"],
+    },
+    // a sentence for each word: everyday Persian, Finglish, English, then how a book writes it
+    examples: {
+      "zahmat nakeshid": ["زحمت نکشید، چای نمی|خوام.", "zahmat nakeshid, chây nemikhâm.", "Please don't go to any trouble, I don't want tea.", "زحمت نکشید، چای نمی|خواهم.", "zahmat nakeshid, chây nemikhâham."],
+      "na, mersi": ["نه، مرسی، تازه ناهار خوردم.", "na, mersi, tâze nâhâr khordam.", "No, thank you, I just had lunch.", null, null],
+      "sir shodam": ["دستت درد نکنه، دیگه سیر شدم.", "dastet dard nakone, dige sir shodam.", "Thank you, I'm full now.", "دستت درد نکند، دیگر سیر شدم.", "dastat dard nakonad, digar sir shodam."],
+      "aval shomâ": ["نه، خواهش می|کنم، اول شما!", "na, khâhesh mikonam, aval shomâ!", "No, please, you first!", null, null],
+      "hesâb bâ man": ["امشب حساب با منه!", "emshab hesâb bâ mane!", "Tonight the bill's on me!", "امشب حساب با من است!", "emshab hesâb bâ man ast!"],
+      "mozâhem nemishavam": ["مرسی، دیگه مزاحم نمی|شم.", "mersi, dige mozâhem nemisham.", "Thanks, I won't impose any longer.", "متشکرم، دیگر مزاحم نمی|شوم.", "moteshakkeram, digar mozâhem nemishavam."],
+      "sharmande": ["شرمنده، دیر کردم!", "sharmande, dir kardam!", "So sorry, I'm late!", null, null],
+    },
+    exampleMeanings: {
+      "zahmat nakeshid": ["Ne vous dérangez pas, je ne veux pas de thé.", "Machen Sie sich keine Mühe, ich möchte keinen Tee.", "Gör dig inget besvär, jag vill inte ha te.", "别麻烦了，我不要茶。"],
+      "na, mersi": ["Non merci, je viens de déjeuner.", "Nein danke, ich habe gerade zu Mittag gegessen.", "Nej tack, jag har precis ätit lunch.", "不了，谢谢，我刚吃过午饭。"],
+      "sir shodam": ["Merci, je n'ai plus faim.", "Danke, ich bin jetzt satt.", "Tack, nu är jag mätt.", "谢谢，我已经吃饱了。"],
+      "aval shomâ": ["Non, je vous en prie, vous d'abord !", "Nein, bitte, Sie zuerst!", "Nej, snälla, du först!", "不，请您先！"],
+      "hesâb bâ man": ["Ce soir, c'est moi qui paie !", "Heute Abend zahle ich!", "I kväll bjuder jag!", "今晚我请客！"],
+      "mozâhem nemishavam": ["Merci, je ne vais pas vous déranger plus longtemps.", "Danke, ich will nicht länger stören.", "Tack, jag ska inte störa längre.", "谢谢，我就不再打扰了。"],
+      "sharmande": ["Désolé, je suis en retard !", "Tut mir leid, ich bin spät dran!", "Förlåt, jag är sen!", "不好意思，我来晚了！"],
+    },
+    pics: { "zahmat nakeshid": "🫖", "na, mersi": "🙅", "sir shodam": "😋", "aval shomâ": "🚪", "hesâb bâ man": "🧾", "mozâhem nemishavam": "🏠", "sharmande": "😳" },
+    story: { title: "Who pays?", fa: "حساب با کیه؟",
+      lines: [["امشب سارا و نیما با بابا و عمو رستورانن.", "emshab sârâ va nimâ bâ bâbâ va amu resturânan.", "Tonight Sara and Nima are at a restaurant with Dad and Uncle."],
+        ["غذا خیلی خوشمزه|ست!", "ghazâ kheyli khoshmazast!", "The food is really tasty!"], ["گارسون صورت|حساب رو میاره.", "gârsun surat-hesâb ro miyâre.", "The waiter brings the bill."],
+        ["«حساب با منه!»", "\"hesâb bâ mane!\"", "\"The bill's on me!\""], ["«نه، خواهش می|کنم، امشب مهمونِ منی!»", "\"na, khâhesh mikonam, emshab mehmun-e mani!\"", "\"No, please, tonight you're my guest!\""],
+        ["«تعارف نکن!»", "\"taârof nakon!\"", "\"Don't do taarof!\""], ["بابا و عمو هر دو کیف|پولشون رو درمیارن.", "bâbâ va amu har do kif-puleshun ro darmiyâran.", "Dad and Uncle both take out their wallets."],
+        ["«سارا، کی برنده می|شه؟»", "\"sârâ, ki barande mishe?\"", "\"Sara, who's going to win?\""], ["«همیشه بابا!»", "\"hamishe bâbâ!\"", "\"Dad, always!\""],
+        ["آخرش بابا حساب می|کنه. عمو می|گه: «دستت درد نکنه، دفعه|ی بعد با من!»", "âkharesh bâbâ hesâb mikone. amu mige: \"dastet dard nakone, dafe-ye bad bâ man!\"", "In the end Dad pays. Uncle says, \"Thank you, next time it's on me!\""],
+        ["«نه، دفعه|ی بعد حساب با منه!» همه می|خندن.", "\"na, dafe-ye bad hesâb bâ mane!\" hame mikhandan.", "\"No, next time the bill's on me!\" Everyone laughs."]],
+      gloss: [["امشب", "emshab", "tonight"], ["و", "va", "and"], ["با", "bâ", "with"], ["بابا", "bâbâ", "Dad"], ["عمو", "amu", "Uncle (Dad's brother)"], ["رستورانن", "resturânan", "are at a restaurant"],
+        ["غذا", "ghazâ", "food"], ["خیلی", "kheyli", "very"], ["خوشمزه|ست", "khoshmazast", "is tasty"], ["گارسون", "gârsun", "waiter"], ["صورت|حساب", "surat-hesâb", "the bill"],
+        ["رو", "ro", "(marks the thing: surat-hesâb ro = the bill)"], ["میاره", "miyâre", "brings"], ["حساب", "hesâb", "the bill"], ["منه", "mane", "is me (bâ mane = is on me)"],
+        ["نه", "na", "no"], ["خواهش", "khâhesh", "a request (khâhesh mikonam = please)"], ["می|کنم", "mikonam", "I do (khâhesh mikonam = please)"], ["مهمونِ", "mehmun-e", "the guest of"],
+        ["منی", "mani", "you are mine (mehmun-e mani = you're my guest)"], ["تعارف", "taârof", "taarof, the polite back-and-forth"], ["نکن", "nakon", "don't do"],
+        ["هر", "har", "each (har do = both)"], ["دو", "do", "two (har do = both)"], ["کیف|پولشون", "kif-puleshun", "their wallets"], ["درمیارن", "darmiyâran", "take out"],
+        ["کی", "ki", "who"], ["برنده", "barande", "the winner"], ["می|شه", "mishe", "becomes (barande mishe = wins)"], ["همیشه", "hamishe", "always"],
+        ["آخرش", "âkharesh", "in the end"], ["می|کنه", "mikone", "does (hesâb mikone = pays)"], ["می|گه", "mige", "says"], ["دستت", "dastet", "your hand"], ["درد", "dard", "pain"],
+        ["نکنه", "nakone", "may it not (dastet dard nakone = thank you)"], ["دفعه|ی", "dafe-ye", "the time (dafe-ye bad = next time)"], ["بعد", "bad", "next"], ["من", "man", "me"],
+        ["همه", "hame", "everyone"], ["می|خندن", "mikhandan", "laugh"]],
+      qs: [["Who says \"The bill's on me!\" first?", "Uncle", "Dad", "Nima"], ["Who pays in the end?", "Dad", "Uncle", "Sara"], ["What does Nima say at the end?", "Next time, the bill's on him", "He wants dessert", "He's tired"]] } },
 ];
 const SEASON_WORDS = [];
 const SEASON_PACKS = SEASON_DATA.map(d => {
   Object.assign(TRANSLATIONS.words, d.meanings);
-  const lv = { id: d.id, season: true, index: 99, pic: d.pic, title: d.title, fa: Z(d.fa), emblem: Z(d.emblem), from: d.from, to: d.to, when: d.when, blurb: d.blurb, lessons: [] };
+  const lv = { id: d.id, season: true, always: !!d.always, index: 99, pic: d.pic, title: d.title, fa: Z(d.fa), emblem: Z(d.emblem), from: d.from, to: d.to, when: d.when, blurb: d.blurb, lessons: [] };
   const own = d.words.map(([f, tr, en]) => {
     const sp = d.spoken[tr], e = d.examples[tr];
     const W = { fa: Z(f), tr, en, syn: null, level: 99, season: d.id, sp: sp ? { fa: Z(sp[0]), tr: sp[1], note: sp[2] || "" } : null, book: null };
@@ -2899,13 +3124,14 @@ const SEASON_PACKS = SEASON_DATA.map(d => {
   lv.lessons = [
     { id: `${d.id}-1`, title: "Words 1", kind: "words", level: lv, words: lv.words.slice(0, half) },
     { id: `${d.id}-2`, title: "Words 2", kind: "words", level: lv, words: lv.words.slice(half) },
-    { id: `${d.id}-game`, title: "Games", kind: "game", level: lv },
+    d.game === "taarof" ? { id: `${d.id}-game`, title: "Taarof game", kind: "taarof", level: lv } : { id: `${d.id}-game`, title: "Games", kind: "game", level: lv },
     { id: `${d.id}-story`, title: "Story", kind: "story", level: lv, story: lv.story },
   ];
   return lv;
 });
 // A season's pack is featured from a few weeks before the celebration until just after it.
 function inSeason(p, d = new Date()) {
+  if (p.always || !p.from) return false; // a pack for any time of year is never pushed to the top
   const md = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return p.from <= p.to ? md >= p.from && md <= p.to : md >= p.from || md <= p.to;
 }
@@ -2913,6 +3139,7 @@ const wordsAround = W => (W.season ? (SEASON_PACKS.find(p => p.id === W.season) 
 const ALL_WORDS = () => WORDS.concat(SEASON_WORDS); // the levels' words and the seasonal packs' words
 
 const CONVS = [], LESSONS = [];
+const TAAROF_TALKS = ["s-tea", "s-bill", "s-fare", "s-a-tea", "s-a-bill", "s-a-fare"];
 function buildLevels() {
   const adult = typeof S !== "undefined" && isAdult();
   CONVS.length = 0; LESSONS.length = 0;
@@ -2938,7 +3165,10 @@ LEVELS.forEach((lv, li) => {
   STORIES.filter(s => s.level === li).forEach(s => lv.lessons.push({ id: `story-${li + 1}`, title: "Story", kind: "story", level: lv, story: s }));
   LESSONS.push(...lv.lessons);
 });
-  SEASON_PACKS.forEach(p => LESSONS.push(...p.lessons)); // free, outside the path (see renderLessons)
+  // the Taarof pack also offers the taarof talks of Level 12 (the same talks, with a plan like the rest of that level)
+  const tp = SEASON_PACKS.find(p => p.id === "taarof");
+  if (tp) tp.lessons = tp.lessons.filter(l => !l.packTalk).concat(LEVELS[11].lessons.filter(l => TAAROF_TALKS.includes(l.id)).map(l => ({ ...l, packTalk: true })));
+  SEASON_PACKS.forEach(p => LESSONS.push(...p.lessons.filter(l => !l.packTalk))); // free, outside the path (see renderLessons)
 }
 
 // ================= SAVED PROGRESS (this browser only) =================
@@ -3918,8 +4148,9 @@ function renderGamesTab() {
   SEASON_PACKS.forEach(lv => { // free for everyone
     const b = el("button", "topic"); b.type = "button"; b.id = "gw-" + lv.id;
     b.append(el("span", "step-emoji game-row-pic", lv.pic));
-    const t = el("span", "topic-text"); t.append(el("b", null, lv.title), el("span", "note", `${gameWords(lv).length} words with pictures · free for everyone`)); b.append(t);
-    b.addEventListener("click", () => startGame(GAME_KIND, lv.words, `${name()}: ${lv.title}`));
+    const tg = lv.lessons.find(l => l.kind === "taarof"); // the Taarof pack's own game, in place of memory and balloons
+    const t = el("span", "topic-text"); t.append(el("b", null, tg ? "The taarof game" : lv.title), el("span", "note", tg ? "Six everyday scenes: what do you say? · free for everyone" : `${gameWords(lv).length} words with pictures · free for everyone`)); b.append(t);
+    b.addEventListener("click", () => (tg ? openLesson(tg) : startGame(GAME_KIND, lv.words, `${name()}: ${lv.title}`)));
     list.append(b);
   });
   v.append(list);
@@ -4276,6 +4507,8 @@ function buildLessonCore(lesson) {
     seq.push(exMatch(shuffle(all).slice(0, 4).map(p => ({ l: p.wfa, r: p.str, key: "spoken:" + p.wtr, audio: formAudio("said", { fa: p.sfa, tr: p.str }) })), "Match each written word to how people say it"));
   } else if (lesson.kind === "game") {
     seq.push(...buildGames(lesson.level));
+  } else if (lesson.kind === "taarof") {
+    seq.push(...buildTaarof());
   } else if (lesson.kind === "story") {
     seq.push({ type: "story", story: lesson.story });
     lesson.story.qs.forEach(q => seq.push(exStoryQ(q, lesson.story)));
@@ -4917,6 +5150,8 @@ function showExercise() {
   if (ex.type === "memory") return showMemory(box, ex);
   if (ex.type === "balloons") return showBalloons(box, ex);
   if (ex.type === "repeat") return showRepeat(box, ex);
+  if (ex.type === "taarof") return showTaarof(ex, box);
+  if (ex.type === "taarofEnd") return showTaarofEnd(ex, box);
   if (ex.type === "tip") {
     box.append(el("span", "ex-tag", "Tip"));
     box.append(el("h2", "ex-title", ex.title));
@@ -5325,7 +5560,7 @@ function mainAction() {
   if (ex.type === "readWord" && R.readReveal) { const show = R.readReveal; R.readReveal = null; return show(); }
   if (R.phase === "answer" && ex.type === "spell") return checkSpell();
   if (R.phase === "answer" && ex.type === "trace") return R.trace && R.trace.hasInk() ? checkTrace() : undefined;
-  if (R.phase === "answer" && (ex.type === "choice" || ex.type === "match" || ex.type === "say" || ex.type === "memory" || ex.type === "balloons")) return;
+  if (R.phase === "answer" && (ex.type === "choice" || ex.type === "match" || ex.type === "say" || ex.type === "memory" || ex.type === "balloons" || ex.type === "taarof")) return;
   R.pos++;
   if (R.pos >= R.queue.length) return finishLesson();
   showExercise();
@@ -5365,7 +5600,7 @@ function finishLesson() {
       d.append(ul);
     }
     const lv = R.lesson && R.lesson.level;
-    if (lv && firstTime && lv.lessons.every(l => S.done[l.id])) {
+    if (lv && firstTime && lv.lessons.every(l => S.done[l.id] || l.packTalk)) {
       const n = missedCount({ level: lv }), box2 = el("div", "level-done"); box2.id = "levelDone";
       box2.append(el("b", null, `${lv.season ? lv.title : `Level ${lv.index + 1}`} finished!`), el("p", null, n ? `You missed ${n} thing${n === 1 ? "" : "s"} in this ${lv.season ? "pack" : "level"}. Going over ${n === 1 ? "it" : "them"} now helps ${n === 1 ? "it" : "them"} stick.` : `You didn't miss anything in this ${lv.season ? "pack" : "level"}. Great work!`));
       if (n) { const go = el("button", "btn quiet", lv.season ? "Review this pack now" : "Review this level now"); go.id = "levelReviewBtn"; go.type = "button"; go.addEventListener("click", () => { closeLesson(); startTopic({ level: lv }, lv.season ? lv.title : `Level ${lv.index + 1}`); }); box2.append(go); }
@@ -6450,7 +6685,7 @@ function teachAssign() {
   };
   group("The letters", ALPHA_UNITS.flatMap(u => u.lessons), "letters");
   LEVELS.forEach(lv => group(`Level ${lv.index + 1}: ${lv.title}`, lv.lessons.filter(l => !l.id.startsWith("s-") && l.kind !== "street"), "l" + (lv.index + 1))); // Street Persian is for teens and adults only
-  SEASON_PACKS.forEach(lv => group(`${lv.title} (free for everyone)`, lv.lessons, lv.id));
+  SEASON_PACKS.forEach(lv => group(`${lv.title} (free for everyone)`, lv.lessons.filter(l => !l.packTalk), lv.id)); // the pack's talks are Level 12's, listed there
   $("teachFoot").hidden = false;
   upd();
   $("teachBody").scrollTop = 0;
@@ -7502,9 +7737,9 @@ function openLocked(ls) {
 }
 function stepButton(ls, isNext) {
   const done = !!S.done[ls.id];
-  const kindCls = { talk: " talk", family: " fam", spoken: " spk", street: " spk", story: " story", game: " game" }[ls.kind] || "";
+  const kindCls = { talk: " talk", family: " fam", spoken: " spk", street: " spk", story: " story", game: " game", taarof: " game" }[ls.kind] || "";
   const b = el("button", "step" + kindCls + (done ? " done" : "") + (isNext ? " next" : ""));
-  b.id = "step-" + ls.id;
+  b.id = "step-" + ls.id + (ls.packTalk ? "-pack" : ""); // a pack's talks are also in their level: one id each
   if (isNext) b.append(el("span", "next-tag", "Up next"));
   if (S.done[ls.id] === "test") b.title = "Skipped because your level check showed you already know this. Tap to practice it anyway.";
   if (lessonLocked(ls)) { b.classList.add("locked"); b.insertAdjacentHTML("beforeend", ICON.lock); b.title = "Comes with a plan"; }
@@ -7512,6 +7747,7 @@ function stepButton(ls, isNext) {
   else if (ls.kind === "talk") b.insertAdjacentHTML("beforeend", ICON.chat);
   else if (ls.kind === "story") b.insertAdjacentHTML("beforeend", ICON.book);
   else if (ls.kind === "game") b.append(el("span", "step-emoji", "🎈"));
+  else if (ls.kind === "taarof") b.append(el("span", "step-emoji", "🫖"));
   b.append(document.createTextNode(ls.title));
   if (!done && (extraInDoneLevel(ls) || passedRead(ls))) b.append(el("span", "new-tag", "New")); // added to a level they'd already finished
   b.addEventListener("click", () => openLesson(ls));
@@ -7675,7 +7911,7 @@ function renderLessons() {
 function seasonPart() {
   if (!SEASON_PACKS.length) return null;
   const p = el("section", "part season-part"), h = el("div", "part-head"); p.id = "seasonPart";
-  h.append(el("h2", null, "Celebrations"), el("p", null, "Short packs for the big family nights: their words, a story and a game. Free for everyone."));
+  h.append(el("h2", null, "Celebrations and manners"), el("p", null, "Short packs for the big family nights and the Persian way of being polite: their words, a story and a game. Free for everyone."));
   p.append(h);
   SEASON_PACKS.forEach(lv => {
     const c = unitCard({ eyebrow: `Free for everyone · ${lv.when}`, title: lv.title, blurb: lv.blurb, emblem: lv.emblem, emblemWord: true, lessons: lv.lessons, nx: null });
@@ -8111,7 +8347,7 @@ function renderTopics() {
     list.append(row("topic-l" + (lv.index + 1), `Level ${lv.index + 1}: ${lv.title}`, locked ? "Comes with a plan" : !started ? "Not started yet: tap to begin" : n ? `${n} to go over` : "Practise again",
       locked ? " locked" : n ? " missed" : "", () => (locked ? openLocked(lv.lessons[0]) : started ? startTopic({ level: lv }, `Level ${lv.index + 1}`) : openLesson(lv.lessons[0]))));
   });
-  SEASON_PACKS.filter(lv => lv.lessons.some(l => S.done[l.id])).forEach(lv => { // once started
+  SEASON_PACKS.filter(lv => lv.lessons.some(l => !l.packTalk && S.done[l.id])).forEach(lv => { // once started
     const n = missedCount({ level: lv });
     list.append(row("topic-" + lv.id, lv.title, n ? `${n} to go over` : "Practise again", n ? " missed" : "", () => startTopic({ level: lv }, lv.title)));
   });

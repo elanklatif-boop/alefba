@@ -41,7 +41,7 @@ with sync_playwright() as p:
     # ----- outside the season (today, 29 October): the pack is at the end, free -----
     c, pg, errs = page(b, st(), when=datetime.datetime(2026, 10, 29, 12))
     pk = pg.evaluate("SEASON_PACKS.map(p => ({ id: p.id, words: p.words.map(W => W.tr), lessons: p.lessons.map(l => l.id) }))")
-    check(f"one pack, Yalda, with 15 words and 4 lessons ({pk})", len(pk) == 1 and len(pk[0]["words"]) == 15 and pk[0]["lessons"] == ["yalda-1", "yalda-2", "yalda-game", "yalda-story"])
+    check(f"two packs, Yalda first, with 15 words and 4 lessons ({pk})", [x["id"] for x in pk] == ["yalda", "taarof"] and len(pk[0]["words"]) == 15 and pk[0]["lessons"] == ["yalda-1", "yalda-2", "yalda-game", "yalda-story"])
     check("words shared with Level 14 are the same words, not copies", pg.evaluate("SEASON_PACKS[0].words.filter(W => WORDS.includes(W)).map(W => W.tr).sort().join()") == "anâr,fâl-e hâfez,hendevâne,shab-e yaldâ")
     check("the 252 words and 16 levels are unchanged", pg.evaluate("[WORDS.length, LEVELS.length]") == [252, 16])
     check("signed out, with no plan: every pack lesson is open, Level 5 is still locked", pg.evaluate("SEASON_PACKS[0].lessons.every(l => !lessonLocked(l)) && lessonLocked(LESSONS.find(l => l.id === 'w5-1'))"))
