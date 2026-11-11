@@ -3798,10 +3798,10 @@ function sayLetterHelp() {}
 const PLAYER = new Audio();
 PLAYER.preload = "auto";
 const SILENT = "data:audio/wav;base64,UklGRuwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcgAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
-let soundUnlocked = false;
+let soundUnlocked = false, UNLOCK_AT = -1e9;
 function unlockSound() {
   if (soundUnlocked) return;
-  soundUnlocked = true;
+  soundUnlocked = true; UNLOCK_AT = performance.now();
   // newer iPhones: play sound even when the phone is on silent, like a video would
   try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
   try { PLAYER.src = SILENT; const p = PLAYER.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
@@ -3823,6 +3823,13 @@ function speak(a, after) {
       PLAYER.onended = next;
       const p = PLAYER.play();
       if (p && p.catch) p.catch(err => { if (!err || err.name !== "AbortError") tts(a.text, next); });
+      // The very first tap on a page both unlocks sound and can start a recording (a game opened from a link, say).
+      // On some phones the unlocking cuts that first recording off before it's heard: if it isn't playing a moment
+      // later, start it once more.
+      if (performance.now() - UNLOCK_AT < 1000) setTimeout(() => {
+        if (id !== SOUND_ID || !PLAYER.paused || PLAYER.ended) return;
+        try { PLAYER.currentTime = 0; const q = PLAYER.play(); if (q && q.catch) q.catch(() => {}); } catch (e) {}
+      }, 700);
     } catch (e) { tts(a.text, next); }
     return;
   }
