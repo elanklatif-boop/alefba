@@ -535,6 +535,17 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .taarof-meter .tm-bar { flex: 1; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .taarof-meter .tm-bar i { display: block; height: 100%; background: var(--turq, #0a7170); border-radius: inherit; transition: width .4s ease; }
 .taarof-meter .tm-n { white-space: nowrap; }
+.taarof-card { background: linear-gradient(160deg, #1f3d8a, #132660); color: #fff; border-radius: 20px; padding: 20px 16px 18px; margin: 4px 0 12px; display: grid; gap: 3px; justify-items: center; text-align: center; box-shadow: 0 8px 22px rgba(10, 20, 60, .25); }
+.taarof-card .tc-kicker { font-size: .76rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: #c3d0f0; }
+.taarof-card .tc-pic { font-size: 3.2rem; line-height: 1.15; }
+.taarof-card .tc-fa { font-family: var(--font-display); font-size: 2.2rem; line-height: 1.35; color: #f2b23c; }
+.taarof-card .tc-tr { font-style: italic; font-size: .9rem; color: #c3d0f0; }
+.taarof-card .ex-title { margin: 8px 0 2px; color: #fff; font-size: 1.7rem; }
+.taarof-card .taarof-meter { width: 100%; max-width: 300px; margin: 6px 0 2px; color: #c3d0f0; }
+.taarof-card .taarof-meter .tm-bar { background: rgba(255, 255, 255, .2); }
+.taarof-card .taarof-meter .tm-bar i { background: #f2b23c; }
+.taarof-card .tc-line { margin: 4px 0 10px; text-wrap: balance; }
+.taarof-card .tc-url { background: #f2b23c; color: #1e1503; font-weight: 600; font-size: .9rem; border-radius: 999px; padding: 6px 16px; }
 .taarof-line { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 6px 0 12px; display: grid; gap: 2px; justify-items: start; }
 .taarof-line .fa-line { margin: 0; font-size: 1.5rem; width: 100%; text-align: right; }
 .taarof-line .tl-tr { margin: 0; font-style: italic; color: var(--muted); }
@@ -3015,7 +3026,7 @@ function answerTaarof(i) {
 function taarofShare(ok, n) {
   const b = el("button", "btn primary share-btn", "Challenge a friend"); b.type = "button"; b.id = "taarofShare";
   b.insertAdjacentHTML("afterbegin", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-  const text = `I got ${ok} of ${n} on the taarof test 🫖 Can you beat me?`, url = "https://learnalefba.com/taarof";
+  const rank = taarofRank(ok, n), text = `I'm a “${rank.title}” ${rank.pic} I got ${ok} of ${n} on the taarof test. Can you beat me?`, url = "https://learnalefba.com/taarof";
   b.addEventListener("click", async () => {
     count("taarof_share");
     if (navigator.share) { try { await navigator.share({ text, url }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
@@ -3023,11 +3034,26 @@ function taarofShare(ok, n) {
   });
   return b;
 }
+// What kind of guest you are, from the score: a title in English and Persian, for the card at the end (made to be
+// screenshotted and sent to a friend) and for "Challenge a friend".
+const TAAROF_RANKS = [
+  [1, "Taarof master", "👑", "استاد تعارف", "ostâd-e taârof", "You'd be welcome in any Iranian home."],
+  [0.8, "Grandma's favourite", "🥰", "عزیز مامان|بزرگ", "aziz-e mâmân bozorg", "Polite, warm, and you know when to say yes."],
+  [0.55, "Good guest", "🫖", "مهمون خوب", "mehmun-e khub", "You'll be invited back. A little more practice!"],
+  [0.3, "Hungry guest", "😅", "مهمون گرسنه", "mehmun-e gorosne", "You said yes a bit too fast. Say no first!"],
+  [0, "Tourist", "🧳", "توریست", "turist", "New to taarof? So was everyone once."]];
+function taarofRank(ok, n) {
+  const r = TAAROF_RANKS.find(x => ok >= Math.ceil(n * x[0])) || TAAROF_RANKS[TAAROF_RANKS.length - 1];
+  return { title: r[1], pic: r[2], fa: Z(r[3]), tr: r[4], line: r[5], top: r[0] === 1 };
+}
 function showTaarofEnd(ex, box) {
-  const ok = R.taarofOk || 0, n = ex.total;
-  const [t, s] = ok >= n - 1 ? ["Taarof master! 👑", "You'd be welcome in any Iranian home."] : ok >= Math.ceil(n * 0.6) ? ["Nearly a taarof pro! 🫖", "Play again to get them all."]
-    : ["Taarof beginner 🙂", "Taarof takes practice, even for Iranians! Play again."];
-  box.append(el("span", "ex-tag", "Taarof game"), el("h2", "ex-title", t), taarofMeter(ok, n), el("p", "tip-text", s));
+  const ok = R.taarofOk || 0, n = ex.total, rank = taarofRank(ok, n);
+  const card = el("div", "taarof-card"); card.id = "taarofCard";
+  const pic = el("span", "tc-pic", rank.pic); pic.setAttribute("aria-hidden", "true");
+  card.append(el("span", "tc-kicker", "The taarof test"), pic, fa("span", "tc-fa", rank.fa), el("span", "tc-tr", rank.tr), el("h2", "ex-title", rank.title),
+    taarofMeter(ok, n), el("p", "tc-line", rank.line), el("span", "tc-url", "learnalefba.com/taarof"));
+  box.append(card);
+  if (!rank.top) box.append(el("p", "tip-text", "Play again to move up a rank."));
   if (WEB) box.append(taarofShare(ok, n));
   return setMain("Continue", true);
 }
