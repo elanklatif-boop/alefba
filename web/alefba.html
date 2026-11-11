@@ -551,6 +551,9 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .ob-card b { font-size: 0.98rem; }
 .ob-card span:last-child { color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
 .ob-free { margin: 0; font-weight: 600; }
+.ob-demo { display: grid; gap: 8px; }
+.ob-demo .two-side { cursor: pointer; }
+.ob-demo-cap { margin: 0; text-align: center; color: var(--muted); font-size: 0.92rem; }
 .ob-links { margin: -4px 0 0; font-size: 0.9rem; }
 .ob-links a { color: var(--lapis-text); }
 .ob-alt.as-btn { align-self: stretch; max-width: none; text-decoration: none; border: 1.5px solid var(--lapis); color: var(--lapis-text); border-radius: 12px; padding: 12px; font-size: 1rem; font-weight: 600; background: transparent; }
@@ -998,7 +1001,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .ob-extra-btn:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
 .ob-extra-ic { grid-row: span 2; font-size: 1.7rem; line-height: 1; }
 .ob-extra-btn b { font-size: 1.06rem; }
-.ob-extra-btn span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.88rem; line-height: 1.3; grid-column: 2; }
+.ob-extra-btn > span:not(.ob-extra-ic) { color: var(--muted); font-size: 0.88rem; line-height: 1.3; grid-column: 2; }
 .ob-extra { margin: 4px 0 18px; }
 /* wide screens: the three side by side, each with its picture on top (no squeezed columns) */
 @media (min-width: 760px) {
@@ -1006,7 +1009,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   .ob-extra-btn { grid-template-columns: 1fr; align-content: start; row-gap: 4px; }
   .ob-extra-btn::after { display: none; }
   .ob-extra-ic { grid-row: auto; margin-bottom: 4px; }
-  .ob-extra-btn span:not(.ob-extra-ic) { grid-column: 1; }
+  .ob-extra-btn > span:not(.ob-extra-ic) { grid-column: 1; }
 }
 .who-card .who-picks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0 6px; }
 .who-pick { display: flex; flex-direction: column; gap: 2px; text-align: start; font: inherit; color: var(--ink); background: var(--surface, var(--bg)); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; }
@@ -1033,8 +1036,19 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   .ob-title { font-size: 1.3rem; }
   .ob-extra { gap: 8px; margin: 0 0 12px; }
   .ob-extra-btn { padding: 10px 12px; min-height: 56px; }
-  .ob-extra-btn span:not(.ob-extra-ic) { font-size: 0.84rem; }
+  .ob-extra-btn > span:not(.ob-extra-ic) { font-size: 0.84rem; }
 }
+/* phones: the three special ways in (class code, little one, teacher) are one row of small tiles, so the taste and the
+   start button come first; their line of detail shows on wider screens */
+@media (max-width: 759px) {
+  .ob-extra { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+  .ob-extra-btn { grid-template-columns: 1fr; justify-items: center; align-content: center; text-align: center; padding: 10px 6px; min-height: 68px; row-gap: 4px; }
+  .ob-extra-btn::after { display: none; }
+  .ob-extra-ic { grid-row: auto; font-size: 1.4rem; }
+  .ob-extra-btn b { font-size: 0.84rem; line-height: 1.2; }
+  .ob-extra-btn > span:not(.ob-extra-ic) { display: none; }
+}
+.ob-extra-btn b .nb { white-space: nowrap; color: inherit; font-size: inherit; }
 .teach-sheets { display: grid; gap: 6px; justify-items: start; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 .teach-sheets h3 { margin: 0; }
 
@@ -3271,8 +3285,21 @@ function loadState() {
 // (once a day), whether they're new or how long since their first day, and lessons or talks started and finished.
 // Only daily totals are kept, with nothing that says who anyone is (see countUsage in the server).
 const USAGE = []; let usageTimer = null;
+// learnalefba.com/?nostats: from then on this device is left out of the usage totals (?nostats=off counts it again).
+// For the family's own phones and laptops, so testing doesn't look like visitors. Kept on the device, nowhere else.
+let NOSTATS = false, NOSTATS_SET = "";
+try {
+  const q = new URLSearchParams(location.search);
+  if (q.has("nostats")) {
+    const back = /^(off|0|no)$/i.test(q.get("nostats") || "");
+    if (back) localStorage.removeItem("alefba-nostats"); else localStorage.setItem("alefba-nostats", "1");
+    NOSTATS_SET = back ? "counted" : "left out";
+    history.replaceState(null, "", location.pathname + location.hash);
+  }
+  NOSTATS = localStorage.getItem("alefba-nostats") === "1";
+} catch (e) {}
 function count(name) {
-  if (!WEB || !WEB.api) return;
+  if (!WEB || !WEB.api || NOSTATS) return;
   USAGE.push(name); clearTimeout(usageTimer); usageTimer = setTimeout(sendUsage, 4000);
 }
 function sendUsage() {
@@ -6421,9 +6448,26 @@ function applyClassAges(ages) {
   return changed;
 }
 // On the welcome screen, where a student with a class code, a family with a little one, or a teacher sees it straight away.
+// A taste on the first screen: one word the way a book writes it and the way it's said at home, each in a real voice
+// (the same panel as in the lessons). More than half of new visitors used to leave the welcome without tapping anything.
+function obDemo() {
+  const W = WORDS.find(W => W.tr === "nân");
+  if (!W || !W.two || !hasAudio(W.two.book.audio) || !hasAudio(W.two.said.audio)) return null;
+  const box = el("div", "ob-demo"); box.id = "obDemo";
+  const cap = el("p", "ob-demo-cap", `Both mean “${W.m}”. Tap each one to hear it.`);
+  box.append(twoWays(W.two), cap);
+  box.addEventListener("click", e => {
+    if (!e.target.closest(".two-side")) return;
+    if (!OB.demo) { OB.demo = true; count("ob_demo"); }
+    cap.textContent = "Alefba teaches both, with real voices.";
+  });
+  return box;
+}
 function classEntries() {
   const box = el("div", "ob-extra"); box.id = "obExtra";
-  const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; b.append(el("span", "ob-extra-ic", ic), el("b", null, t), el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
+  const mk = (id, ic, t, d, fn) => { const b = el("button", "ob-extra-btn"); b.type = "button"; b.id = id; const ti = el("b"), cut = t.indexOf(" ("); // "(3 to 6)" stays on one line
+    if (cut > 0) { const nb = el("span", "nb", t.slice(cut + 1)); ti.append(t.slice(0, cut) + " ", nb); } else ti.textContent = t;
+    b.append(el("span", "ob-extra-ic", ic), ti, el("span", null, d)); b.addEventListener("click", fn); box.append(b); };
   mk("obJoinBtn", "🎒", "Join your class", "Got a class code from your teacher? Type it here.", () => { count("ob_join"); openJoinClass(); });
   mk("obLittleBtn", "🧒", "Little one (3 to 6)", "Flashcards, picture games and tracing. No reading needed.", () => { count("ob_little"); OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
   mk("obTeachBtn", "✏️", "I'm a teacher", "Make a class for your students. Teacher mode is free.", () => { count("ob_teacher"); openTeacher(true); });
@@ -7374,7 +7418,8 @@ function renderOB() {
   if (st === "welcome") {
     main.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"));
     main.append(el("h2", "ob-title", "Learn to read and speak Persian"));
-    main.append(el("p", "ob-sub", "For kids, teens and grown-ups, from complete beginners to people who grew up hearing it."));
+    main.append(el("p", "ob-sub", "Written and spoken Persian, for kids, teens and grown-ups."));
+    const demo = obDemo(); if (demo) main.append(demo); // something to tap and hear before anything to read
     if (WEB) { // the first thing parents ask: what's free, and what the rest costs (the yearly price from the server once it's known)
       const y = typeof ACCT !== "undefined" && ACCT && ACCT.prices && /^\$[\d.]+$/.test(ACCT.prices.yearly || "") ? parseFloat(ACCT.prices.yearly.slice(1)) : 39;
       const free = el("p", "ob-free", `The whole alphabet and the first ${FREE_LEVELS} levels are free. No sign-up needed to start. `);
@@ -9070,6 +9115,8 @@ if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if 
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
+if (NOSTATS_SET) showNotice(NOSTATS_SET === "counted" ? "This device is counted again" : "This device isn't counted any more",
+  NOSTATS_SET === "counted" ? "Visits from this device show in your stats again." : "Visits from this device are left out of your stats from now on. To count it again, open learnalefba.com/?nostats=off");
 if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, also for someone who has never been here
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   const tg = LESSONS.find(l => l.id === "taarof-game");

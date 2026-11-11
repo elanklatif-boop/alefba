@@ -143,6 +143,7 @@ footer p { margin: 0 0 6px; }
   var cur = null, audio = null, busy = false;
   function count(e) {
     try {
+      if (localStorage.getItem("alefba-nostats") === "1") return; // this device is left out of the totals (learnalefba.com/?nostats)
       var d = new Date(), day = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
       var body = JSON.stringify({ e: [e], d: day });
       if (navigator.sendBeacon) navigator.sendBeacon("api/usage", new Blob([body], { type: "application/json" }));
