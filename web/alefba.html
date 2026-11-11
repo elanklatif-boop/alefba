@@ -2979,11 +2979,24 @@ function answerTaarof(i) {
   setMain("Continue", true);
   $("mainBtn").focus({ preventScroll: true });
 }
+// "Challenge a friend": the score and the short link, through the phone's own share sheet (or copied, where there isn't one)
+function taarofShare(ok, n) {
+  const b = el("button", "btn primary share-btn", "Challenge a friend"); b.type = "button"; b.id = "taarofShare";
+  b.insertAdjacentHTML("afterbegin", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  const text = `I got ${ok} of ${n} on the taarof test 🫖 Can you beat me?`, url = "https://learnalefba.com/taarof";
+  b.addEventListener("click", async () => {
+    count("taarof_share");
+    if (navigator.share) { try { await navigator.share({ text, url }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(`${text} ${url}`); b.lastChild.textContent = "Copied. Paste it in a message."; } catch (e) { b.lastChild.textContent = "learnalefba.com/taarof"; }
+  });
+  return b;
+}
 function showTaarofEnd(ex, box) {
   const ok = R.taarofOk || 0, n = ex.total;
   const [t, s] = ok >= n - 1 ? ["Taarof master! 👑", "You'd be welcome in any Iranian home."] : ok >= Math.ceil(n * 0.6) ? ["Nearly a taarof pro! 🫖", "Play again to get them all."]
     : ["Taarof beginner 🙂", "Taarof takes practice, even for Iranians! Play again."];
   box.append(el("span", "ex-tag", "Taarof game"), el("h2", "ex-title", t), taarofMeter(ok, n), el("p", "tip-text", s));
+  if (WEB) box.append(taarofShare(ok, n));
   return setMain("Continue", true);
 }
 // ================= SEASONAL PACKS =================
@@ -5645,7 +5658,8 @@ function finishLesson() {
   setMain(practice ? "Back to the alphabet" : R.game ? "Back to games" : "Back to lessons", true);
   renderAll();
 }
-function closeLesson() { if (R && R.say && R.say.rec) { try { R.say.rec.stop(); } catch (e) {} } stopSound(); closeOverlay("lesson"); $("quitSheet").hidden = true; R = null; renderAll(); } // a recording in progress is stopped, so the microphone switches off
+let AFTER_LINK = null; // a game opened straight from a link (learnalefba.com/taarof): what to show once it closes
+function closeLesson() { if (R && R.say && R.say.rec) { try { R.say.rec.stop(); } catch (e) {} } stopSound(); closeOverlay("lesson"); $("quitSheet").hidden = true; R = null; renderAll(); if (AFTER_LINK) { const f = AFTER_LINK; AFTER_LINK = null; f(); } } // a recording in progress is stopped, so the microphone switches off
 
 // ================= CONVERSATIONS =================
 let AI = null, aiState = "checking"; // checking | ready | none | blocked
@@ -9033,10 +9047,17 @@ if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) 
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 // ?teach=<class id>: back from the note for families, straight to that class
 const TEACH_CLASS = (() => { const v = WEB ? new URLSearchParams(location.search).get("teach") || "" : ""; return /^[a-f0-9]{24}$/.test(v) ? v : ""; })();
-if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
+const TAAROF_LINK = location.hash === "#taarof"; // the game first: the welcome (or little mode) would cover it, so they wait until it closes
+if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
+else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
-if (location.hash === "#sheets" && WEB) openSheets();
+if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, also for someone who has never been here
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  const tg = LESSONS.find(l => l.id === "taarof-game");
+  if (tg) { count("taarof_link"); openLesson(tg); } else { const f = AFTER_LINK; AFTER_LINK = null; f(); }
+}
+else if (location.hash === "#sheets" && WEB) openSheets();
 else if (/^#join=/i.test(location.hash) && WEB) { const jc = decodeURIComponent(location.hash.slice(6)).slice(0, 12); history.replaceState(null, "", location.pathname); joinFromLink(jc); }
 findVoice();
 try { if (window.speechSynthesis) speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
