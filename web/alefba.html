@@ -5668,24 +5668,25 @@ function finishLesson() {
     const nx = nextLesson();
     // started straight from the welcome, so nobody has said who's learning: ask now, after a lesson, not before
     const doneSoFar = Object.values(S.done).filter(v => v === true).length;
-    const askWho = !!(R.lesson && WEB && whoUnknown() && !inClass() && doneSoFar <= 3);
+    const whoOpen = !!(R.lesson && WEB && whoUnknown() && !inClass() && doneSoFar <= 3);
+    // Someone who passes over "who's learning?" after the first lesson was never offered the email or the home-screen icon:
+    // the question took their place three times. So on the second lesson the turn goes to the email offer (the question
+    // comes back once more after that).
+    const passNudge = whoOpen && firstTime && doneSoFar === 2 ? nudgeCard(nx) : null;
+    const askWho = whoOpen && !passNudge;
     if (askWho) d.append(whoCard());
     if (nx) d.append(upNextCard(nx));
     // what brings people back, one at a time in the first lessons: an email the next day, then the home-screen icon
     const doneN = Object.values(S.done).filter(v => v === true).length;
     let offered = askWho; // one question at a time: the email offer comes after they've said who's learning
+    if (passNudge) { d.append(passNudge); offered = true; }
     if (!offered && R.lesson && firstTime && doneN === 1) { const nc = nudgeCard(nx); if (nc) { d.append(nc); offered = true; } }
-    if (!offered && R.lesson && firstTime && doneN === (WEB && WEB.api ? 2 : 1)) { const ic = installCard(true); if (ic) { d.append(ic); offered = true; } }
-    // a daily calendar reminder, offered once, after the second lesson, when there's no reminder email (it's also in Settings)
-    if (!offered && R.lesson && !S.prefs.remind && !S.prefs.remindAsked && !nudgeInfo() && Object.keys(S.done).length >= 2) {
-      S.prefs.remindAsked = true; save();
-      const card = el("div", "remind-card"); card.id = "remindCard";
-      card.append(el("b", null, "Want a reminder to practise each day?"), el("p", "note", "People who practise a little every day learn much faster. Pick a time:"));
-      card.append(reminderBox(() => { card.replaceChildren(el("b", null, "Reminder set. See you tomorrow!")); }));
-      const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "remindNo"; no.addEventListener("click", () => card.remove());
-      card.append(no);
-      d.append(card);
+    // the home-screen icon, once: on the lesson after the email offer, or the first free turn in the early lessons
+    if (!offered && R.lesson && firstTime && doneN >= (WEB && WEB.api ? 2 : 1) && doneN <= 5 && !S.prefs.installAsked) {
+      const ic = installCard(true); if (ic) { S.prefs.installAsked = true; save(); d.append(ic); offered = true; }
     }
+    // a daily calendar reminder, offered once, after the second lesson, when there's no reminder email (it's also in Settings)
+    if (!offered && R.lesson && !S.prefs.remind && !S.prefs.remindAsked && !nudgeInfo() && Object.keys(S.done).length >= 2) d.append(remindCard());
     // a grammar tip that belongs with this level, once per tip, after a words lesson
     const tip = R.lesson && R.lesson.level && R.lesson.kind !== "talk" && !S.prefs.tipsOff && GRAMMAR.find(g => g.lv === R.lesson.level.index && !(S.tips || {})[g.id]);
     if (tip) {
@@ -8149,7 +8150,7 @@ function whoCard() {
 const whoUnknown = () => !!(S.profile && S.profile.skipped && !S.profile.whoSet && !S.profile.little);
 function nudgeCard(nx, fromSettings) {
   if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && nudgeAsked())) return null;
-  if (!fromSettings) markNudgeAsked(); // offered once; it's in Settings after that
+  if (!fromSettings) { markNudgeAsked(); count("nudge_show"); } // offered once; it's in Settings after that
   // who's learning: an adult, a child, or not said yet (straight into the first lesson), when it doesn't assume either
   const who = isAdult() ? "adult" : whoUnknown() ? "unknown" : "child", grown = who !== "child";
   const c = el("div", "plan-card install nudge"); c.id = fromSettings ? "nudgeSetCard" : "nudgeCard";
@@ -8164,7 +8165,10 @@ function nudgeCard(nx, fromSettings) {
   const row = el("div", "remind-row");
   const go = el("button", "btn primary", "Email me tomorrow"); go.type = "button"; go.id = fromSettings ? "nudgeSetGo" : "nudgeGo";
   row.append(go);
-  if (!fromSettings) { const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "nudgeNo"; no.addEventListener("click", () => { markNudgeAsked(); c.remove(); }); row.append(no); }
+  if (!fromSettings) { const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "nudgeNo"; no.addEventListener("click", () => { // no email: the calendar reminder needs no address, so it's offered in its place, once
+      markNudgeAsked();
+      if (!S.prefs.remind && !S.prefs.remindAsked) c.replaceWith(remindCard()); else c.remove();
+    }); row.append(no); }
   go.addEventListener("click", async () => {
     const email = em.value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { msg.textContent = NUDGE_ERRORS.bad_email; em.focus(); return; }
@@ -8447,6 +8451,17 @@ function remindIcs(time) { // the same file the server makes, for when the page 
     `SUMMARY:${REMIND_TEXT}`, `DESCRIPTION:${REMIND_MORE}`, "URL:https://learnalefba.com/?ref=reminder",
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time for a little Persian!", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
 }
+// The daily calendar reminder as a card: after a lesson, and in place of the email offer when that's turned down
+// (it needs no address). Offered once; it's in Settings after that.
+function remindCard() {
+  S.prefs.remindAsked = true; save();
+  const card = el("div", "remind-card"); card.id = "remindCard";
+  card.append(el("b", null, "Want a reminder to practise each day?"), el("p", "note", "People who practise a little every day learn much faster. Pick a time:"));
+  card.append(reminderBox(() => { card.replaceChildren(el("b", null, "Reminder set. See you tomorrow!")); }));
+  const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "remindNo"; no.addEventListener("click", () => card.remove());
+  card.append(no);
+  return card;
+}
 function reminderBox(onDone, pre = "remind") { // pre: the ids, so the one in Settings and the one after a lesson don't clash
   const box = el("div", "remind");
   const row = el("div", "remind-row");
@@ -8460,7 +8475,7 @@ function reminderBox(onDone, pre = "remind") { // pre: the ids, so the one in Se
     else { try { if (cal.href.startsWith("blob:")) URL.revokeObjectURL(cal.href); } catch (e) {} cal.href = URL.createObjectURL(new Blob([remindIcs(v)], { type: "text/calendar" })); cal.download = "alefba-reminder.ics"; }
     gcal.href = "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE", text: REMIND_TEXT, details: REMIND_MORE, dates: `${t.start}/${t.end}`, recur: "RRULE:FREQ=DAILY" });
   };
-  const chose = () => { S.prefs.remind = /^\d{2}:\d{2}$/.test(time.value) ? time.value : "17:00"; S.prefs.remindAsked = true; save(); if (onDone) setTimeout(onDone, 300); };
+  const chose = () => { S.prefs.remind = /^\d{2}:\d{2}$/.test(time.value) ? time.value : "17:00"; S.prefs.remindAsked = true; save(); count("cal_on"); if (onDone) setTimeout(onDone, 300); };
   time.addEventListener("input", links); time.addEventListener("change", links);
   cal.addEventListener("click", chose); gcal.addEventListener("click", chose);
   links();
