@@ -2866,7 +2866,7 @@ const gameWords = lv => picWords(lv.words);
 // no first, then a yes with thanks when they insist (and in a taxi, you always pay). Every answer says why, and a
 // taarof meter fills as you go. Free for everyone, in the Taarof pack.
 // A turn: [who says it (Persian, Finglish, English) or null, a question for the player, the options]. An option:
-// [Persian or null, Finglish, English, right?, why]. An option with no Persian is an English answer.
+// [Persian, Finglish, English, right?, why]. Every answer is something to say, in Persian. (An option with no Persian would show as English only; none do.)
 const TAAROF_TIPS = [
   { title: "What is taarof?", art: "تعارف", text: "Taarof is the Persian way of being polite. Hosts offer again and again, guests say no once before saying yes, and everyone insists the other person goes first. It can look funny, but it's how people show they care." },
   { title: "The golden rule", art: "نه… بله!", text: "The first time someone offers, say a polite no. If they offer again, they really mean it: say yes and thank them. And if someone says ghâbel nadâre (it's nothing) when you're paying, it's still not free!" },
@@ -2896,7 +2896,7 @@ const TAAROF_SCENES = [
     turns: [
       [["بفرمایید، شما اول!", "befarmâyid, shomâ aval!", "Please, you go first!"], "What do you say?", [
         ["نه، خواهش می|کنم، اول شما!", "na, khâhesh mikonam, aval shomâ!", "No, please, you first!", true, "Classic taarof! You offer back: aval shomâ."],
-        [null, "", "Walk in without saying anything", false, "Oops! First offer back: aval shomâ (you first)."],
+        ["مرسی.", "mersi.", "Thanks. (and you walk in)", false, "Too quick! First offer back: aval shomâ (you first)."],
         ["باشه، خداحافظ!", "bâshe, khodâhâfez!", "OK, bye!", false, "That's goodbye! First offer back: aval shomâ (you first)."]]],
       [["نه، نه، شما بفرمایید!", "na, na, shomâ befarmâyid!", "No, no, after you!"], "He insists. What now?", [
         ["نه، شما!", "na, shomâ!", "No, you!", false, "You'd still be at the door tomorrow! After a couple of tries, accept."],
@@ -2914,12 +2914,12 @@ const TAAROF_SCENES = [
         ["دستتون درد نکنه عمو!", "dastetun dard nakone amu!", "Thank you so much, Uncle!", true, "Afarin! He insisted, so you accept and thank him."]]]] },
   { title: "The taxi in Tehran", pic: "🚕", who: ["The taxi driver", "راننده"], set: "You ask the taxi driver how much the ride is.",
     turns: [
-      [["قابل نداره!", "ghâbel nadâre!", "It's nothing!"], "What does the driver mean?", [
-        [null, "", "The ride is free", false, "No! It's only taarof. He still expects you to pay."],
-        [null, "", "He's being polite, and you still pay", true, "Exactly! Ghâbel nadâre is taarof. You always pay."],
-        [null, "", "He doesn't like money", false, "Ha! It's only taarof. You still pay."]]],
-      [["نه، قابل نداره!", "na, ghâbel nadâre!", "No, really, it's nothing!"], "He says it again. What do you do?", [
-        ["باشه، مرسی، خداحافظ!", "bâshe, mersi, khodâhâfez!", "OK, thanks, bye!", false, "Oh no, you didn't pay! Ghâbel nadâre is only taarof."],
+      [["قابل نداره!", "ghâbel nadâre!", "It's nothing!"], "What do you say?", [
+        ["چه خوب! پس مجانیه؟", "che khub! pas majâniye?", "Great! So it's free?", false, "Ha! It's only taarof. He still expects you to pay."],
+        ["نه، خواهش می|کنم. چقدر می|شه؟", "na, khâhesh mikonam. cheghadr mishe?", "No, please. How much is it?", true, "Exactly! Ghâbel nadâre is taarof. You ask again, and you always pay."],
+        ["مرسی! خداحافظ!", "mersi! khodâhâfez!", "Thanks! Bye!", false, "Oh no, a free ride! Ghâbel nadâre is only taarof. You always pay."]]],
+      [["نه، قابل نداره!", "na, ghâbel nadâre!", "No, really, it's nothing!"], "He says it again. What now?", [
+        ["باشه، پس دفعه|ی بعد!", "bâshe, pas dafe-ye bad!", "OK, next time then!", false, "Oh no, you didn't pay! Ghâbel nadâre is only taarof."],
         ["خواهش می|کنم، بفرمایید.", "khâhesh mikonam, befarmâyid.", "Please, here you go.", true, "Right: insist politely and hand over the money."],
         ["نه، ممنون.", "na, mamnun.", "No, thanks.", false, "That doesn't answer him. Insist, and pay."]]]] },
   { title: "Stay for dinner!", pic: "🏠", who: ["Your friend's mom", "مامانِ دوستت"], set: "It's getting late at your friend's house.",
