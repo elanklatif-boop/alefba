@@ -22,7 +22,7 @@ with sync_playwright() as p:
     box = pg.locator("#obSignIn").bounding_box()
     check(f"at the top, without scrolling ({box})", box and box["y"] < 80)
     pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/signin_first.png")
-    pg.click("text=Start learning: 2 minutes"); pg.wait_for_timeout(300); pg.click("#obfirst-no"); pg.wait_for_timeout(500)
+    pg.click("text=Try a free lesson: 2 minutes"); pg.wait_for_timeout(300); pg.click("#obfirst-no"); pg.wait_for_timeout(500)
     pg.evaluate("finishLesson()"); pg.wait_for_timeout(300); pg.evaluate("closeLesson()"); pg.wait_for_timeout(300)
     pg.evaluate("openOnboarding()"); pg.wait_for_timeout(300)
     check("after trying a lesson here: the welcome still offers it", pg.is_visible("#obSignIn"), pg.inner_text("#onboard")[:300])
