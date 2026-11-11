@@ -36,6 +36,8 @@ check("no STATS_KEY set: the page doesn't exist", r.status === 404, r.status);
 const K = { STATS_KEY: "a-long-secret-123456" };
 r = await call(env(K), "/stats");
 check("learnalefba.com/stats shows a password box", r.status === 200 && r.text.includes('type="password"') && !r.text.includes("Lessons finished"), r.status);
+r = await call(env(K), "/stats/");
+check("so does learnalefba.com/stats/ (with the last slash), not the app", r.status === 200 && r.text.includes('type="password"') && r.text !== "asset", r.text.slice(0, 80));
 const post = (e, key, origin = "https://learnalefba.com") => {
   const h = new Headers({ "CF-Connecting-IP": "10.0.1." + (++ip), "content-type": "application/x-www-form-urlencoded" });
   if (origin) h.set("Origin", origin);

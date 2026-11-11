@@ -138,7 +138,7 @@ export default {
       try { return await api(request, env, url, ctx); }
       catch (e) { return reply({ error: "server_error" }, 500); }
     }
-    if (url.pathname === "/stats") { // the usage totals: a page with a password box
+    if (url.pathname === "/stats" || url.pathname === "/stats/") { // the usage totals: a page with a password box (with or without the last slash)
       try { return await api(new Request(new URL("/api/stats", url), request), env, new URL("/api/stats", url), ctx); }
       catch (e) { return reply({ error: "server_error" }, 500); }
     }
