@@ -540,6 +540,8 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .taarof-line .tl-tr { margin: 0; font-style: italic; color: var(--muted); }
 .taarof-line .tl-en { margin: 0 0 4px; }
 .taarof-ask { font-weight: 600; margin: 0 0 8px; }
+.taarof-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.taarof-top .ex-tag { margin: 0; }
 .taarof-opts .opt .t.fa { font-size: 1.4rem; line-height: 1.5; }
 .taarof-opts .sub { white-space: pre-line; }
 .ob-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
@@ -2950,9 +2952,23 @@ function taarofMeter(ok, total) {
   m.setAttribute("role", "img"); m.setAttribute("aria-label", `Taarof meter: ${ok} of ${total}`);
   return m;
 }
+// The "English" switch: with it off, the English line under what's said and under each answer stays hidden until
+// you've answered, so you choose from the Persian. On to begin with (a beginner can't play without it); the choice is kept.
+const taarofEn = () => S.prefs.taEn !== false;
+function taarofEnglish(ex, show) {
+  const l = document.querySelector("#exBox .tl-en"); if (l) l.hidden = !show;
+  document.querySelectorAll("#exBox .taarof-opts .opt").forEach((b, j) => { const o = ex.opts[j], s = b.querySelector(".sub"); if (o && o.fa && s) s.textContent = show ? `${o.tr}\n${o.en}` : o.tr; });
+}
 function showTaarof(ex, box) {
   if (R.taarofOk == null) R.taarofOk = 0;
-  box.append(el("span", "ex-tag", "Taarof game"), taarofMeter(R.taarofOk, ex.total));
+  const top = el("div", "taarof-top"), tog = el("button", "tog", "English"); tog.type = "button"; tog.id = "togTaEn";
+  tog.setAttribute("aria-pressed", String(taarofEn())); tog.title = "Show the English under the Persian";
+  tog.addEventListener("click", () => {
+    S.prefs.taEn = !taarofEn(); save(); tog.setAttribute("aria-pressed", String(taarofEn()));
+    taarofEnglish(current(), taarofEn() || R.phase === "result"); // once you've answered, the English is shown either way
+  });
+  top.append(el("span", "ex-tag", "Taarof game"), tog);
+  box.append(top, taarofMeter(R.taarofOk, ex.total));
   box.append(el("h2", "ex-title", `${ex.scene.pic} ${ex.scene.title}`));
   if (ex.first) box.append(el("p", "ex-sub", ex.scene.set));
   if (ex.line) {
@@ -2965,6 +2981,7 @@ function showTaarof(ex, box) {
   box.append(el("p", "taarof-ask", ex.ask));
   const opts = optionsBox(ex.opts.map(o => (o.fa ? { t: o.fa, fa: true, sub: `${o.tr}\n${o.en}` } : { t: o.en })), "opt-", answerTaarof);
   opts.classList.add("long", "taarof-opts"); box.append(opts); // one answer per row: they're whole sentences
+  if (!taarofEn()) taarofEnglish(ex, false);
   return setMain("Continue", false, false);
 }
 function answerTaarof(i) {
@@ -2972,6 +2989,7 @@ function answerTaarof(i) {
   const ex = current(), o = ex.opts[i], right = ex.opts.find(x => x.ok);
   document.querySelectorAll("#exBox .opt").forEach((b, j) => { b.disabled = true; if (ex.opts[j].ok) b.classList.add("correct"); else if (j === i) b.classList.add("wrong"); });
   R.phase = "result"; R.graded++;
+  taarofEnglish(ex, true); // now what each one meant
   if (o.ok) R.taarofOk++; else { R.mistakes++; if (right.fa && !R.missed.includes(right.fa)) R.missed.push(right.fa); }
   const m = $("taarofMeter"); if (m) m.replaceWith(taarofMeter(R.taarofOk, ex.total));
   feedback(o.ok ? "good" : "bad", o.ok ? pick(["Correct!", "Well done!", "Yes!"]) : "Not quite!", o.ok ? ["", o.why] : (right.fa ? [right.fa, ` (${right.tr.replace(/[.!?]+$/, "")}). ${o.why}`] : ["", o.why]));
