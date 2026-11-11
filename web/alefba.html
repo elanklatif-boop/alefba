@@ -2953,8 +2953,8 @@ function taarofMeter(ok, total) {
   return m;
 }
 // The "English" switch: with it off, the English line under what's said and under each answer stays hidden until
-// you've answered, so you choose from the Persian. On to begin with (a beginner can't play without it); the choice is kept.
-const taarofEn = () => S.prefs.taEn !== false;
+// you've answered, so you choose from the Persian and Finglish. Off to begin with; anyone can turn it on, and the choice is kept.
+const taarofEn = () => S.prefs.taEn === true;
 function taarofEnglish(ex, show) {
   const l = document.querySelector("#exBox .tl-en"); if (l) l.hidden = !show;
   document.querySelectorAll("#exBox .taarof-opts .opt").forEach((b, j) => { const o = ex.opts[j], s = b.querySelector(".sub"); if (o && o.fa && s) s.textContent = show ? `${o.tr}\n${o.en}` : o.tr; });
