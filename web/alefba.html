@@ -2974,7 +2974,7 @@ function answerTaarof(i) {
   R.phase = "result"; R.graded++;
   if (o.ok) R.taarofOk++; else { R.mistakes++; if (right.fa && !R.missed.includes(right.fa)) R.missed.push(right.fa); }
   const m = $("taarofMeter"); if (m) m.replaceWith(taarofMeter(R.taarofOk, ex.total));
-  feedback(o.ok ? "good" : "bad", o.ok ? pick(["Afarin!", "Perfect taarof!", "Well done!"]) : "Not quite!", o.ok ? ["", o.why] : (right.fa ? [right.fa, ` (${right.tr.replace(/[.!?]+$/, "")}). ${o.why}`] : ["", o.why]));
+  feedback(o.ok ? "good" : "bad", o.ok ? pick(["Correct!", "Well done!", "Yes!"]) : "Not quite!", o.ok ? ["", o.why] : (right.fa ? [right.fa, ` (${right.tr.replace(/[.!?]+$/, "")}). ${o.why}`] : ["", o.why]));
   if (right.fa) speak(lineAudio(right.fa));
   setMain("Continue", true);
   $("mainBtn").focus({ preventScroll: true });
