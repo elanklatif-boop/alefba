@@ -104,7 +104,7 @@ with sync_playwright() as p:
     # a family with a plan: the pack's talks open, and finishing the four free lessons finishes the pack
     PAID = dict(FREE, signedIn=True, kind="unlimited", plan="yearly", left=30, today=30)
     c = b.new_context(viewport={"width": 390, "height": 844})
-    c.add_init_script("if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('alefba-v3', " + json.dumps(json.dumps(dict(st(), done={"a1-1": True, "taarof-1": True, "taarof-2": True, "taarof-game": True, "taarof-night": True}))) + ") }")
+    c.add_init_script("if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('alefba-v3', " + json.dumps(json.dumps(dict(st(), done={"a1-1": True, "taarof-1": True, "taarof-2": True, "taarof-game": True, "taarof-rally": True}))) + ") }")
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(PAID)))
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x))); pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1300)
     check("with a plan the pack's talks aren't locked", pg.evaluate("!document.querySelector('#step-s-tea-pack').classList.contains('locked')"))

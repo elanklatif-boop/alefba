@@ -212,7 +212,7 @@ async function api(request, env, url, ctx) {
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_show", "nudge_on", "cal_on", "from_email",
-  "ob_start", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "night_link", "night_share"];
+  "ob_start", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share"];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
   const body = await readJson(request, 2000), now = Date.now();
@@ -248,7 +248,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
     ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"], ["nudge_show", "Email offer shown"], ["nudge_on", "Asked for the email"], ["cal_on", "Set a calendar reminder"], ["from_email", "Came from the email"],
     ["ob_start", "Welcome: Start learning"], ["ob_demo", "Welcome: tapped the nân / nun taste"], ["ob_level", "Welcome: Find my level"], ["ob_join", "Welcome: Join your class"], ["ob_little", "Welcome: Little one"], ["ob_teacher", "Welcome: I'm a teacher"], ["ob_signin", "Welcome: Sign in"],
     ["who_adult", "Said: teen or adult"], ["who_child", "Said: child"], ["who_little", "Said: little one"], ["who_teacher", "Said: teacher"], ["join_done", "Joined a class"], ["class_made", "Classes made"],
-    ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"], ["books_open", "Library: Books for families tapped"], ["taarof_link", "Taarof link (learnalefba.com/taarof): game opened"], ["taarof_share", "Taarof game: Challenge a friend tapped"], ["night_link", "Mehmuni link (learnalefba.com/mehmuni): evening opened"], ["night_share", "Mehmuni night: Challenge a friend tapped"]];
+    ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"], ["books_open", "Library: Books for families tapped"], ["taarof_link", "Taarof link (learnalefba.com/taarof): rally opened"], ["taarof_share", "Taarof games: Challenge a friend tapped"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";

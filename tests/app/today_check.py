@@ -75,7 +75,6 @@ with sync_playwright() as p:
       SITUATIONS.concat(ADULT_SITUATIONS).filter(x => x.level >= 12).forEach(x => x.phrases.forEach(q => add(lineAudio(q.fa))));
       // the taarof talks (Nov 2026) are in Level 12 and the Taarof pack: their phrases are new too
       SITUATIONS.concat(ADULT_SITUATIONS).filter(x => ['tea', 'bill', 'fare', 'a-tea', 'a-bill', 'a-fare'].includes(x.id)).forEach(x => x.phrases.forEach(q => add(lineAudio(q.fa))));
-      nightLines().forEach(t => add(lineAudio(t))); // the mehmuni night (Nov 2026)
       STORIES.concat(SEASON_PACKS.map(p => p.story)).forEach(st => st.lines.forEach(l => add(lineAudio(l.fa)))); SEASON_WORDS.forEach(W => { add(wordAudio(W)); add(sentenceAudio(W)); if (W.two) add(W.two.said.audio); }); STREET_WORDS.forEach(W => add(lineAudio(W.fa)));
       return [...s]; })()"""))
     old_missing = [f for f in missing[1] if f not in newer]
