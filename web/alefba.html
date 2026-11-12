@@ -3107,6 +3107,10 @@ function showTaarofEnd(ex, box) {
 const RALLY_HOST = ["befarmâ", "taârof nakon", "ghâbel nadâre", "nush-e jân"];
 const RALLY_POLITE = ["zahmat nakeshid", "sharmande", "mozâhem nemishavam", "khâhesh mikonam", "dastet dard nakone", "ghorbunet beram"];
 const RALLY_SAID = ["mozâhem nemishavam"]; // said the everyday way (mozâhem nemisham)
+// what each one means here, in a few words (the game moves fast; the words' full meanings are on the first screen)
+const RALLY_EN = { "befarmâ": "Here, have some!", "taârof nakon": "Don't be shy!", "ghâbel nadâre": "It's nothing!", "nush-e jân": "Enjoy!",
+  "zahmat nakeshid": "Don't trouble yourself!", "sharmande": "You're too kind!", "mozâhem nemishavam": "I won't impose!", "khâhesh mikonam": "Oh, please!",
+  "dastet dard nakone": "Thank you so much!", "ghorbunet beram": "Thank you, dear!" };
 // blunt things that spill the tea: [Persian, Finglish, English]. They're never spoken.
 const RALLY_BLUNT = [["آره، زود باش!", "âre, zud bâsh!", "Yes, hurry up!"], ["گفتم نه!", "goftam na!", "I said no!"], ["خودت بخور!", "khodet bokhor!", "Eat it yourself!"],
   ["خوشمزه نیست.", "khoshmaze nist.", "It's not tasty."], ["نمی|خوام!", "nemikhâm!", "I don't want it!"], ["ولم کن!", "velam kon!", "Leave me alone!"]];
@@ -3114,7 +3118,7 @@ let RALLY_START = 6500, RALLY_FLOOR = 1800, RALLY_FASTER = 0.94; // the time to 
 let RALLY_AUTO = true; // false: no clocks (the cup doesn't move on its own), for the tests and for filming
 function rallyWord(tr) {
   const W = ALL_WORDS().find(w => w.tr === tr), f = RALLY_SAID.includes(tr) && W.two ? W.two.said : null;
-  return { key: tr, fa: f ? f.fa : W.fa, tr: f ? f.tr : W.tr, en: W.en, audio: f ? f.audio : wordAudio(W) };
+  return { key: tr, fa: f ? f.fa : W.fa, tr: f ? f.tr : W.tr, en: RALLY_EN[tr] || W.en, full: W.en, audio: f ? f.audio : wordAudio(W) };
 }
 const rallyPolite = () => RALLY_POLITE.map(rallyWord), rallyHosts = () => RALLY_HOST.map(rallyWord);
 const rallyTime = score => Math.max(RALLY_FLOOR, Math.round(RALLY_START * Math.pow(RALLY_FASTER, score)));
@@ -3128,7 +3132,7 @@ function showRallyIntro(ex, box) {
   const list = el("div", "rally-list");
   rallyPolite().forEach(w => {
     const row = el("div", "rl-row"), t = el("span", "rl-t");
-    t.append(fa("span", "rl-fa", w.fa), el("span", "rl-tr", w.tr), el("span", "rl-en", w.en));
+    t.append(fa("span", "rl-fa", w.fa), el("span", "rl-tr", w.tr), el("span", "rl-en", w.full));
     if (hasAudio(w.audio)) { const p = playButton(w.audio, false, ""); p.classList.add("rl-play"); p.setAttribute("aria-label", `Hear ${w.tr}`); row.append(p); }
     row.append(t); list.append(row);
   });
