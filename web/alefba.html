@@ -580,6 +580,8 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .rally-card .tc-pic { font-size: 2.4rem; }
 .rally-card .rc-best { font-size: .9rem; font-weight: 600; color: #c3d0f0; margin: 2px 0 10px; }
 .rally-h { margin: 4px 0 0; font-weight: 600; }
+.game-next { background: var(--saffron-soft); border-radius: 16px; padding: 12px 14px 14px; display: grid; gap: 10px; margin: 4px 0 10px; }
+.game-next p { margin: 0; text-wrap: balance; }
 .rally-list { display: grid; gap: 8px; }
 .rally-list .rl-row { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; }
 .rally-list .rl-play { flex: none; min-width: 44px; min-height: 44px; padding: 8px; gap: 0; margin: 0; }
@@ -3087,6 +3089,16 @@ function taarofRank(ok, n) {
   const r = TAAROF_RANKS.find(x => ok >= Math.ceil(n * x[0])) || TAAROF_RANKS[TAAROF_RANKS.length - 1];
   return { title: r[1], pic: r[2], fa: Z(r[3]), tr: r[4], line: r[5], top: r[0] === 1 };
 }
+// For someone who came from a link (a reel, say) and has never used the app: the way on from the score card into a first lesson
+function gameToLesson() {
+  if (!WEB || S.profile) return null;
+  const d = el("div", "game-next"); d.id = "gameNext";
+  d.append(el("p", null, "Want to say all of this for real? Alefba teaches you to speak and read Persian, a few minutes at a time."));
+  const b = el("button", "btn primary wide", "Try a free lesson: 2 minutes"); b.type = "button"; b.id = "gameLesson";
+  b.addEventListener("click", () => { count("game_lesson"); AFTER_LINK = null; closeLesson(); openOnboarding("first"); });
+  d.append(b);
+  return d;
+}
 function showTaarofEnd(ex, box) {
   const ok = R.taarofOk || 0, n = ex.total, rank = taarofRank(ok, n);
   const card = el("div", "taarof-card"); card.id = "taarofCard";
@@ -3095,6 +3107,7 @@ function showTaarofEnd(ex, box) {
     taarofMeter(ok, n), el("p", "tc-line", rank.line), el("span", "tc-url", "learnalefba.com/taarof"));
   box.append(card);
   if (!rank.top) box.append(el("p", "tip-text", "Play again to move up a rank."));
+  const on = gameToLesson(); if (on) box.append(on);
   if (WEB) box.append(taarofShare(`I'm a “${rank.title}” ${rank.pic} I got ${ok} of ${n} on the taarof test. Can you beat me?`, "https://learnalefba.com/taarof", "taarof_share"));
   return setMain("Continue", true);
 }
@@ -3221,11 +3234,12 @@ function rallyOver(why, i) {
   const pic = el("span", "tc-pic", rank.pic); pic.setAttribute("aria-hidden", "true");
   const big = el("p", "rc-n"); big.append(el("b", null, String(G.score)), el("span", null, G.score === 1 ? "time in a row" : "times in a row"));
   card.append(el("span", "tc-kicker", "Taarof rally"), big, pic, fa("span", "tc-fa", rank.fa), el("span", "tc-tr", rank.tr), el("h2", "ex-title", rank.title),
-    el("span", "rc-best", G.score > before && G.score > 0 ? "New best! 🎉" : `Best: ${best}`), el("span", "tc-url", "learnalefba.com/taarof"));
+    el("span", "rc-best", G.score > before && G.score > 0 ? "New best! 🎉" : `Best: ${best}`), el("span", "tc-url", "learnalefba.com/rally"));
   const again = el("button", "btn primary wide", "Play again"); again.type = "button"; again.id = "rallyAgain";
   again.addEventListener("click", () => { if (R && !R.finish && current().type === "rally") showExercise(); });
   const end = el("div", "rally-end"); end.id = "rallyEnd"; end.append(card, again);
-  if (WEB) end.append(taarofShare(`I kept the taarof going ${G.score} ${G.score === 1 ? "time" : "times"} in a row 🍵 (${rank.title} ${rank.pic}). Can you beat me?`, "https://learnalefba.com/taarof", "taarof_share"));
+  const on = gameToLesson(); if (on) end.append(on);
+  if (WEB) end.append(taarofShare(`I kept the taarof going ${G.score} ${G.score === 1 ? "time" : "times"} in a row 🍵 (${rank.title} ${rank.pic}). Can you beat me?`, "https://learnalefba.com/rally", "taarof_share"));
   $("rallyWrap").append(end);
   setMain("Continue", true);
   const body = $("lessonBody"); body.scrollTop = Math.max(0, end.offsetTop - 8);
@@ -9346,8 +9360,8 @@ if (WEB && "serviceWorker" in navigator && /^https?:$/.test(location.protocol)) 
 const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 // ?teach=<class id>: back from the note for families, straight to that class
 const TEACH_CLASS = (() => { const v = WEB ? new URLSearchParams(location.search).get("teach") || "" : ""; return /^[a-f0-9]{24}$/.test(v) ? v : ""; })();
-// learnalefba.com/taarof goes straight into the taarof rally. The game first: the welcome (or little mode) would cover it, so they wait until it closes
-const TAAROF_LINK = { "#taarof": ["taarof-rally", "taarof_link"] }[location.hash] || null;
+// learnalefba.com/taarof goes straight into the taarof test, learnalefba.com/rally into the taarof rally. The game first: the welcome (or little mode) would cover it, so they wait until it closes
+const TAAROF_LINK = { "#taarof": ["taarof-game", "taarof_link"], "#rally": ["taarof-rally", "rally_link"] }[location.hash] || null;
 if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
