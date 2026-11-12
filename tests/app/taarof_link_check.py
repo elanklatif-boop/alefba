@@ -24,7 +24,7 @@ with sync_playwright() as p:
     end = pg.inner_text("#exBox"); check("they can play it to the end", "11 of 12" in end, end[:200])
     pg.evaluate("navigator.share = d => { window.__shared = d; return Promise.resolve(); }")
     pg.click("#taarofShare"); pg.wait_for_timeout(200); sh = pg.evaluate("window.__shared")
-    check("Challenge a friend shares the score and the short link", sh and "11 of 12" in sh["text"] and "Grandma's favourite" in sh["text"] and sh["url"] == "https://learnalefba.com/taarof", sh)
+    check("Challenge a friend shares the score and the short link", sh and "11 of 12" in sh["text"] and "Grandma's favorite" in sh["text"] and sh["url"] == "https://learnalefba.com/taarof", sh)
     pg.screenshot(path=SHOT + "link_end.png")
     pg.click("#mainBtn"); pg.wait_for_timeout(600)
     fin = pg.inner_text("#lesson"); pg.screenshot(path=SHOT + "link_finish.png")
