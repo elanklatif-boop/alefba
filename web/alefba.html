@@ -611,6 +611,19 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .ob-demo-cap { margin: 0; text-align: center; color: var(--muted); font-size: 0.92rem; }
 .ob-links { margin: -4px 0 0; font-size: 0.9rem; }
 .ob-links a { color: var(--lapis-text); }
+/* the first-visit welcome */
+#onboard.ob-first .ov-foot { display: none; }
+#onboard.ob-first .ob-main { max-width: 560px; margin-inline: auto; gap: 14px; padding-block: 12px 32px; }
+.ob-hero { display: grid; justify-items: center; text-align: center; gap: 2px; }
+.ob-hero .welcome-fa { margin-top: 4px; font-size: 3rem; }
+.ob-hero .welcome-tr { margin: -6px 0 10px; }
+.ob-hero .ob-title { font-size: clamp(1.75rem, 6.4vw, 2.35rem); }
+.ob-hero .ob-sub { margin: 6px 0 0; font-size: 1.05rem; }
+.ob-start { min-height: 58px; font-size: 1.15rem; border-radius: 14px; margin-top: 4px; box-shadow: 0 6px 16px rgba(20, 40, 110, .22); }
+.ob-free.small { font-weight: 400; color: var(--muted); font-size: 0.9rem; text-align: center; margin: -4px 0 0; text-wrap: balance; }
+.ob-quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; margin: -4px 0 0; }
+.ob-quick .link-btn { color: var(--lapis-text); font-size: 0.98rem; font-weight: 600; text-underline-offset: 3px; align-self: center; padding: 8px 2px; min-height: 44px; }
+#onboard.ob-first .ob-links { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); }
 .ob-alt.as-btn { align-self: stretch; max-width: none; text-decoration: none; border: 1.5px solid var(--lapis); color: var(--lapis-text); border-radius: 12px; padding: 12px; font-size: 1rem; font-weight: 600; background: transparent; }
 /* a first visit: the short first lesson is the big button, the questions the smaller one under it */
 .ob-alt.as-btn.lead { order: -1; background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); padding: 14px; }
@@ -7631,6 +7644,47 @@ function openOnboarding(step) {
   openOverlay("onboard");
   renderOB();
 }
+// The welcome on a first visit, made as plain as the best language sites: what Alefba is in one line, the nân / nun
+// taste, one big button straight into a 2-minute lesson, and every other way in as a small link under it. (Since the
+// counts began, more than half of new visitors left the old welcome, with its seven choices, without tapping anything.)
+function welcomeFirst(main) {
+  const hero = el("div", "ob-hero");
+  hero.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"),
+    el("h2", "ob-title", "Learn to read and speak Persian"), el("p", "ob-sub", "The way your family really talks. For kids, teens and grown-ups."));
+  main.append(hero);
+  const demo = obDemo(); if (demo) main.append(demo);
+  const go = el("button", "btn primary wide ob-start", "Start learning →"); go.type = "button"; go.id = "obStart";
+  go.addEventListener("click", () => { count("ob_start"); obGo("first"); });
+  main.append(go);
+  if (WEB) {
+    const y = typeof ACCT !== "undefined" && ACCT && ACCT.prices && /^\$[\d.]+$/.test(ACCT.prices.yearly || "") ? parseFloat(ACCT.prices.yearly.slice(1)) : 39;
+    main.append(el("p", "ob-free small", `No sign-up needed. The alphabet and the first ${FREE_LEVELS} levels are free; a plan opens all ${LEVELS.length} levels, from about $${(y / 12).toFixed(2)} a month.`));
+  }
+  const quick = el("div", "ob-quick"); quick.id = "obExtra";
+  const mk = (id, t, fn) => { const b = el("button", "link-btn", t); b.type = "button"; b.id = id; b.addEventListener("click", fn); quick.append(b); };
+  mk("obLevelBtn", "Find my level", () => { count("ob_level"); obGo("who"); });
+  if (WEB && WEB.api) mk("obJoinBtn", "Join a class", () => { count("ob_join"); openJoinClass(); });
+  mk("obLittleBtn", "Little one (3 to 6)", () => { count("ob_little"); OB.draft.adult = false; OB.draft.little = true; obGo("name"); });
+  if (WEB && WEB.api) mk("obTeachBtn", "I'm a teacher", () => { count("ob_teacher"); openTeacher(true); });
+  main.append(quick);
+  if (WEB && WEB.parentsUrl) {
+    const links = el("p", "ob-links");
+    [["For parents", WEB.parentsUrl], ["For adult learners", WEB.adultsUrl], ["For teachers", WEB.teachersUrl], ["Who made Alefba", WEB.aboutUrl]].filter(x => x[1]).forEach(([t, h], k) => {
+      if (k) links.append(document.createTextNode(" · "));
+      const a = el("a", null, t); a.href = h; a.target = "_blank"; a.rel = "noopener"; links.append(a);
+    });
+    main.append(links);
+  }
+  if (WEB && !(typeof ACCT !== "undefined" && ACCT && ACCT.signedIn)) {
+    const back = $("obSignIn"); back.hidden = false;
+    back.onclick = () => { count("ob_signin"); openSignIn(() => {
+      renderAll();
+      if (ACCT && ACCT.sync) syncNow();
+      else if (ACCT && ACCT.signedIn) showNotice("You're signed in", "To bring progress from your other device, open the Review tab there and turn on Progress on every device. Then it shows here too.");
+    }, { restore: true }); };
+  }
+  $("obNext").hidden = true; $("obAlt").hidden = true; // the big button is on the page itself
+}
 function closeOnboarding() { OB = null; closeOverlay("onboard"); renderAll(); }
 function obGo(step) { OB.step = step; renderOB(); }
 function choiceButton(title, desc, pressed, onPick, id) {
@@ -7649,7 +7703,9 @@ function renderOB() {
   alt.hidden = true; alt.onclick = null; alt.classList.remove("as-btn", "lead"); next.classList.remove("second");
   $("obBack").hidden = !OB_FLOW.includes(st) && st !== "first"; $("obSignIn").hidden = true;
   if (OB_FLOW.includes(st)) OB_FLOW.forEach((s, k) => steps.append(el("i", k <= OB_FLOW.indexOf(st) ? "on" : "")));
-  if (st === "welcome") {
+  $("onboard").classList.toggle("ob-first", st === "welcome" && !S.profile);
+  if (st === "welcome" && !S.profile) welcomeFirst(main);
+  else if (st === "welcome") {
     main.append(fa("div", "welcome-fa", "خوش اومدی!"), el("p", "welcome-tr", "khosh umadi: welcome!"));
     main.append(el("h2", "ob-title", "Learn to read and speak Persian"));
     main.append(el("p", "ob-sub", "Written and spoken Persian, for kids, teens and grown-ups."));

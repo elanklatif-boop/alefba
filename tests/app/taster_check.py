@@ -32,7 +32,7 @@ with sync_playwright() as p:
     b=p.chromium.launch()
     # ---- a first visit, "Try the first lesson" ----
     c,pg,errs=ctx(b)
-    pg.click("text=Try a free lesson: 2 minutes"); pg.wait_for_timeout(400)
+    pg.click("#obStart"); pg.wait_for_timeout(400)
     check("Try a free lesson asks one question first", pg.is_visible("#obfirst-yes") and pg.is_visible("#obfirst-no"))
     pg.click("#obfirst-no"); pg.wait_for_timeout(600)
     q=pg.evaluate("R.queue.map(e => e.type)")
@@ -60,7 +60,7 @@ with sync_playwright() as p:
     c.close()
     # ---- a first visit by someone who already speaks some Persian ----
     c,pg,errs=ctx(b)
-    pg.click("text=Try a free lesson: 2 minutes"); pg.wait_for_timeout(400); pg.click("#obfirst-yes"); pg.wait_for_timeout(600)
+    pg.click("#obStart"); pg.wait_for_timeout(400); pg.click("#obfirst-yes"); pg.wait_for_timeout(600)
     q=pg.evaluate("R.queue.map(e => e.type + (e.W ? ':' + e.W.tr : ''))")
     check(f"speaks some: everyday words they may know, a letter found in each: {q}", q == ["heardWord:bâbâ","choice","heardWord:mâmân","choice","heardWord:âb","readWord:nân","introWord:bârân"], q)
     check("the word plays first, then shows written", pg.is_visible("text=Have you heard this word? bâbâ") and pg.locator("#exBox .cell.lit").count() == 4)

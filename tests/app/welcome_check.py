@@ -1,4 +1,4 @@
-# The welcome: a taste to tap first (nân / nun in real voices), the three special ways in as small tiles on a phone,
+# The welcome: a taste to tap first (nân / nun in real voices), one big button and the other ways in as small links,
 # and learnalefba.com/?nostats, which leaves this device out of the usage totals.
 import json, sys
 from playwright.sync_api import sync_playwright
@@ -17,7 +17,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     for name, (w, h) in {"phone": (390, 844), "small phone": (375, 667), "laptop": (1280, 800)}.items():
         c, pg, errs, sent = ctx(b, w, h); pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1400)
-        foot = box(pg, "#obAlt")["y"]; d = box(pg, "#obDemo"); t = box(pg, "#obDemo .two")
+        foot = box(pg, "#obStart")["y"]; d = box(pg, "#obDemo"); t = box(pg, "#obDemo .two")
         check(f"the taste (nân / nun) is on the first screen, above the buttons ({name})", pg.is_visible("#obDemo") and t["y"] + t["height"] <= foot, (t, foot))
         check(f"both sides are big enough to tap ({name})", all(x["height"] >= 44 for x in (box(pg, "#obDemo .two-side.book"), box(pg, "#obDemo .two-side.said"))))
         check(f"nothing is wider than the screen ({name})", pg.evaluate("document.getElementById('obBody').scrollWidth <= document.getElementById('obBody').clientWidth + 1"))
@@ -28,14 +28,14 @@ with sync_playwright() as p:
             pg.click("#obDemo .two-side.book"); pg.wait_for_timeout(300)
             check("and the book one", pg.evaluate("PLAYER.src").endswith("audio/word_naan.mp3"), pg.evaluate("PLAYER.src"))
             check("then it says Alefba teaches both", "teaches both" in pg.inner_text("#obDemo"))
-            jb, lb, tb = box(pg, "#obJoinBtn"), box(pg, "#obLittleBtn"), box(pg, "#obTeachBtn")
-            check("class code, little one and teacher are one row of tiles", abs(jb["y"] - lb["y"]) < 2 and abs(lb["y"] - tb["y"]) < 2 and all(x["height"] >= 60 for x in (jb, lb, tb)), (jb, lb, tb))
-            check("(3 to 6) stays on one line", pg.evaluate("(() => { const r = document.querySelector('#obLittleBtn .nb').getClientRects(); return r.length; })()") == 1)
+            check("one big button, and the other ways in as small links under it", pg.is_visible("#obStart") and "Start learning" in pg.inner_text("#obStart") and box(pg, "#obStart")["height"] >= 54
+                  and all(pg.is_visible(x) for x in ("#obLevelBtn", "#obJoinBtn", "#obLittleBtn", "#obTeachBtn")) and not pg.is_visible("#obNext") and not pg.is_visible("#obAlt"))
+            check("the button, the price line and the links all fit on the first screen", box(pg, "#obTeachBtn")["y"] + box(pg, "#obTeachBtn")["height"] <= 844 and "a plan opens all 16 levels" in pg.inner_text("#obMain"))
             pg.screenshot(path=SHOT + "welcome_phone.png")
             pg.wait_for_timeout(4500)
             check("the taps are counted once (ob_demo)", sum(s.count("ob_demo") for s in sent) == 1, sent)
-            pg.click("#obAlt"); pg.wait_for_timeout(300)
-            check("Try a free lesson still goes to its one question", "Do you already speak some Persian?" in pg.inner_text("#obMain"))
+            pg.click("#obStart"); pg.wait_for_timeout(300)
+            check("Start learning goes to its one question", "Do you already speak some Persian?" in pg.inner_text("#obMain"))
         check(f"no page errors ({name})", not errs, errs); c.close()
     # ---- this device left out of the totals ----
     c, pg, errs, sent = ctx(b); pg.goto("http://127.0.0.1:8811/?nostats"); pg.wait_for_timeout(1400)

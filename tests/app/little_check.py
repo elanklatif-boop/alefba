@@ -22,7 +22,7 @@ with sync_playwright() as p:
     c = ctx(b); pg = c.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(URL); pg.wait_for_timeout(1200)
     check("the welcome offers Little one (3 to 6) on the first screen", pg.is_visible("#obLittleBtn") and "3 to 6" in pg.inner_text("#obLittleBtn"))
-    pg.click("#obNext"); pg.wait_for_timeout(300)
+    pg.click("#obLevelBtn"); pg.wait_for_timeout(300)
     check("'Who's learning?' offers Little one (3 to 6)", pg.is_visible("#obwho-little") and "Ages 3 to 6" in pg.inner_text("#obwho-little"))
     pg.click("#obBack"); pg.wait_for_timeout(300)
     # a teacher's class for ages 4 to 6: joining it turns little mode on

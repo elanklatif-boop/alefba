@@ -36,7 +36,7 @@ with sync_playwright() as p:
     desc = pg.get_attribute('meta[name="description"]', "content")
     check("home page description is for everyone (kids, families and adults)", "kids, families and adults" in desc and "for kids." not in desc, desc)
     check("welcome says who it's for, broadly", "kids, teens and grown-ups" in pg.inner_text("#obMain"))
-    pg.click("#obNext")
+    pg.click("#obLevelBtn")
     check("first question: who's learning (child / adult, teens included)", "Who's learning" in pg.inner_text("#obMain") and "Teen or adult" in pg.inner_text("#obMain") and "13 and up" in pg.inner_text("#obMain"))
     check("no page errors (opening)", not errs, errs)
     pg.context.close()

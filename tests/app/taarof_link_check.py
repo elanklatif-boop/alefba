@@ -32,7 +32,7 @@ with sync_playwright() as p:
     check("the finish screen shows", pg.evaluate("!!(R && R.finish)") or "Taarof" in fin, fin[:300])
     print("  finish screen says:", " | ".join(x for x in fin.split("\n") if x.strip())[:400])
     pg.evaluate("closeLesson()"); pg.wait_for_timeout(400)
-    check("closing it leaves the welcome, with the free lesson button", pg.is_visible("text=Try a free lesson: 2 minutes"), pg.inner_text("body")[:200])
+    check("closing it leaves the welcome, with the Start learning button", pg.is_visible("#obStart"), pg.inner_text("body")[:200])
     pg.screenshot(path=SHOT + "link_after.png")
     pg.wait_for_timeout(4500)
     check("the visit is counted (taarof_link)", any("taarof_link" in s for s in sent), sent)

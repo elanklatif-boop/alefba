@@ -13,7 +13,7 @@ def fresh(b):
     sent = []; c.route("**/api/usage*", lambda r: (sent.append(r.request.post_data or ""), r.fulfill(status=204, body=""))[1])
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
     pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1300)
-    pg.click("#obAlt"); pg.wait_for_timeout(300); pg.locator("#obMain button").first.click(); pg.wait_for_timeout(600)   # Try a free lesson, then its one question
+    pg.click("#obStart"); pg.wait_for_timeout(300); pg.locator("#obMain button").first.click(); pg.wait_for_timeout(600)   # Try a free lesson, then its one question
     return c, pg, errs, sent
 def finish(pg, first=False):
     if not first: pg.evaluate("openLesson(nextLesson())"); pg.wait_for_timeout(300)
