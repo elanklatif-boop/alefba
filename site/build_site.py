@@ -57,6 +57,7 @@ ABOUT = (
  '<h3>Questions</h3>'
  + "".join(f"<details><summary>{_html.escape(q)}</summary><p>{_html.escape(a)}</p></details>" for q, a in FAQ) +
  '<p class="trust">No ads and no tracking. Payments are handled by Stripe. Made by a student in New York, with recordings by his family.</p>'
+ '<p><b>Guides:</b> <a href="what-is-taarof">What is taarof?</a> · <a href="thank-you-in-persian">Thank you in Persian</a> · <a href="persian-alphabet">The Persian alphabet</a> · <a href="teach-your-child-persian">Teaching your child Persian</a></p>'
  '<p><a href="learn-persian">Persian for kids</a> · <a href="learn-persian-adults">Persian for adults</a> · <a href="parents">For parents</a> · <a href="teachers">For teachers</a> · <a href="name">Your name in Persian</a> · <a href="about">Who made Alefba</a></p>'
  '</section>\n')
 HEAD = f"""<!doctype html>
@@ -96,7 +97,7 @@ os.makedirs(os.path.join(OUT, "audio"))
 assert app.count("<title>Alefba الفبا</title>") == 1 and app.count("</main>") == 1
 app = app.replace("<title>Alefba الفبا</title>", f"<title>{TITLE}</title>").replace("</main>", "</main>\n" + ABOUT, 1)
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "learn-persian.html","learn-persian-adults.html", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
 shutil.copytree(os.path.join(HERE, "fonts"), os.path.join(OUT, "fonts"))
 shutil.copytree(os.path.join(HERE, "icons"), os.path.join(OUT, "icons"))

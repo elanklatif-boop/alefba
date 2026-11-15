@@ -9476,6 +9476,8 @@ const TEACH_LINK = !!(WEB && new URLSearchParams(location.search).has("teach"));
 // ?teach=<class id>: back from the note for families, straight to that class
 const TEACH_CLASS = (() => { const v = WEB ? new URLSearchParams(location.search).get("teach") || "" : ""; return /^[a-f0-9]{24}$/.test(v) ? v : ""; })();
 // learnalefba.com/taarof goes straight into the taarof test, learnalefba.com/rally into the taarof rally. The game first: the welcome (or little mode) would cover it, so they wait until it closes
+// A tap from a guide page (e.g. What is taarof?) is counted on that page (guide_start), so it isn't mistaken for someone using the short link.
+const FROM_GUIDE = (() => { try { const r = new URL(document.referrer); return r.origin === location.origin && /^\/(what-is-taarof|thank-you-in-persian|persian-alphabet|teach-your-child-persian)(\.html)?$/.test(r.pathname); } catch (e) { return false; } })();
 const TAAROF_LINK = { "#taarof": ["taarof-game", "taarof_link"], "#rally": ["taarof-rally", "rally_link"] }[location.hash] || null;
 if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
@@ -9486,7 +9488,7 @@ if (NOSTATS_SET) showNotice(NOSTATS_SET === "counted" ? "This device is counted 
 if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, also for someone who has never been here
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   const tg = LESSONS.find(l => l.id === TAAROF_LINK[0]);
-  if (tg) { count(TAAROF_LINK[1]); openLesson(tg); } else { const f = AFTER_LINK; AFTER_LINK = null; f(); }
+  if (tg) { if (!FROM_GUIDE) count(TAAROF_LINK[1]); openLesson(tg); } else { const f = AFTER_LINK; AFTER_LINK = null; f(); }
 }
 else if (location.hash === "#sheets" && WEB) openSheets();
 else if (/^#join=/i.test(location.hash) && WEB) { const jc = decodeURIComponent(location.hash.slice(6)).slice(0, 12); history.replaceState(null, "", location.pathname); joinFromLink(jc); }
