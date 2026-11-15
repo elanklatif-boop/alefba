@@ -1,4 +1,4 @@
-# The reminder email in the app: offered once after the first lesson, it books the email, each later lesson moves it,
+# The reminder email in the app: one tap away on the come-back card after the first lesson, it books the email, each later lesson moves it,
 # Settings shows it and can stop it, and a visit from the email is counted.
 import json
 from playwright.sync_api import sync_playwright
@@ -24,12 +24,16 @@ def page(b, state, url=URL, start_status=200):
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x))); pg.goto(url); pg.wait_for_timeout(1300); return c, pg, errs
 def finish_first(pg):
     pg.evaluate("openLesson(nextLesson())"); pg.wait_for_timeout(300); pg.evaluate("finishLesson()"); pg.wait_for_timeout(400)
+def open_email(pg):   # on the come-back card, "Email me tomorrow instead"
+    pg.click("#comebackEmail"); pg.wait_for_timeout(300)
 with sync_playwright() as p:
     b = p.chromium.launch()
     c, pg, errs = page(b, st())
     finish_first(pg)
     check("after the first lesson: what's next, with its letters", pg.is_visible("#upNext") and pg.locator("#upNext .up-glyphs").count() <= 1)
-    check("and the email offer, for a grown-up", pg.is_visible("#nudgeCard") and "Grown-ups" in pg.inner_text("#nudgeCard") and "parent or guardian" in pg.inner_text("#nudgeCard"))
+    check("and the come-back card, with the email one tap away", pg.is_visible("#comebackCard") and not pg.is_visible("#nudgeCard") and pg.is_visible("#comebackEmail"))
+    open_email(pg)
+    check("the email offer, for a grown-up", pg.is_visible("#nudgeCard") and "Grown-ups" in pg.inner_text("#nudgeCard") and "parent or guardian" in pg.inner_text("#nudgeCard"))
     pg.locator("#nudgeCard").scroll_into_view_if_needed(); pg.screenshot(path="nudge/card_child.png")
     pg.click("#nudgeGo"); pg.wait_for_timeout(200)
     check("no address: it asks for one", "doesn't look right" in pg.inner_text("#nudgeCard"))
@@ -60,23 +64,27 @@ with sync_playwright() as p:
     # straight into the first lesson, without saying who's learning: it doesn't assume a child or an adult
     c, pg, errs = page(b, {**st(), "profile": {"skipped": True, "goal": 2, "adult": False, "first": "new"}})
     finish_first(pg)
-    check("not said who's learning: it asks that first, instead of the email", pg.is_visible("#whoCard") and not pg.is_visible("#nudgeCard"))
+    check("not said who's learning: the come-back card comes first, not the question", pg.is_visible("#comebackCard") and not pg.is_visible("#whoCard"))
+    open_email(pg); t = pg.inner_text("#nudgeCard") if pg.is_visible("#nudgeCard") else ""
+    check("its email offer doesn't assume a child or an adult", t and "Grown-ups" not in t and "This is my email, and I'm an adult" in t, t)
+    pg.evaluate("closeLesson()"); finish_first(pg)
+    check("the next lesson asks who's learning", pg.is_visible("#whoCard") and not pg.is_visible("#comebackCard"))
     pg.click("#whoMe"); pg.wait_for_timeout(300)
-    t = pg.inner_text("#nudgeCard") if pg.is_visible("#nudgeCard") else ""
-    check("then the email offer, worded for the adult who said so", t and "Grown-ups" not in t and "I'm an adult, and this is my email." in t and pg.get_attribute("#nudgeEmail", "placeholder") == "Your email", t)
+    check("and answering doesn't offer the email a second time", not pg.is_visible("#nudgeCard") and "Got it" in pg.inner_text("#exBox"))
     check("no page errors", not errs, errs)
     c.close()
     # an adult, saying no thanks
     c, pg, errs = page(b, st(adult=True))
-    finish_first(pg)
+    finish_first(pg); open_email(pg)
     check("for an adult it says 'your email'", "Want an email" in pg.inner_text("#nudgeCard") and pg.get_attribute("#nudgeEmail", "placeholder") == "Your email")
     pg.locator("#nudgeCard").scroll_into_view_if_needed(); pg.screenshot(path="nudge/card_adult.png")
-    pg.click("#nudgeNo"); pg.wait_for_timeout(200)
-    check("No thanks closes it", not pg.is_visible("#nudgeCard"))
+    check("opened from the card, it has no second No thanks", pg.locator("#nudgeNo").count() == 0)
+    pg.click("#comebackNo"); pg.wait_for_timeout(200)
+    check("the card's No thanks closes it all", not pg.is_visible("#nudgeCard") and not pg.is_visible("#comebackCard"))
     c.close()
     # a server that says no
     c, pg, errs = page(b, st(), start_status=429)
-    finish_first(pg); pg.fill("#nudgeEmail", "mum@example.com"); pg.check("#nudgeAgree"); pg.click("#nudgeGo"); pg.wait_for_timeout(400)
+    finish_first(pg); open_email(pg); pg.fill("#nudgeEmail", "mum@example.com"); pg.check("#nudgeAgree"); pg.click("#nudgeGo"); pg.wait_for_timeout(400)
     check("a refusal is explained and nothing is kept", "try again tomorrow" in pg.inner_text("#nudgeCard") and pg.evaluate("localStorage.getItem('alefba-nudge')") is None)
     c.close()
     # coming from the email

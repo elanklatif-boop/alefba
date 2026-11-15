@@ -657,6 +657,13 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus { outl
 .plan-start .v { font-weight: 600; font-size: 1.05rem; }
 .plan-tips { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.plan-card.comeback { border: 2px solid var(--saffron); background: var(--saffron-soft); gap: 10px; }
+.plan-card.comeback .cb-title { font-size: 1.15rem; }
+.plan-card.comeback .btn.wide { width: 100%; text-align: center; justify-content: center; }
+.plan-card.comeback .cb-small { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; margin-top: -4px; }
+.plan-card.comeback .link-btn { align-self: center; }
+.plan-card.comeback > .link-btn { align-self: flex-start; }
+.plan-card.comeback .plan-card.in-comeback { background: var(--surface); border-color: var(--line); margin: 0; }
 .plan-card.install { border-color: var(--turq); margin-bottom: 14px; }
 .plan-card.install .btn { align-self: flex-start; }
 .plan-card.install .link-btn { align-self: flex-start; }
@@ -5918,13 +5925,17 @@ function finishLesson() {
     // Someone who passes over "who's learning?" after the first lesson was never offered the email or the home-screen icon:
     // the question took their place three times. So on the second lesson the turn goes to the email offer (the question
     // comes back once more after that).
-    const passNudge = whoOpen && firstTime && doneSoFar === 2 ? nudgeCard(nx) : null;
-    const askWho = whoOpen && !passNudge;
+    // After the very first lesson, everyone is asked about coming back before anything else (only about 1 new learner
+    // in 25 came back the next day, and most were never asked: the email offer waited behind "who's learning?").
+    const comeback = R.lesson && firstTime && doneSoFar === 1 && !isLittle() && !S.prefs.remind && !nudgeInfo() && !S.prefs.comebackAsked ? comebackCard(nx) : null;
+    const passNudge = !comeback && whoOpen && firstTime && doneSoFar === 2 ? nudgeCard(nx) : null;
+    const askWho = whoOpen && !passNudge && !comeback;
+    if (comeback) d.append(comeback);
     if (askWho) d.append(whoCard());
     if (nx) d.append(upNextCard(nx));
     // what brings people back, one at a time in the first lessons: an email the next day, then the home-screen icon
     const doneN = Object.values(S.done).filter(v => v === true).length;
-    let offered = askWho; // one question at a time: the email offer comes after they've said who's learning
+    let offered = askWho || !!comeback; // one question at a time
     if (passNudge) { d.append(passNudge); offered = true; }
     if (!offered && R.lesson && firstTime && doneN === 1) { const nc = nudgeCard(nx); if (nc) { d.append(nc); offered = true; } }
     // the home-screen icon, once: on the lesson after the email offer, or the first free turn in the early lessons
@@ -8438,8 +8449,8 @@ function whoCard() {
 }
 // Not said yet who's learning: the first lesson was started straight from the welcome, without the questions.
 const whoUnknown = () => !!(S.profile && S.profile.skipped && !S.profile.whoSet && !S.profile.little);
-function nudgeCard(nx, fromSettings) {
-  if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && nudgeAsked())) return null;
+function nudgeCard(nx, fromSettings, chosen) { // chosen: opened from the come-back card, which already counts as the offer
+  if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && !chosen && nudgeAsked())) return null;
   if (!fromSettings) { markNudgeAsked(); count("nudge_show"); } // offered once; it's in Settings after that
   // who's learning: an adult, a child, or not said yet (straight into the first lesson), when it doesn't assume either
   const who = isAdult() ? "adult" : whoUnknown() ? "unknown" : "child", grown = who !== "child";
@@ -8455,7 +8466,7 @@ function nudgeCard(nx, fromSettings) {
   const row = el("div", "remind-row");
   const go = el("button", "btn primary", "Email me tomorrow"); go.type = "button"; go.id = fromSettings ? "nudgeSetGo" : "nudgeGo";
   row.append(go);
-  if (!fromSettings) { const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "nudgeNo"; no.addEventListener("click", () => { // no email: the calendar reminder needs no address, so it's offered in its place, once
+  if (!fromSettings && !chosen) { const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "nudgeNo"; no.addEventListener("click", () => { // no email: the calendar reminder needs no address, so it's offered in its place, once
       markNudgeAsked();
       if (!S.prefs.remind && !S.prefs.remindAsked) c.replaceWith(remindCard()); else c.remove();
     }); row.append(no); }
@@ -8740,6 +8751,54 @@ function remindIcs(time) { // the same file the server makes, for when the page 
     `UID:alefba-${Date.now()}@learnalefba.com`, `DTSTAMP:${now}`, `DTSTART:${t.start}`, "DURATION:PT10M", "RRULE:FREQ=DAILY",
     `SUMMARY:${REMIND_TEXT}`, `DESCRIPTION:${REMIND_MORE}`, "URL:https://learnalefba.com/?ref=reminder",
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time for a little Persian!", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+}
+// "See you tomorrow?": after the first lesson. A daily reminder in the phone's own calendar in one tap (at about this
+// time of day, since people tend to come back when they first practised), or an email the next day instead. Shown
+// once; both are in Settings (the Review tab) after that.
+const hm12 = v => { const [h, m] = v.split(":").map(Number); return `${(h % 12) || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
+const appleCal = () => { const u = navigator.userAgent; return isIOS() || (/Macintosh/.test(u) && /Safari/.test(u) && !/Chrome|Chromium|Edg|Firefox/.test(u)); };
+function comebackCard(nx) {
+  S.prefs.comebackAsked = true; S.prefs.remindAsked = true; save(); markNudgeAsked(); count("comeback_show");
+  const c = el("div", "plan-card comeback"); c.id = "comebackCard";
+  c.append(el("b", "cb-title", "See you tomorrow? 🔥"), el("p", "note", nx ? `Next up: ${nx.title}. A few minutes a day is how Persian sticks.` : "A few minutes a day is how Persian sticks."));
+  const now = new Date(), q = Math.round((now.getHours() * 60 + now.getMinutes()) / 15) * 15 % 1440;
+  let hm = `${String(Math.floor(q / 60)).padStart(2, "0")}:${String(q % 60).padStart(2, "0")}`;
+  const apple = appleCal();
+  const main = document.createElement("a"); main.className = "btn primary wide"; main.id = "comebackCal";
+  const other = document.createElement("a"); other.className = "link-btn"; other.id = "comebackCalOther";
+  const ics = document.createElement("a"), g = document.createElement("a");
+  const links = () => {
+    const t = remindDates(hm);
+    if (WEB) { ics.href = `/api/reminder.ics?t=${t.hm}&d=${t.day}`; ics.removeAttribute("download"); }
+    else { try { if (ics.href.startsWith("blob:")) URL.revokeObjectURL(ics.href); } catch (e) {} ics.href = URL.createObjectURL(new Blob([remindIcs(hm)], { type: "text/calendar" })); ics.download = "alefba-reminder.ics"; }
+    g.href = "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE", text: REMIND_TEXT, details: REMIND_MORE, dates: `${t.start}/${t.end}`, recur: "RRULE:FREQ=DAILY" });
+    const [a, b] = apple ? [ics, g] : [g, ics]; // the phone's own calendar first: Apple's on an iPhone or a Mac, Google's elsewhere
+    main.href = a.href; other.href = b.href;
+    [[main, a], [other, b]].forEach(([x, y]) => { if (y === g) { x.target = "_blank"; x.rel = "noopener"; x.removeAttribute("download"); } else { x.removeAttribute("target"); if (y.download) x.download = y.download; else x.removeAttribute("download"); } });
+    main.textContent = `📅 Remind me daily at ${hm12(hm)}`;
+    other.textContent = apple ? "Use Google Calendar instead" : "Use another calendar app";
+  };
+  const chose = () => {
+    S.prefs.remind = hm; save(); count("cal_on");
+    setTimeout(() => c.replaceChildren(el("b", "cb-title", "Reminder added. See you tomorrow! 🔥"), el("p", "note", `Every day at ${hm12(hm)}. You can change it or add an email reminder in the Review tab.`)), 300);
+  };
+  main.addEventListener("click", chose); other.addEventListener("click", chose);
+  const time = document.createElement("input"); time.type = "time"; time.className = "remind-time"; time.id = "comebackTime"; time.value = hm; time.hidden = true;
+  time.setAttribute("aria-label", "Reminder time");
+  time.addEventListener("input", () => { if (/^\d{2}:\d{2}$/.test(time.value)) { hm = time.value; links(); } });
+  const change = el("button", "link-btn", "Change the time"); change.type = "button"; change.id = "comebackChange";
+  change.addEventListener("click", () => { time.hidden = false; change.hidden = true; time.focus(); });
+  links();
+  const small = el("div", "cb-small"); small.append(change, time, other);
+  c.append(main, small);
+  if (WEB && WEB.api) {
+    const em = el("button", "btn quiet wide", "✉️ Email me tomorrow instead"); em.type = "button"; em.id = "comebackEmail";
+    em.addEventListener("click", () => { const nc = nudgeCard(nx, false, true); if (nc) { nc.classList.add("in-comeback"); em.replaceWith(nc); nc.querySelector("input").focus(); } });
+    c.append(em);
+  }
+  const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "comebackNo"; no.addEventListener("click", () => c.remove());
+  c.append(no);
+  return c;
 }
 // The daily calendar reminder as a card: after a lesson, and in place of the email offer when that's turned down
 // (it needs no address). Offered once; it's in Settings after that.
