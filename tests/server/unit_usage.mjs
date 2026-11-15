@@ -48,6 +48,13 @@ check("the wrong password: the box again, with a message", r.status === 403 && r
 r = await post(env(K), "a-long-secret-123456");
 check("the right password shows the numbers", r.status === 200 && r.text.includes("Lessons finished") && r.text.includes(today), r.status);
 check("and the totals", /Last 30 days<\/td><td>3<\/td>/.test(r.text), r.text.slice(r.text.indexOf("Last 30"), r.text.indexOf("Last 30") + 80));
+// the first lesson, card by card
+await call(env(), "/api/usage", { method: "POST", body: { e: ["first_new_1", "first_new_1", "first_new_1", "first_new_1", "first_new_2", "first_new_2", "first_new_3", "first_new_done", "first_new_left", "first_heard_1", "first_new_13", "first_x_1"], d: today } });
+const fr = Object.fromEntries((await db.prepare("SELECT name, n FROM usage WHERE day = ? AND name LIKE 'first_%'").bind(today).all()).results.map(x => [x.name, x.n]));
+check(`first-lesson cards are counted, and only cards 1 to 12 of the three kinds ${JSON.stringify(fr)}`, fr.first_new_1 === 4 && fr.first_new_2 === 2 && fr.first_new_done === 1 && fr.first_new_left === 1 && fr.first_heard_1 === 1 && !fr.first_new_13 && !fr.first_x_1, fr);
+r = await post(env(K), "a-long-secret-123456");
+const ft = r.text.slice(r.text.indexOf("Where people stop"));
+check("the stats page shows where people stop in their first lesson", ft.includes("Got to card 1</td><td>4 (100%) <small>alef</small></td><td>1 (100%) <small>hear bâbâ</small></td><td>0</td>") && ft.includes("Got to card 2</td><td>2 (50%) <small>be</small>") && ft.includes("Finished it</td><td>1 (25%)</td>") && ft.includes("Got to card 8</td>") && !ft.includes("Got to card 9</td>"), ft.slice(0, 900));
 r = await post(env(K), "a-long-secret-123456", "https://evil.example");
 check("not from another website", r.status === 403 && !r.text.includes("Lessons finished"), r.status);
 r = await call(env(K), "/api/stats?key=a-long-secret-123456");

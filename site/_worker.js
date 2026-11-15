@@ -211,8 +211,13 @@ async function api(request, env, url, ctx) {
 // How many people open the app each day, how many come back, and how many lessons are started and finished. Only
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
+// A learner's first lesson, card by card (the app's FIRST_CARDS): which first lesson it was, and what each card is today.
+const FIRST_KINDS = [["new", "Said they're new to Persian", ["alef", "be", "question", "question", "tip", "read bâbâ", "tip", "read âb"]],
+  ["heard", "Said they speak some Persian", ["hear bâbâ", "question", "hear mâmân", "question", "hear âb", "read nân", "new word bârân"]],
+  ["other", "Came another way (Find my level, a class)", []]];
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_show", "nudge_on", "cal_on", "comeback_show", "from_email",
-  "ob_start", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "game_lesson", "guide_open", "guide_start"];
+  "ob_start", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "game_lesson", "guide_open", "guide_start",
+  ...FIRST_KINDS.flatMap(([k]) => [...Array.from({ length: 12 }, (_, i) => `first_${k}_${i + 1}`), `first_${k}_done`, `first_${k}_left`])];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
   const body = await readJson(request, 2000), now = Date.now();
@@ -229,7 +234,7 @@ async function statsPage(request, env, url, s) {
   const want = String(env.STATS_KEY || "").trim();
   if (want.length < 12 || !s.db) return reply({ error: "not_found" }, 404);
   const page = (inner, status = 200) => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Alefba usage</title>
-<style>body{font-family:system-ui,sans-serif;margin:16px;color:#13213f;background:#fbf7ef}h1{font-size:1.3rem}p{color:#4a5268;max-width:640px}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #d8d2c3;padding:6px 8px;text-align:right;white-space:nowrap}th{background:#efe9dc;position:sticky;top:0}td:first-child,th:first-child{text-align:left}.t td{font-weight:700;background:#f4efe4}
+<style>body{font-family:system-ui,sans-serif;margin:16px;color:#13213f;background:#fbf7ef}h1{font-size:1.3rem}h2{font-size:1.1rem;margin-top:28px}small{color:#6b7385;font-size:.8rem}p{color:#4a5268;max-width:640px}.wrap{overflow-x:auto}table{border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #d8d2c3;padding:6px 8px;text-align:right;white-space:nowrap}th{background:#efe9dc;position:sticky;top:0}td:first-child,th:first-child{text-align:left}.t td{font-weight:700;background:#f4efe4}
 form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:0;font:inherit;padding:10px 12px;border:1.5px solid #c9c1ae;border-radius:10px}button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:10px;background:#1f3d8a;color:#fff}.err{color:#a3262f}
 @media (prefers-color-scheme:dark){body{background:#0b1820;color:#e4eef1}p{color:#a9bfca}th{background:#15303d}td,th{border-color:#23404e}.t td{background:#112430}input{background:#112430;color:#e4eef1;border-color:#23404e}}</style></head><body>${inner}</body></html>`,
     { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "referrer-policy": "same-origin", "x-frame-options": "DENY" } });
@@ -254,8 +259,17 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
   const body = Object.keys(days).sort().reverse().map(d => `<tr><td>${esc(d)}</td>` + cols.map(c => `<td>${days[d][c[0]] || 0}</td>`).join("") + "</tr>").join("");
   const foot = "<tr class=t><td>Last 30 days</td>" + cols.map(c => `<td>${total(c[0])}</td>`).join("") + "</tr>";
+  // The first lesson, card by card: how many reached each card, as a share of those who saw card 1. The biggest drop is where people stop.
+  const rowsTo = Math.max(8, ...FIRST_KINDS.flatMap(([k]) => Array.from({ length: 12 }, (_, i) => (total(`first_${k}_${i + 1}`) ? i + 1 : 0))));
+  const cell = (k, key, name) => { const n = total(key), all = total(`first_${k}_1`); return `<td>${n}${all ? ` (${Math.round((n / all) * 100)}%)` : ""}${name ? ` <small>${esc(name)}</small>` : ""}</td>`; };
+  const fHead = "<tr><th>First lesson</th>" + FIRST_KINDS.map(([, label]) => `<th>${esc(label)}</th>`).join("") + "</tr>";
+  const fBody = Array.from({ length: rowsTo }, (_, i) => `<tr><td>Got to card ${i + 1}</td>` + FIRST_KINDS.map(([k, , cards]) => cell(k, `first_${k}_${i + 1}`, cards[i] || "")).join("") + "</tr>").join("")
+    + "<tr class=t><td>Finished it</td>" + FIRST_KINDS.map(([k]) => cell(k, `first_${k}_done`)).join("") + "</tr>"
+    + "<tr><td>Tapped Leave</td>" + FIRST_KINDS.map(([k]) => cell(k, `first_${k}_left`)).join("") + "</tr>";
   return page(`<h1>Alefba: how the app is used</h1><p>Daily totals only, by each learner's own date. "Opened the app" counts each learner once a day. "Back" says how long since that learner first opened it. Nothing here identifies anyone.</p>
-<div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}`);
+<div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}
+<h2>Where people stop in their first lesson</h2><p>Last 30 days. Each row is how many reached that card, and in brackets their share of everyone who started. The biggest drop between two rows is where people stop. Anyone who closes the page just leaves, so “Tapped Leave” is only the people who used the button.</p>
+<div class=wrap><table>${fHead}${fBody}</table></div>`);
 }
 
 // ---------- a daily reminder for the family's calendar ----------

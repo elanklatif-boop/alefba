@@ -5153,10 +5153,16 @@ function startLesson(lesson, queue, reviewName) {
   const q = queue || (lesson ? buildLesson(lesson) : buildReview());
   R = { lesson, queue: q, pos: 0, mistakes: 0, graded: 0, requeued: 0, phase: "answer", built: [], missed: [], finish: false, reviewName: reviewName || "", later: q.later || null, usedLater: !!q.usedLater, finishTitle: q.finishTitle || null };
   if (lesson && !lesson.practice) count("lesson_start");
+  // A learner's very first lesson on the path: each card they reach is counted (first_new_3 = got to card 3 of the
+  // "I'm new" first lesson), and finishing or tapping Leave, so the stats show where people stop. Packs and games aren't.
+  const pathDone = Object.keys(S.done).some(id => { const l = LESSONS.find(x => x.id === id); return l && !(l.level && l.level.season); });
+  if (lesson && !lesson.practice && !(lesson.level && lesson.level.season) && !pathDone && S.profile && !S.profile.little)
+    R.first = { k: S.profile.first === "new" || S.profile.first === "heard" ? S.profile.first : "other", seen: 0 };
   openOverlay("lesson");
   showExercise();
 }
 const current = () => R.queue[R.pos];
+const FIRST_CARDS = 12; // cards counted in a first lesson (the server takes first_new_1 to first_new_12, and the same for heard and other)
 function setMain(label, enabled, visible = true) { const b = $("mainBtn"); b.textContent = label; b.disabled = !enabled; b.hidden = !visible; }
 // parts alternate: Persian, English, Persian, English...
 function mixed(parts, cls) {
@@ -5349,6 +5355,7 @@ function storyPeek(st) {
 }
 function showExercise() {
   const ex = current();
+  if (R.first && R.pos + 1 > R.first.seen && R.pos + 1 <= FIRST_CARDS) { R.first.seen = R.pos + 1; count(`first_${R.first.k}_${R.first.seen}`); }
   if (R.say && R.say.rec) { try { R.say.rec.stop(); } catch (e) {} }
   R.say = null;
   stopSound(); // a new card: stop the last one's sound, so a meaning never gets said over the next question
@@ -5882,6 +5889,7 @@ function finishLesson() {
   const firstTime = R.lesson && !practice && !S.done[R.lesson.id];
   if (R.lesson && !practice) S.done[R.lesson.id] = true;
   count(practice ? "practice_done" : R.game ? "game_done" : R.lesson ? "lesson_done" : "review_done");
+  if (R.first) count(`first_${R.first.k}_done`);
   if (R.later) S.later = R.later; else if (R.usedLater) delete S.later; // the short first lesson's left-out letters or words: next time
   const newDay = practised();
   if (!practice) bumpToday();
@@ -9360,7 +9368,7 @@ setLibPart(LIB_PART);
 $("mainBtn").addEventListener("click", mainAction);
 $("quitBtn").addEventListener("click", () => { if (R && (R.finish || (R.lesson && R.lesson.practice))) return closeLesson(); $("quitSheet").hidden = false; $("keepBtn").focus(); });
 $("keepBtn").addEventListener("click", () => ($("quitSheet").hidden = true));
-$("leaveBtn").addEventListener("click", closeLesson);
+$("leaveBtn").addEventListener("click", () => { if (R && R.first && !R.finish) count(`first_${R.first.k}_left`); closeLesson(); });
 $("reviewBtn").addEventListener("click", () => startLesson(null));
 $("learnerBtn").addEventListener("click", openFamily);
 $("soundTestBtn").addEventListener("click", () => {
