@@ -13,7 +13,7 @@ def fresh(b):
     sent = []; c.route("**/api/usage*", lambda r: (sent.append(r.request.post_data or ""), r.fulfill(status=204, body=""))[1])
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
     pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1300)
-    pg.click("#obStart"); pg.wait_for_timeout(300); pg.locator("#obMain button").first.click(); pg.wait_for_timeout(600)   # Try a free lesson, then its one question
+    pg.click("#obHeard"); pg.wait_for_timeout(600)   # Already speak some Persian? (the free first lesson that starts with words they know)
     return c, pg, errs, sent
 def finish(pg, first=False):
     if not first: pg.evaluate("openLesson(nextLesson())"); pg.wait_for_timeout(300)
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(FREE)))
     c.route("**/api/usage*", lambda r: r.fulfill(status=204, body=""))
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
-    pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1300); pg.click("#obStart"); pg.wait_for_timeout(300); pg.locator("#obMain button").first.click(); pg.wait_for_timeout(600)
+    pg.goto("http://127.0.0.1:8811/"); pg.wait_for_timeout(1300); pg.click("#obHeard"); pg.wait_for_timeout(600)
     finish(pg, True)
     check("iPhone: the big button adds it to the iPhone's calendar, Google is the small link", "/api/reminder.ics" in pg.get_attribute("#comebackCal", "href") and "Google Calendar" in pg.inner_text("#comebackCalOther"))
     check("no page errors (iPhone)", not errs, errs); c.close()

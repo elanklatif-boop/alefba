@@ -620,6 +620,7 @@ button.msg-hint { background: none; border: 0; padding: 10px 0; min-height: 36px
 .ob-hero .ob-title { font-size: clamp(1.75rem, 6.4vw, 2.35rem); }
 .ob-hero .ob-sub { margin: 6px 0 0; font-size: 1.05rem; }
 .ob-start { min-height: 58px; font-size: 1.15rem; border-radius: 14px; margin-top: 4px; box-shadow: 0 6px 16px rgba(20, 40, 110, .22); }
+.ob-heard { align-self: center; color: var(--lapis-text); font-size: 0.95rem; font-weight: 600; text-underline-offset: 3px; padding: 6px 4px; min-height: 44px; margin: -6px 0 -4px; text-align: center; text-wrap: balance; }
 .ob-free.small { font-weight: 400; color: var(--muted); font-size: 0.9rem; text-align: center; margin: -4px 0 0; text-wrap: balance; }
 .ob-quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; margin: -4px 0 0; }
 .ob-quick .link-btn { color: var(--lapis-text); font-size: 0.98rem; font-weight: 600; text-underline-offset: 3px; align-self: center; padding: 8px 2px; min-height: 44px; }
@@ -3532,18 +3533,33 @@ try {
   }
   NOSTATS = localStorage.getItem("alefba-nostats") === "1";
 } catch (e) {}
-function count(name) {
+// Most counts wait 4 seconds so a few go together; the steps into the first lesson (soon) go within a moment, because
+// someone who closes Instagram's browser right away may never send what's waiting.
+let usageSoon = false;
+function count(name, soon) {
   if (!WEB || !WEB.api || NOSTATS) return;
-  USAGE.push(name); clearTimeout(usageTimer); usageTimer = setTimeout(sendUsage, 4000);
+  if (soon) usageSoon = true;
+  USAGE.push(name); clearTimeout(usageTimer); usageTimer = setTimeout(sendUsage, usageSoon ? 300 : 4000);
 }
 function sendUsage() {
-  clearTimeout(usageTimer);
+  clearTimeout(usageTimer); usageSoon = false;
   if (!USAGE.length || !WEB || !WEB.api) return;
   const e = USAGE.splice(0, 20);
   try { fetch(WEB.api + "/usage", { method: "POST", keepalive: true, credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ e, d: todayStr() }) }).catch(() => {}); } catch (er) {}
   if (USAGE.length) usageTimer = setTimeout(sendUsage, 1000);
 }
 try { document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") sendUsage(); }); } catch (e) {}
+try { window.addEventListener("pagehide", () => sendUsage()); } catch (e) {}
+// A page that breaks on someone's phone: counted once per visit (just the number, nothing about the error or who),
+// so a problem only some browsers have still shows up. Errors from browser add-ons or other sites are left out.
+let errorCounted = false;
+try {
+  window.addEventListener("error", e => {
+    const f = (e && e.filename) || "";
+    if (errorCounted || (f && !f.startsWith(location.origin))) return;
+    errorCounted = true; count("page_error", true);
+  });
+} catch (e) {}
 function countOpen() {
   if (!WEB) return;
   const t = todayStr();
@@ -5355,7 +5371,7 @@ function storyPeek(st) {
 }
 function showExercise() {
   const ex = current();
-  if (R.first && R.pos + 1 > R.first.seen && R.pos + 1 <= FIRST_CARDS) { R.first.seen = R.pos + 1; count(`first_${R.first.k}_${R.first.seen}`); }
+  if (R.first && R.pos + 1 > R.first.seen && R.pos + 1 <= FIRST_CARDS) { R.first.seen = R.pos + 1; count(`first_${R.first.k}_${R.first.seen}`, R.first.seen === 1); }
   if (R.say && R.say.rec) { try { R.say.rec.stop(); } catch (e) {} }
   R.say = null;
   stopSound(); // a new card: stop the last one's sound, so a meaning never gets said over the next question
@@ -7672,9 +7688,14 @@ function welcomeFirst(main) {
     el("h2", "ob-title", "Learn to read and speak Persian"), el("p", "ob-sub", "The way your family really talks. For kids, teens and grown-ups."));
   main.append(hero);
   const demo = obDemo(); if (demo) main.append(demo);
+  // Straight into the lesson: when a question came first ("Do you already speak some Persian?"), none of the 8 new
+  // visitors who tapped Start learning on 17 November reached the lesson. Speaking some is a small link instead.
   const go = el("button", "btn primary wide ob-start", "Start learning →"); go.type = "button"; go.id = "obStart";
-  go.addEventListener("click", () => { count("ob_start"); obGo("first"); });
+  go.addEventListener("click", () => { count("ob_start", true); startFirst("new"); });
   main.append(go);
+  const heard = el("button", "link-btn ob-heard", "Already speak some Persian? Start with words you know"); heard.type = "button"; heard.id = "obHeard";
+  heard.addEventListener("click", () => { count("ob_heard", true); startFirst("heard"); });
+  main.append(heard);
   if (WEB) {
     const y = typeof ACCT !== "undefined" && ACCT && ACCT.prices && /^\$[\d.]+$/.test(ACCT.prices.yearly || "") ? parseFloat(ACCT.prices.yearly.slice(1)) : 39;
     main.append(el("p", "ob-free small", `No sign-up needed. The alphabet and the first ${FREE_LEVELS} levels are free; a plan opens all ${LEVELS.length} levels, from about $${(y / 12).toFixed(2)} a month.`));

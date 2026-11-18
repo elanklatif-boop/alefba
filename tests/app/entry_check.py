@@ -68,7 +68,7 @@ with sync_playwright() as p:
     # ---- straight from the welcome: asked about coming back after the first lesson, who's learning after the second ----
     for pick, adult in (("whoMe", True), ("whoChild", False)):
         c, pg, errs, joins = page(b); pg.goto(URL); pg.wait_for_timeout(1300)
-        pg.click("#obStart"); pg.wait_for_timeout(300); pg.click("#obfirst-no"); pg.wait_for_timeout(500)
+        pg.click("#obStart"); pg.wait_for_timeout(500)
         check("before saying who's learning, nothing assumes a child", pg.evaluate("talksToYou()") and pg.evaluate("plansBtnText()") == "Sign in to see the plans", pg.evaluate("plansBtnText()"))
         pg.evaluate("finishLesson()"); pg.wait_for_timeout(400)
         check("after the first lesson: see you tomorrow? (one question at a time)", pg.is_visible("#comebackCard") and not pg.locator("#whoCard").count())
@@ -85,7 +85,7 @@ with sync_playwright() as p:
         check("no page errors", not errs, errs); c.close()
     # Little one opens little mode; Teacher goes straight to teacher mode (after signing in, with no sum)
     c, pg, errs, joins = page(b); pg.goto(URL); pg.wait_for_timeout(1300)
-    pg.click("#obStart"); pg.wait_for_timeout(300); pg.click("#obfirst-no"); pg.wait_for_timeout(500)
+    pg.click("#obStart"); pg.wait_for_timeout(500)
     pg.evaluate("finishLesson()"); pg.wait_for_timeout(400); pg.evaluate("closeLesson(); openLesson(nextLesson())"); pg.wait_for_timeout(300)
     pg.evaluate("finishLesson()"); pg.wait_for_timeout(400); pg.click("#whoLittle"); pg.wait_for_timeout(600)
     check("Little one: little mode opens", pg.is_visible("#little") and pg.evaluate("S.profile.little") is True)

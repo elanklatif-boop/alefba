@@ -42,9 +42,8 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     # ---- new to Persian: plays it through ----
     c, pg, errs, sent = ctx(b)
-    pg.click("#obStart"); pg.wait_for_timeout(400); pg.click("#obfirst-no"); pg.wait_for_timeout(600)
-    flush(pg)
-    check("card 1 is counted as soon as the first lesson opens", firsts(sent) == ["first_new_1"], firsts(sent))
+    pg.click("#obStart"); pg.wait_for_timeout(900)
+    check("Start learning and card 1 go out at once, not after 4 seconds", "ob_start" in sent and firsts(sent) == ["first_new_1"], sent)
     n = pg.evaluate("R.queue.length")
     check("it plays to the end", finish(pg)); flush(pg)
     want = [f"first_new_{i}" for i in range(1, n + 1)] + ["first_new_done"]
@@ -56,7 +55,8 @@ with sync_playwright() as p:
 
     # ---- speaks some: two cards, then Leave ----
     c, pg, errs, sent = ctx(b)
-    pg.click("#obStart"); pg.wait_for_timeout(400); pg.click("#obfirst-yes"); pg.wait_for_timeout(600)
+    pg.click("#obHeard"); pg.wait_for_timeout(900)
+    check("Already speak some: counted at once (ob_heard), and its card 1", "ob_heard" in sent and "ob_start" not in sent and firsts(sent) == ["first_heard_1"], sent)
     step(pg); step(pg)
     pg.click("#quitBtn"); pg.wait_for_timeout(200); pg.click("#leaveBtn"); pg.wait_for_timeout(300); flush(pg)
     check("speaks some: cards 1 to 3, then Leave", firsts(sent) == ["first_heard_1", "first_heard_2", "first_heard_3", "first_heard_left"], firsts(sent))
@@ -67,10 +67,20 @@ with sync_playwright() as p:
 
     # ---- a wrong answer: the card comes back at the end and counts as a later card ----
     c, pg, errs, sent = ctx(b)
-    pg.click("#obStart"); pg.wait_for_timeout(400); pg.click("#obfirst-no"); pg.wait_for_timeout(600)
+    pg.click("#obStart"); pg.wait_for_timeout(600)
     check("with one wrong answer it still plays to the end", finish(pg, wrong_first=True)); flush(pg)
     n, m = pg.evaluate("[R.queue.length, R.mistakes]")
     check(f"a mistake ({m}) and {n} cards: each counted once, in order, then finished", m >= 1 and firsts(sent) == [f"first_new_{i}" for i in range(1, n + 1)] + ["first_new_done"], firsts(sent))
+    c.close()
+
+    # ---- a page that breaks: counted once a visit, and errors from elsewhere (an add-on) aren't ----
+    c, pg, errs, sent = ctx(b)
+    pg.evaluate("setTimeout(() => { throw new Error('test one') }, 0); setTimeout(() => { throw new Error('test two') }, 10)"); pg.wait_for_timeout(900)
+    check("an error on the page is counted, once, at once", sent.count("page_error") == 1, sent)
+    c.close()
+    c, pg, errs, sent = ctx(b)
+    pg.evaluate("window.dispatchEvent(new ErrorEvent('error', { message: 'x', filename: 'chrome-extension://abc/content.js' }))"); pg.wait_for_timeout(900)
+    check("an error from a browser add-on isn't", "page_error" not in sent, sent)
     c.close()
 
     # ---- came another way (Find my level): counted as other ----

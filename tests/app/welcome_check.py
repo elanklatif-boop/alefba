@@ -34,8 +34,10 @@ with sync_playwright() as p:
             pg.screenshot(path=SHOT + "welcome_phone.png")
             pg.wait_for_timeout(4500)
             check("the taps are counted once (ob_demo)", sum(s.count("ob_demo") for s in sent) == 1, sent)
-            pg.click("#obStart"); pg.wait_for_timeout(300)
-            check("Start learning goes to its one question", "Do you already speak some Persian?" in pg.inner_text("#obMain"))
+            hb = box(pg, "#obHeard")
+            check("right under it, a link for those who already speak some", pg.is_visible("#obHeard") and "Already speak some Persian?" in pg.inner_text("#obHeard") and hb["y"] > box(pg, "#obStart")["y"] and hb["height"] >= 44, hb)
+            pg.click("#obStart"); pg.wait_for_timeout(500)
+            check("Start learning opens the lesson straight away (no question first)", pg.is_visible("#lesson") and pg.evaluate("R.lesson.id") == "a1-1" and not pg.is_visible("#onboard"))
         check(f"no page errors ({name})", not errs, errs); c.close()
     # ---- this device left out of the totals ----
     c, pg, errs, sent = ctx(b); pg.goto("http://127.0.0.1:8811/?nostats"); pg.wait_for_timeout(1400)

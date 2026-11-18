@@ -32,9 +32,8 @@ with sync_playwright() as p:
     b=p.chromium.launch()
     # ---- a first visit, "Try the first lesson" ----
     c,pg,errs=ctx(b)
-    pg.click("#obStart"); pg.wait_for_timeout(400)
-    check("Try a free lesson asks one question first", pg.is_visible("#obfirst-yes") and pg.is_visible("#obfirst-no"))
-    pg.click("#obfirst-no"); pg.wait_for_timeout(600)
+    pg.click("#obStart"); pg.wait_for_timeout(600)
+    check("Start learning opens the first lesson straight away, with no question first", pg.is_visible("#lesson") and not pg.is_visible("#onboard") and pg.evaluate("S.profile.first") == "new")
     q=pg.evaluate("R.queue.map(e => e.type)")
     check(f"new to Persian: two letters, then two real words to read: {q}", q == ["introLetter","introLetter","choice","choice","tip","readWord","tip","readWord"], q)
     check("it's Meet the letters, with alef and be, without their shapes yet", pg.evaluate("R.lesson.id") == "a1-1" and pg.evaluate("R.queue.filter(e => e.type === 'introLetter').map(e => e.L[0] + (e.lite ? '' : '!')).join('')") == "اب")
@@ -60,7 +59,7 @@ with sync_playwright() as p:
     c.close()
     # ---- a first visit by someone who already speaks some Persian ----
     c,pg,errs=ctx(b)
-    pg.click("#obStart"); pg.wait_for_timeout(400); pg.click("#obfirst-yes"); pg.wait_for_timeout(600)
+    pg.click("#obHeard"); pg.wait_for_timeout(600)
     q=pg.evaluate("R.queue.map(e => e.type + (e.W ? ':' + e.W.tr : ''))")
     check(f"speaks some: everyday words they may know, a letter found in each: {q}", q == ["heardWord:bâbâ","choice","heardWord:mâmân","choice","heardWord:âb","readWord:nân","introWord:bârân"], q)
     check("the word plays first, then shows written", pg.is_visible("text=Have you heard this word? bâbâ") and pg.locator("#exBox .cell.lit").count() == 4)

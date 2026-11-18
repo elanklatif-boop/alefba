@@ -212,11 +212,11 @@ async function api(request, env, url, ctx) {
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
 // A learner's first lesson, card by card (the app's FIRST_CARDS): which first lesson it was, and what each card is today.
-const FIRST_KINDS = [["new", "Said they're new to Persian", ["alef", "be", "question", "question", "tip", "read bâbâ", "tip", "read âb"]],
-  ["heard", "Said they speak some Persian", ["hear bâbâ", "question", "hear mâmân", "question", "hear âb", "read nân", "new word bârân"]],
+const FIRST_KINDS = [["new", "Start learning (new to Persian)", ["alef", "be", "question", "question", "tip", "read bâbâ", "tip", "read âb"]],
+  ["heard", "Already speak some Persian", ["hear bâbâ", "question", "hear mâmân", "question", "hear âb", "read nân", "new word bârân"]],
   ["other", "Came another way (Find my level, a class)", []]];
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_show", "nudge_on", "cal_on", "comeback_show", "from_email",
-  "ob_start", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "game_lesson", "guide_open", "guide_start",
+  "ob_start", "ob_heard", "page_error", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "game_lesson", "guide_open", "guide_start",
   ...FIRST_KINDS.flatMap(([k]) => [...Array.from({ length: 12 }, (_, i) => `first_${k}_${i + 1}`), `first_${k}_done`, `first_${k}_left`])];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
@@ -249,9 +249,9 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const since = dayKey(Date.now() - 30 * 864e5);
   const rows = (await env.DB.prepare("SELECT day, name, n FROM usage WHERE day >= ? ORDER BY day DESC").bind(since).all()).results || [];
   const days = {}; rows.forEach(r => ((days[r.day] = days[r.day] || {})[r.name] = r.n));
-  const cols = [["open", "Opened the app"], ["new", "New"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
+  const cols = [["open", "Opened the app"], ["new", "New"], ["page_error", "Hit an error"], ["back_1", "Back the next day"], ["back_2_7", "Back after 2–7 days"], ["back_8_30", "Back after 8–30 days"], ["back_31", "Back after a month+"],
     ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"], ["nudge_show", "Email offer shown"], ["nudge_on", "Asked for the email"], ["comeback_show", "First lesson done: asked to come back"], ["cal_on", "Set a calendar reminder"], ["from_email", "Came from the email"],
-    ["ob_start", "Welcome: Start learning"], ["ob_demo", "Welcome: tapped the nân / nun taste"], ["ob_level", "Welcome: Find my level"], ["ob_join", "Welcome: Join your class"], ["ob_little", "Welcome: Little one"], ["ob_teacher", "Welcome: I'm a teacher"], ["ob_signin", "Welcome: Sign in"],
+    ["ob_start", "Welcome: Start learning"], ["ob_heard", "Welcome: Already speak some"], ["ob_demo", "Welcome: tapped the nân / nun taste"], ["ob_level", "Welcome: Find my level"], ["ob_join", "Welcome: Join your class"], ["ob_little", "Welcome: Little one"], ["ob_teacher", "Welcome: I'm a teacher"], ["ob_signin", "Welcome: Sign in"],
     ["who_adult", "Said: teen or adult"], ["who_child", "Said: child"], ["who_little", "Said: little one"], ["who_teacher", "Said: teacher"], ["join_done", "Joined a class"], ["class_made", "Classes made"],
     ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"], ["books_open", "Library: Books for families tapped"], ["taarof_link", "Taarof link (learnalefba.com/taarof): test opened"], ["rally_link", "Rally link (learnalefba.com/rally): rally opened"], ["game_lesson", "Game score card: Try a free lesson tapped"], ["taarof_share", "Taarof games: Challenge a friend tapped"], ["guide_open", "Guide pages (e.g. What is taarof?): opened"], ["guide_start", "Guide pages: went to the app"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);

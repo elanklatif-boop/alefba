@@ -55,6 +55,13 @@ check(`first-lesson cards are counted, and only cards 1 to 12 of the three kinds
 r = await post(env(K), "a-long-secret-123456");
 const ft = r.text.slice(r.text.indexOf("Where people stop"));
 check("the stats page shows where people stop in their first lesson", ft.includes("Got to card 1</td><td>4 (100%) <small>alef</small></td><td>1 (100%) <small>hear bâbâ</small></td><td>0</td>") && ft.includes("Got to card 2</td><td>2 (50%) <small>be</small>") && ft.includes("Finished it</td><td>1 (25%)</td>") && ft.includes("Got to card 8</td>") && !ft.includes("Got to card 9</td>"), ft.slice(0, 900));
+// the welcome's link for those who speak some, and a page that hit an error: counted and shown
+await call(env(), "/api/usage", { method: "POST", body: { e: ["ob_heard", "page_error", "page_error"], d: today } });
+r = await post(env(K), "a-long-secret-123456");
+const hd = r.text.slice(0, r.text.indexOf("</tr>")), cells = hd.match(/<th>[^<]*<\/th>/g).map(t => t.slice(4, -5));
+const row = r.text.slice(r.text.indexOf(`<td>${today}</td>`)), vals = row.slice(0, row.indexOf("</tr>")).match(/<td>[^<]*<\/td>/g).map(t => t.slice(4, -5));
+check(`the stats page has "Hit an error" (2) and "Welcome: Already speak some" (1)`, vals[cells.indexOf("Hit an error")] === "2" && vals[cells.indexOf("Welcome: Already speak some")] === "1", [cells.indexOf("Hit an error"), vals.slice(0, 6)]);
+check("the first-lesson columns say how people started", ft.includes("<th>Start learning (new to Persian)</th><th>Already speak some Persian</th>"), ft.slice(0, 400));
 r = await post(env(K), "a-long-secret-123456", "https://evil.example");
 check("not from another website", r.status === 403 && !r.text.includes("Lessons finished"), r.status);
 r = await call(env(K), "/api/stats?key=a-long-secret-123456");
