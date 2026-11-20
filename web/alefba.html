@@ -750,7 +750,7 @@ button.phrase:hover { border-color: var(--turq); }
 /* pictures, games and rewards */
 .step.game { border-color: var(--saffron); background: var(--saffron-soft); }
 .step-emoji { font-size: 1rem; line-height: 1; }
-.game-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.game-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .game-kind { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font: inherit; color: var(--ink); background: var(--raised); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 8px; cursor: pointer; }
 .game-kind[aria-pressed="true"] { border-color: var(--turq); background: var(--turq-soft); }
 .game-kind span:last-child { font-size: 0.82rem; color: var(--muted); }
@@ -1205,6 +1205,35 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .sheet-letter svg .mid { stroke: #e3eaed; stroke-width: 0.6; stroke-dasharray: 3 3; }
 .sheet-letter svg text { font-family: var(--font-fa); font-weight: 600; fill: none; stroke: #6f7f89; stroke-width: 1.3; stroke-dasharray: 3 2.4; stroke-linecap: round; }
 .sheet-foot { color: #5a7282; font-size: 0.9em; text-align: center; margin-top: auto; }
+/* Bingo: the printed cards (2 to a page) and the calling screen */
+.bingo-page { justify-items: center; align-content: start; gap: 1.5%; }
+.bingo-card { width: 48%; display: grid; gap: 0.5em; border: 1.5px solid #d8e3e7; border-radius: 1.2em; padding: 0.9em 1.1em; break-inside: avoid; }
+.bingo-head { display: flex; gap: 0.8em; align-items: baseline; flex-wrap: wrap; }
+.bingo-head b { font-family: var(--font-head); font-size: 1.4em; }
+.bingo-head span { color: #5a7282; }
+.bingo-head .sheet-name { margin-inline-start: auto; }
+.bingo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4em; direction: rtl; }
+.bc { aspect-ratio: 1; border: 1.5px solid #9fb3bd; border-radius: 0.6em; display: grid; place-content: center; text-align: center; gap: 0.1em; overflow: hidden; }
+.bc .pic { font-size: 3.1em; line-height: 1.1; }
+.bc .w { font-family: var(--font-fa); font-size: 1.8em; line-height: 1.3; }
+.bc .w.long { font-size: 1.35em; }
+.bc .w.small { font-size: 1.05em; color: #5a7282; }
+.bc.free { font-size: 2.4em; background: #fff6df; border-color: #e7c983; }
+.bingo-rule { margin: 0; color: #5a7282; font-size: 0.95em; text-align: center; }
+.bingo-cut { border: 0; border-top: 1.5px dashed #9fb3bd; width: 100%; margin: 0; }
+.bingo-main { padding-block: 16px 32px; display: grid; gap: 16px; }
+.bingo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bingo-row label { display: flex; gap: 8px; align-items: center; }
+.bingo-row input { width: 72px; font: inherit; padding: 8px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+.bingo-stage { min-height: min(52vh, 480px); border-radius: 18px; background: linear-gradient(var(--lapis-soft), var(--surface)); border: 1px solid var(--line); display: grid; place-content: center; text-align: center; gap: 8px; padding: 20px; }
+.bs-q { font-size: clamp(5rem, 18vw, 11rem); line-height: 1; color: var(--muted); }
+.bs-pic { font-size: clamp(5rem, 20vw, 12rem); line-height: 1.1; }
+.bs-fa { font-family: var(--font-fa); font-weight: 700; font-size: clamp(2.4rem, 9vw, 6rem); direction: rtl; line-height: 1.3; }
+.bs-tr { font-size: clamp(1rem, 3vw, 1.6rem); color: var(--muted); }
+.bs-count { font-size: clamp(1rem, 2.5vw, 1.4rem); color: var(--muted); }
+.bingo-called { display: flex; flex-wrap: wrap; gap: 6px; direction: rtl; }
+.bingo-called span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-family: var(--font-fa); background: var(--surface); }
+@media (min-width: 900px) { .bingo-main .btn { font-size: 1.2rem; padding: 14px 24px; } .bingo-called span { font-size: 1.3rem; } }
 #printSheets { display: none; }
 @media print {
   @page { margin: 12mm; }
@@ -1215,6 +1244,7 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
   #printSheets .sheet-page { box-shadow: none; border-radius: 0; padding: 0; max-width: none; aspect-ratio: auto; height: 250mm; font-size: 11pt; break-after: page; page-break-after: always; overflow: hidden; align-content: start; }
   #printSheets .sheet-page:last-child { break-after: auto; page-break-after: auto; }
   #printSheets .sheet-letter { break-inside: avoid; }
+  #printSheets .bingo-page { height: 250mm; }
 }
 </style>
 
@@ -1404,6 +1434,14 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
     <button class="btn primary wide" id="keepBtn">Keep going</button>
     <button class="btn quiet wide" id="leaveBtn">Leave</button>
   </div></div>
+</div>
+
+<div class="overlay" id="bingo" hidden>
+  <div class="ov-top"><div class="shell gutter teach-head">
+    <button class="icon-btn" id="bingoBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg></button>
+    <h2 id="bingoTitle">Bingo</h2>
+  </div></div>
+  <div class="ov-body" id="bingoBody"><div class="shell gutter bingo-main" id="bingoMain"></div></div>
 </div>
 
 <div id="printSheets" aria-hidden="true"></div>
@@ -4489,6 +4527,7 @@ function showRepeat(box, ex) {
 let GAME_KIND = "memory";
 const knownPicWords = () => picWords(WORDS.filter(W => knowsWord(W)));
 function startGame(kind, pool, name) {
+  if (kind === "bingo") { openBingo(balloonRead() ? readWords(pool) : picWords(pool), balloonRead(), name); return; }
   if (kind === "balloons" && balloonRead()) {
     startLesson(null, [{ type: "balloons", read: true, level: { words: pool }, words: readWords(pool).slice(0, BALLOON_READ_ROUNDS) }], name);
     R.game = true; return;
@@ -4502,23 +4541,24 @@ function renderGamesTab() {
   const v = $("view-games"); if (!v) return; v.replaceChildren();
   if (document.body.classList.contains("class-play")) {
     const n = el("div", "class-play-note"); n.id = "classPlayNote";
-    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen. Pick Pictures for beginners or Read it for pupils who can read, then the words below. Alefba says a word, and the class shouts which balloon to pop."));
+    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen. Balloons: Alefba says a word, and the class shouts which balloon to pop. Bingo: print a card for each child, and the screen calls the words. Pick Pictures for beginners or Read it for pupils who can read."));
     v.append(n);
   }
   const top = el("div", "plan-card");
   top.append(el("b", null, "Play with your Persian words"), el("p", "note", GAME_KIND === "balloons" && balloonRead() ? "Pick a game, then the words to play with." : "Pick a game, then the words to play with. Games use the words that have pictures."));
   const kinds = el("div", "game-kinds"); kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", "Pick a game");
-  [["memory", "🃏", "Memory", "Find each word's picture"], ["balloons", "🎈", "Balloons", "Pop the word you hear"]].forEach(([k, e, t, d]) => {
+  [["memory", "🃏", "Memory", "Find each word's picture"], ["balloons", "🎈", "Balloons", "Pop the word you hear"], ["bingo", "🎉", "Bingo", "Printed cards, for a class"]].forEach(([k, e, t, d]) => {
     const b = el("button", "game-kind"); b.type = "button"; b.id = "gk-" + k; b.setAttribute("aria-pressed", String(GAME_KIND === k));
     b.append(el("span", "game-kind-pic", e), el("b", null, t), el("span", null, d));
     b.addEventListener("click", () => { GAME_KIND = k; renderGamesTab(); });
     kinds.append(b);
   });
   top.append(kinds);
-  const reading = GAME_KIND === "balloons" && balloonRead();
-  if (GAME_KIND === "balloons") {
+  const reading = GAME_KIND !== "memory" && balloonRead();
+  if (GAME_KIND !== "memory") {
     const modes = el("div", "game-modes"); modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "How hard");
-    [[false, "bm-pics", "Pictures", "Easier: pop the picture"], [true, "bm-read", "Read it", "Harder: pop the word in Persian"]].forEach(([rd, id, t, d]) => {
+    const bingo = GAME_KIND === "bingo";
+    [[false, "bm-pics", "Pictures", bingo ? "Easier: cards with pictures" : "Easier: pop the picture"], [true, "bm-read", "Read it", bingo ? "Harder: cards with words in Persian" : "Harder: pop the word in Persian"]].forEach(([rd, id, t, d]) => {
       const b = el("button", "game-kind"); b.type = "button"; b.id = id; b.setAttribute("aria-pressed", String(balloonRead() === rd));
       b.append(el("b", null, t), el("span", null, d));
       b.addEventListener("click", () => { S.prefs.balloonRead = rd; save(); renderGamesTab(); });
@@ -4528,22 +4568,23 @@ function renderGamesTab() {
   }
   v.append(top);
   const list = el("div", "topic-list");
-  const name = () => (GAME_KIND === "memory" ? "Memory game" : reading ? "Balloon game, Read it" : "Balloon game");
+  const name = () => (GAME_KIND === "memory" ? "Memory game" : GAME_KIND === "bingo" ? "Bingo" : reading ? "Balloon game, Read it" : "Balloon game");
+  const least = GAME_KIND === "bingo" ? BINGO_SQUARES : GAME_PAIRS; // a bingo card needs 8 words
   const known = reading ? readWords(WORDS.filter(knowsWord)) : knownPicWords();
-  if (known.length >= GAME_PAIRS) {
+  if (known.length >= least) {
     const b = el("button", "topic"); b.type = "button"; b.id = "gw-known";
     b.append(el("span", "step-emoji game-row-pic", "⭐"));
     const t = el("span", "topic-text"); t.append(el("b", null, "Words I've learned"), el("span", "note", `${known.length} words ${reading ? "to read" : "with pictures"}, mixed from every level`)); b.append(t);
-    b.addEventListener("click", () => startGame(GAME_KIND, WORDS.filter(knowsWord), name()));
+    b.addEventListener("click", () => startGame(GAME_KIND, WORDS.filter(knowsWord), GAME_KIND === "bingo" ? "Words I've learned" : name()));
     list.append(b);
   }
   LEVELS.forEach(lv => {
-    const n = reading ? readWords(lv.words).length : gameWords(lv).length; if (n < GAME_PAIRS) return;
+    const n = reading ? readWords(lv.words).length : gameWords(lv).length; if (n < least) return;
     const locked = lessonLocked(lv.lessons[0]);
     const b = el("button", "topic" + (locked ? " locked" : "")); b.type = "button"; b.id = "gw-" + (lv.index + 1);
     if (locked) b.insertAdjacentHTML("beforeend", ICON.lock); else b.append(el("span", "step-emoji game-row-pic", stickerOf(lv)));
     const t = el("span", "topic-text"); t.append(el("b", null, `Level ${lv.index + 1}: ${lv.title}`), el("span", "note", locked ? "Comes with a plan" : `${n} words ${reading ? "to read" : "with pictures"}`)); b.append(t);
-    b.addEventListener("click", () => (locked ? openLocked(lv.lessons[0]) : startGame(GAME_KIND, lv.words, `${name()}: Level ${lv.index + 1}`)));
+    b.addEventListener("click", () => (locked ? openLocked(lv.lessons[0]) : startGame(GAME_KIND, lv.words, GAME_KIND === "bingo" ? `Level ${lv.index + 1}: ${lv.title}` : `${name()}: Level ${lv.index + 1}`)));
     list.append(b);
   });
   SEASON_PACKS.forEach(lv => { // free for everyone
@@ -4551,7 +4592,7 @@ function renderGamesTab() {
     b.append(el("span", "step-emoji game-row-pic", lv.pic));
     const tg = lv.lessons.find(l => l.kind === "taarof"); // the Taarof pack's own game, in place of memory and balloons
     const t = el("span", "topic-text"); t.append(el("b", null, tg ? "The taarof game" : lv.title), el("span", "note", tg ? "Six everyday scenes: what do you say? · free for everyone" : `${reading ? readWords(lv.words).length + " words to read" : gameWords(lv).length + " words with pictures"} · free for everyone`)); b.append(t);
-    b.addEventListener("click", () => (tg ? openLesson(tg) : startGame(GAME_KIND, lv.words, `${name()}: ${lv.title}`)));
+    b.addEventListener("click", () => (tg ? openLesson(tg) : startGame(GAME_KIND, lv.words, GAME_KIND === "bingo" ? lv.title : `${name()}: ${lv.title}`)));
     list.append(b);
     const rl = lv.lessons.find(l => l.kind === "rally"); // and the arcade one
     if (rl) {
@@ -5276,7 +5317,7 @@ function openOverlay(id) {
 }
 function closeOverlay(id) {
   $(id).hidden = true;
-  if ($("lesson").hidden && $("talk").hidden && $("onboard").hidden && $("teach").hidden && $("little").hidden && $("sheets").hidden) {
+  if ($("lesson").hidden && $("talk").hidden && $("onboard").hidden && $("teach").hidden && $("little").hidden && $("sheets").hidden && $("bingo").hidden) {
     document.body.style.overflow = "";
     PAGE_PARTS().forEach(p => { p.inert = false; p.removeAttribute("aria-hidden"); });
     const back = FOCUS_BEFORE; FOCUS_BEFORE = null;
@@ -9538,6 +9579,93 @@ $("sheetsPrint").addEventListener("click", () => {
   $("printSheets").innerHTML = sheetPages();
   try { window.print(); } catch (e) {}
 });
+
+// ================= BINGO =================
+// Bingo for a whole class: every child gets a printed card (each one different), the screen says a word, and a few
+// seconds later shows it, so the class can check. Cards have pictures for beginners, or words in Persian for readers.
+const BINGO_SQUARES = 8; // a 3 x 3 card with a free star in the middle
+const BINGO_REVEAL = 4000; // how long the class gets to find the word before the screen shows it
+const BINGO = { pool: [], read: false, name: "", n: 20, seed: 1, order: [], at: -1, timer: null, counted: false };
+// A small random-number maker with a seed, so the cards on the screen are the cards that print.
+function seededRandom(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function bingoCardWords(k) {
+  const rnd = seededRandom(BINGO.seed + k * 7919), a = BINGO.pool.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, BINGO_SQUARES);
+}
+function bingoCardHtml(k) {
+  const ws = bingoCardWords(k), cells = [];
+  for (let i = 0; i < 9; i++) {
+    if (i === 4) { cells.push('<div class="bc free">⭐</div>'); continue; }
+    const W = ws[i < 4 ? i : i - 1];
+    cells.push(`<div class="bc">${BINGO.read ? `<span class="w${plainFa(W.fa).length >= 6 ? " long" : ""}" lang="fa">${escX(Z(W.fa))}</span>` : `<span class="pic">${picOf(W)}</span><span class="w small" lang="fa">${escX(Z(W.fa))}</span>`}</div>`);
+  }
+  return `<section class="bingo-card"><div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="sheet-name">Name: ____________</span></div><div class="bingo-grid">${cells.join("")}</div><p class="bingo-rule">Listen. Find the ${BINGO.read ? "word" : "picture"} and mark it. A full line wins!</p></section>`;
+}
+function bingoPages(n) {
+  const pages = [];
+  for (let k = 0; k < n; k += 2) pages.push(`<div class="sheet-page bingo-page">${bingoCardHtml(k)}${k + 1 < n ? `<hr class="bingo-cut">${bingoCardHtml(k + 1)}` : ""}<p class="sheet-foot">Alefba · learnalefba.com</p></div>`);
+  return pages.join("");
+}
+function openBingo(pool, read, name) {
+  Object.assign(BINGO, { pool, read, name, seed: Math.floor(Math.random() * 1e9), order: [], at: -1, counted: false });
+  $("bingoTitle").textContent = "Bingo: " + name;
+  openOverlay("bingo"); renderBingo();
+}
+function renderBingo() {
+  clearTimeout(BINGO.timer);
+  const m = $("bingoMain"); m.replaceChildren(); $("bingoBody").scrollTop = 0;
+  m.append(el("p", "lead", `Every child gets a card, each one different, with ${BINGO.read ? "words in Persian" : "pictures"} from ${BINGO.name} (${BINGO.pool.length} words). On the screen, Alefba says a word, and a few seconds later shows it, so the class can check. The first full line wins.`));
+  const row = el("div", "bingo-row");
+  const lab = el("label"), inp = el("input"); inp.type = "number"; inp.id = "bingoCount"; inp.min = "1"; inp.max = "40"; inp.value = String(BINGO.n);
+  inp.addEventListener("change", () => { BINGO.n = Math.max(1, Math.min(40, Math.round(+inp.value) || 1)); inp.value = String(BINGO.n); });
+  lab.append(document.createTextNode("How many cards?"), inp);
+  const print = el("button", "btn primary", "Print the cards"); print.type = "button"; print.id = "bingoPrint";
+  print.addEventListener("click", () => { count("bingo_print"); $("printSheets").innerHTML = bingoPages(BINGO.n); try { window.print(); } catch (e) {} });
+  const fresh = el("button", "btn quiet", "Different cards"); fresh.type = "button"; fresh.id = "bingoShuffle";
+  fresh.addEventListener("click", () => { BINGO.seed = Math.floor(Math.random() * 1e9); renderBingo(); });
+  row.append(lab, print, fresh); m.append(row);
+  const start = el("button", "btn primary wide", "Start calling the words"); start.type = "button"; start.id = "bingoStart";
+  start.addEventListener("click", () => { BINGO.order = shuffle(BINGO.pool); BINGO.at = -1; renderBingoCall(); });
+  m.append(start);
+  m.append(el("p", "note", "The first two cards, as they print (two to a page):"));
+  const pv = el("div", "sheet-preview"); pv.id = "bingoPreview"; pv.innerHTML = bingoPages(Math.min(2, BINGO.n)); m.append(pv);
+}
+function renderBingoCall() {
+  clearTimeout(BINGO.timer);
+  const m = $("bingoMain"); m.replaceChildren(); $("bingoBody").scrollTop = 0;
+  const stage = el("div", "bingo-stage"); stage.id = "bingoStage"; stage.setAttribute("aria-live", "polite");
+  const W = BINGO.at >= 0 ? BINGO.order[BINGO.at] : null, a = W && wordAudio(W), can = !!W && hasAudio(a), done = BINGO.at >= BINGO.order.length - 1;
+  const show = () => {
+    clearTimeout(BINGO.timer);
+    stage.replaceChildren(...(BINGO.read ? [] : [el("div", "bs-pic", picOf(W))]), fa("div", "bs-fa", Z(W.fa)), el("div", "bs-tr", `${W.tr} · ${W.m}`), el("div", "bs-count", `Word ${BINGO.at + 1} of ${BINGO.order.length}`));
+    $("bingoShow").hidden = true;
+  };
+  if (!W) stage.append(el("div", "bs-q", "🎉"), el("p", "bs-tr", "Hand out the cards, then say the first word."));
+  else if (!can) show(); // no sound for this word: the teacher reads it out
+  else { stage.append(el("div", "bs-q", "?"), el("p", "bs-tr", `Listen… Word ${BINGO.at + 1} of ${BINGO.order.length}`)); BINGO.timer = setTimeout(show, BINGO_REVEAL); }
+  m.append(stage);
+  const row = el("div", "bingo-row");
+  const next = el("button", "btn primary", !W ? "Say the first word" : done ? "Every word has been called" : "Say the next word"); next.type = "button"; next.id = "bingoNext"; next.disabled = done;
+  next.addEventListener("click", () => { if (!BINGO.counted) { BINGO.counted = true; count("bingo_call"); } BINGO.at++; renderBingoCall(); });
+  const again = el("button", "btn quiet", "Say it again"); again.type = "button"; again.id = "bingoAgain"; again.hidden = !can;
+  again.addEventListener("click", () => speak(a));
+  const reveal = el("button", "btn quiet", "Show it now"); reveal.type = "button"; reveal.id = "bingoShow"; reveal.hidden = !can;
+  reveal.addEventListener("click", show);
+  const win = el("button", "btn quiet", "Bingo! 🎉"); win.type = "button"; win.id = "bingoWin"; win.hidden = !W;
+  win.addEventListener("click", () => { confetti(90); chime(); });
+  const back = el("button", "link-btn", "Back to the cards"); back.type = "button"; back.id = "bingoCards";
+  back.addEventListener("click", () => { stopSound(); renderBingo(); });
+  row.append(next, again, reveal, win, back); m.append(row);
+  if (BINGO.at >= 0) {
+    m.append(el("p", "note", "Called so far (to check a card):"));
+    const called = el("div", "bingo-called"); called.id = "bingoCalled";
+    BINGO.order.slice(0, BINGO.at + 1).forEach(x => called.append(el("span", null, BINGO.read ? Z(x.fa) : `${picOf(x)} ${Z(x.fa)}`)));
+    m.append(called);
+  }
+  if (can) setTimeout(() => { if (!$("bingo").hidden && BINGO.order[BINGO.at] === W) speak(a); }, 250);
+}
+$("bingoBack").addEventListener("click", () => { clearTimeout(BINGO.timer); stopSound(); closeOverlay("bingo"); });
 function sheetsButton(label, id) { const b = el("button", "btn quiet", label); b.type = "button"; b.id = id; b.addEventListener("click", openSheets); return b; }
 
 // ================= WIRING =================
