@@ -788,6 +788,18 @@ button.phrase:hover { border-color: var(--turq); }
 .confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); } }
 @media (prefers-reduced-motion: reduce) { .balloon { animation: none; } .balloon.popped { opacity: .3; } }
+/* learnalefba.com/play on a classroom screen: the balloon game big enough to see from the back of the room (phones stay as they are) */
+.class-play-note { background: var(--saffron-soft); border-radius: 16px; padding: 14px 16px; display: grid; gap: 4px; }
+@media (min-width: 900px) {
+  body.class-play #lesson .shell { max-width: 1100px; }
+  body.class-play .sky { height: min(58vh, 560px); }
+  body.class-play .balloon { width: min(190px, 15vw, 22vh); margin-bottom: 60px; }
+  body.class-play .balloon::after { height: 56px; }
+  body.class-play .balloon-pic { font-size: clamp(3rem, 6vw, 6rem); }
+  body.class-play #exBox .ex-title { font-size: 2.4rem; }
+  body.class-play #exBox .ex-sub { font-size: 1.35rem; }
+  body.class-play #balloonPlay { font-size: 1.25rem; padding: 14px 24px; }
+}
 .reward { display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--saffron-soft); border-radius: 16px; padding: 14px 16px; }
 .reward-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .reward-item { display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: 220px; font-size: 0.86rem; text-align: center; }
@@ -4433,6 +4445,11 @@ function startGame(kind, pool, name) {
 }
 function renderGamesTab() {
   const v = $("view-games"); if (!v) return; v.replaceChildren();
+  if (document.body.classList.contains("class-play")) {
+    const n = el("div", "class-play-note"); n.id = "classPlayNote";
+    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen and pick the words below. Alefba says a word, and the class shouts which balloon to pop."));
+    v.append(n);
+  }
   const top = el("div", "plan-card");
   top.append(el("b", null, "Play with your Persian words"), el("p", "note", "Pick a game, then the words to play with. Games use the words that have pictures."));
   const kinds = el("div", "game-kinds"); kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", "Pick a game");
@@ -9508,7 +9525,11 @@ const TEACH_CLASS = (() => { const v = WEB ? new URLSearchParams(location.search
 // A tap from a guide page (e.g. What is taarof?) is counted on that page (guide_start), so it isn't mistaken for someone using the short link.
 const FROM_GUIDE = (() => { try { const r = new URL(document.referrer); return r.origin === location.origin && /^\/(what-is-taarof|thank-you-in-persian|persian-alphabet|teach-your-child-persian)(\.html)?$/.test(r.pathname); } catch (e) { return false; } })();
 const TAAROF_LINK = { "#taarof": ["taarof-game", "taarof_link"], "#rally": ["taarof-rally", "rally_link"] }[location.hash] || null;
+// learnalefba.com/play: the balloon game for a classroom screen. It opens on the Games tab with Balloons picked, with
+// bigger balloons on a big screen, and nothing in front of it: the welcome waits for a later visit.
+const PLAY_LINK = !!(WEB && location.hash === "#play");
 if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
+else if (PLAY_LINK) {}
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
@@ -9518,6 +9539,10 @@ if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, als
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   const tg = LESSONS.find(l => l.id === TAAROF_LINK[0]);
   if (tg) { if (!FROM_GUIDE) count(TAAROF_LINK[1]); openLesson(tg); } else { const f = AFTER_LINK; AFTER_LINK = null; f(); }
+}
+else if (PLAY_LINK) {
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  count("play_link"); document.body.classList.add("class-play"); GAME_KIND = "balloons"; renderGamesTab(); showView("games");
 }
 else if (location.hash === "#sheets" && WEB) openSheets();
 else if (/^#join=/i.test(location.hash) && WEB) { const jc = decodeURIComponent(location.hash.slice(6)).slice(0, 12); history.replaceState(null, "", location.pathname); joinFromLink(jc); }
