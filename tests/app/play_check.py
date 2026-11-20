@@ -35,12 +35,28 @@ with sync_playwright() as p:
     check(f"big balloons on a big screen ({round(bw)}px wide)", bw >= 140, bw)
     check("the sky fits on the screen", sky[1] <= sky[2] + 1, sky)
     pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/play_big.png")
-    # play every round: pop the balloon whose label is the word being said
+    # a wrong balloon: it shakes, stops where it is, and keeps an ✕; it can't be tapped again
+    w = pg.evaluate("(() => { const ex = current(), m = ex.words[R.balloon.round].m; return [...document.querySelectorAll('.balloon')].findIndex(b => b.getAttribute('aria-label') !== m); })()")
+    pg.locator(f"#balloon-{w}").click(force=True); pg.wait_for_timeout(250)
+    wrong = pg.evaluate(f"(() => {{ const b = document.getElementById('balloon-{w}'); return {{ x: !!b.querySelector('.balloon-x'), off: b.disabled, cls: b.className, label: b.getAttribute('aria-label') }}; }})()")
+    check("a wrong balloon gets an ✕ and can't be tapped again", wrong["x"] and wrong["off"] and "wrong" in wrong["cls"] and "not this one" in wrong["label"], wrong)
+    check("the other balloons can still be tapped", pg.evaluate("[...document.querySelectorAll('.balloon')].filter(b => !b.disabled).length") == pg.evaluate("document.querySelectorAll('.balloon').length") - 1)
+    # the right one bursts with a ring and flying bits, where it had floated to
+    m = pg.evaluate("current().words[R.balloon.round].m")
+    before = pg.evaluate(f"(() => {{ const b = document.querySelector('.balloon[aria-label=\"{m}\"]'); const r = b.getBoundingClientRect(); return r.top + r.height / 2; }})()")
+    pg.locator(f".balloon[aria-label=\"{m}\"]").first.click(force=True); pg.wait_for_timeout(60)
+    burst = pg.evaluate(f"(() => {{ const b = document.querySelector('.balloon.popped'), L = document.querySelector('.pop-layer'); const r = b.getBoundingClientRect(); return {{ bits: L ? L.querySelectorAll('i').length : 0, ring: !!(L && L.querySelector('b')), mid: r.top + r.height / 2 }}; }})()")
+    check(f"the right balloon bursts: a ring and {burst['bits']} bits fly out", burst["bits"] >= 14 and burst["ring"], burst)
+    check(f"it bursts where it was, not back at the bottom (moved {round(abs(burst['mid'] - before))}px)", abs(burst["mid"] - before) < 40, (before, burst))
+    pg.wait_for_timeout(900)
+    check("the bits are tidied away afterwards", pg.locator(".pop-layer").count() == 0)
+    # play every other round: pop the balloon whose label is the word being said
     for _ in range(20):
         if pg.evaluate("!R || R.phase === 'result'"): break
         m = pg.evaluate("(() => { const ex = current(); return ex.words[R.balloon.round].m; })()")
         pg.locator(f".balloon[aria-label=\"{m}\"]").first.click(force=True); pg.wait_for_timeout(850)
     check("the game plays to the end", pg.evaluate("R && R.phase === 'result'"))
+    check("one miss: no confetti on the result", pg.locator(".confetti").count() == 0 and "Every balloon on the first try" not in pg.inner_text("#lesson"))
     pg.click("#mainBtn"); pg.wait_for_timeout(600)
     if pg.evaluate("!!R"): pg.click("#mainBtn"); pg.wait_for_timeout(600)
     check("afterwards it's back on the Games tab, still with no welcome", pg.evaluate("!R") and pg.is_visible("#view-games") and not pg.is_visible("#onboard"))
@@ -66,6 +82,8 @@ with sync_playwright() as p:
         played += 1; alike += r["alike"]
         pg.locator(f"#balloon-{r['i']}").click(force=True); pg.wait_for_timeout(850)
     check("Read it plays to the end", pg.evaluate("R && R.phase === 'result'"))
+    conf = {"layers": pg.locator(".confetti").count(), "bits": pg.locator(".confetti i").count(), "text": pg.inner_text("#lesson")}
+    check("every balloon on the first try: confetti", conf["layers"] >= 1 and conf["bits"] >= 80 and "Every balloon on the first try" in conf["text"], conf)
     check(f"the wrong answers look like the right one (in {alike} of {played} rounds a wrong word shares its first letter or two letters)", played and alike >= played - 1, (alike, played))
     pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/play_read_done.png")
     pg.click("#mainBtn"); pg.wait_for_timeout(600)
