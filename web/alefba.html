@@ -1209,6 +1209,8 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .sheet-foot { color: #5a7282; font-size: 0.9em; text-align: center; margin-top: auto; }
 /* Bingo: the printed cards (2 to a page) and the calling screen */
 .bingo-page { justify-items: center; align-content: start; gap: 1.5%; }
+.bingo-card.blank { width: 64%; gap: 0.6em; }
+.bingo-card.blank .bingo-words { font-size: 1.25em; }
 .bingo-card { width: 48%; display: grid; gap: 0.5em; border: 1.5px solid #d8e3e7; border-radius: 1.2em; padding: 0.9em 1.1em; break-inside: avoid; }
 .bingo-head { display: flex; gap: 0.8em; align-items: baseline; flex-wrap: wrap; }
 .bingo-head b { font-family: var(--font-head); font-size: 1.4em; }
@@ -1222,6 +1224,24 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .bc .w.small { font-size: 1.05em; color: #5a7282; }
 .bc.free { font-size: 2.4em; background: #fff6df; border-color: #e7c983; }
 .bingo-rule { margin: 0; color: #5a7282; font-size: 0.95em; text-align: center; }
+.bingo-head .num { font-weight: 700; color: #13293a; }
+.bingo-words { display: flex; flex-wrap: wrap; gap: 0.2em 0.8em; direction: rtl; justify-content: center; font-family: var(--font-fa); font-size: 1.05em; border: 1.5px dashed #9fb3bd; border-radius: 0.6em; padding: 0.4em 0.6em; }
+.bingo-words .pic { font-size: 1.1em; line-height: 1; margin-inline-start: 0.25em; }
+.bingo-words span { display: inline-flex; align-items: center; }
+.bc.blank { border-style: solid; }
+.bingo-ring { width: clamp(90px, 16vw, 150px); height: clamp(90px, 16vw, 150px); margin: 0 auto; display: grid; place-items: center; border-radius: 50%;
+  background: conic-gradient(var(--saffron) calc(var(--p, 0) * 1%), var(--line) 0); }
+.bingo-ring span { width: 82%; height: 82%; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: clamp(2rem, 7vw, 4rem); color: var(--muted); }
+.bingo-check { display: grid; gap: 10px; }
+.bingo-waits { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+.bingo-check .bingo-grid { max-width: 320px; font-size: 13px; direction: rtl; }
+.bingo-check .bc.hit { background: var(--good-soft); border-color: var(--good); }
+.bingo-check .bc.hit::after { content: "✓"; position: absolute; top: 2px; left: 6px; color: var(--good); font-weight: 800; }
+.bingo-check .bc { position: relative; color: var(--ink); border-color: var(--line); }
+.bingo-check .bc.free { color: var(--ink); }
+.bingo-check .bc.line { box-shadow: 0 0 0 3px var(--saffron); }
+.bingo-big { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center; direction: rtl; font-family: var(--font-fa); font-weight: 700; font-size: clamp(1.6rem, 4.5vw, 3.4rem); line-height: 1.4; }
+.bingo-big .pic { margin-inline-start: 0.3em; }
 .bingo-cut { border: 0; border-top: 1.5px dashed #9fb3bd; width: 100%; margin: 0; }
 .bingo-main { padding-block: 16px 32px; display: grid; gap: 16px; }
 .bingo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -9588,8 +9608,9 @@ $("sheetsPrint").addEventListener("click", () => {
 // Bingo for a whole class: every child gets a printed card (each one different), the screen says a word, and a few
 // seconds later shows it, so the class can check. Cards have pictures for beginners, or words in Persian for readers.
 const BINGO_SQUARES = 8; // a 3 x 3 card with a free star in the middle
-const BINGO_REVEAL = 4000; // how long the class gets to find the word before the screen shows it
-const BINGO = { pool: [], read: false, name: "", n: 20, seed: 1, order: [], at: -1, timer: null, counted: false };
+const BINGO_WAITS = [[3, "3 seconds"], [5, "5 seconds"], [8, "8 seconds"]]; // how long the class gets to find the word before the screen shows it
+const bingoWait = () => (S.prefs.bingoWait || 5) * 1000;
+const BINGO = { pool: [], read: false, name: "", n: 20, seed: 1, order: [], at: -1, timer: null, counted: false, blank: false, check: null };
 // A small random-number maker with a seed, so the cards on the screen are the cards that print.
 function seededRandom(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function bingoCardWords(k) {
@@ -9597,22 +9618,38 @@ function bingoCardWords(k) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a.slice(0, BINGO_SQUARES);
 }
+const bingoWordHtml = W => (BINGO.read ? `<span class="w${plainFa(W.fa).length >= 6 ? " long" : ""}" lang="fa">${escX(Z(W.fa))}</span>` : `<span class="pic">${picOf(W)}</span><span class="w small" lang="fa">${escX(Z(W.fa))}</span>`);
 function bingoCardHtml(k) {
-  const ws = bingoCardWords(k), cells = [];
-  for (let i = 0; i < 9; i++) {
-    if (i === 4) { cells.push('<div class="bc free">⭐</div>'); continue; }
-    const W = ws[i < 4 ? i : i - 1];
-    cells.push(`<div class="bc">${BINGO.read ? `<span class="w${plainFa(W.fa).length >= 6 ? " long" : ""}" lang="fa">${escX(Z(W.fa))}</span>` : `<span class="pic">${picOf(W)}</span><span class="w small" lang="fa">${escX(Z(W.fa))}</span>`}</div>`);
+  const head = `<div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="num">Card ${k + 1}</span><span class="sheet-name">Name: ____________</span></div>`;
+  if (BINGO.blank) { // the children fill the squares in themselves, from the words at the top
+    const words = BINGO.pool.map(W => `<span lang="fa">${escX(Z(W.fa))}${BINGO.read ? "" : `<span class="pic">${picOf(W)}</span>`}</span>`).join("");
+    const cells = Array.from({ length: 9 }, (_, i) => (i === 4 ? '<div class="bc free">⭐</div>' : '<div class="bc blank"></div>')).join("");
+    return `<section class="bingo-card blank"><div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="sheet-name">Name: ____________</span></div><div class="bingo-words">${words}</div><p class="bingo-rule">Write 8 of these in the squares, one each, in any order. Then listen, and mark the ones you hear. A full line wins!</p><div class="bingo-grid">${cells}</div></section>`;
   }
-  return `<section class="bingo-card"><div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="sheet-name">Name: ____________</span></div><div class="bingo-grid">${cells.join("")}</div><p class="bingo-rule">Listen. Find the ${BINGO.read ? "word" : "picture"} and mark it. A full line wins!</p></section>`;
+  const ws = bingoCardWords(k), cells = [];
+  for (let i = 0; i < 9; i++) cells.push(i === 4 ? '<div class="bc free">⭐</div>' : `<div class="bc">${bingoWordHtml(ws[i < 4 ? i : i - 1])}</div>`);
+  return `<section class="bingo-card">${head}<div class="bingo-grid">${cells.join("")}</div><p class="bingo-rule">Listen. Find the ${BINGO.read ? "word" : "picture"} and mark it. A full line wins!</p></section>`;
+}
+// Does card k have a full line, given the words called so far? Returns the squares that are hit, and the winning line (if any).
+function bingoCheck(k) {
+  const ws = bingoCardWords(k), called = new Set(BINGO.order.slice(0, BINGO.at + 1).map(W => W.tr));
+  const hit = Array.from({ length: 9 }, (_, i) => (i === 4 ? true : called.has(ws[i < 4 ? i : i - 1].tr)));
+  const lines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const win = lines.find(l => l.every(i => hit[i])) || null;
+  const best = Math.max(...lines.map(l => l.filter(i => hit[i]).length));
+  return { ws, hit, win, best };
 }
 function bingoPages(n) {
   const pages = [];
+  if (BINGO.blank) { // one to a page: big squares to write in
+    for (let k = 0; k < n; k++) pages.push(`<div class="sheet-page bingo-page">${bingoCardHtml(k)}<p class="sheet-foot">Alefba · learnalefba.com</p></div>`);
+    return pages.join("");
+  }
   for (let k = 0; k < n; k += 2) pages.push(`<div class="sheet-page bingo-page">${bingoCardHtml(k)}${k + 1 < n ? `<hr class="bingo-cut">${bingoCardHtml(k + 1)}` : ""}<p class="sheet-foot">Alefba · learnalefba.com</p></div>`);
   return pages.join("");
 }
 function openBingo(pool, read, name) {
-  Object.assign(BINGO, { pool, read, name, seed: Math.floor(Math.random() * 1e9), order: [], at: -1, counted: false });
+  Object.assign(BINGO, { pool, read, name, seed: Math.floor(Math.random() * 1e9), order: [], at: -1, counted: false, blank: false, check: null });
   $("bingoTitle").textContent = "Bingo: " + name;
   openOverlay("bingo"); renderBingo();
 }
@@ -9620,6 +9657,19 @@ function renderBingo() {
   clearTimeout(BINGO.timer);
   const m = $("bingoMain"); m.replaceChildren(); $("bingoBody").scrollTop = 0;
   m.append(el("p", "lead", `Every child gets a card, each one different, with ${BINGO.read ? "words in Persian" : "pictures"} from ${BINGO.name} (${BINGO.pool.length} words). On the screen, Alefba says a word, and a few seconds later shows it, so the class can check. The first full line wins.`));
+  const opts = el("div", "bingo-row");
+  const waits = el("div", "game-modes bingo-waits"); waits.setAttribute("role", "group"); waits.setAttribute("aria-label", "Time to find each word");
+  BINGO_WAITS.forEach(([n, t]) => {
+    const b = el("button", "game-kind"); b.type = "button"; b.id = "bingoWait-" + n; b.setAttribute("aria-pressed", String((S.prefs.bingoWait || 5) === n));
+    b.append(el("b", null, t), el("span", null, n === 3 ? "Quick" : n === 5 ? "Most classes" : "Little ones"));
+    b.addEventListener("click", () => { S.prefs.bingoWait = n; save(); renderBingo(); });
+    waits.append(b);
+  });
+  m.append(el("p", "note", "Time the class gets to find each word before the screen shows it:"), waits);
+  const blankLab = el("label"), blank = el("input"); blank.type = "checkbox"; blank.id = "bingoBlank"; blank.checked = BINGO.blank;
+  blank.addEventListener("change", () => { BINGO.blank = blank.checked; renderBingo(); });
+  blankLab.append(blank, document.createTextNode("Blank cards: the children write 8 of the words into the squares themselves (good writing practice, and one card works for everyone)"));
+  opts.append(blankLab); m.append(opts);
   const row = el("div", "bingo-row");
   const lab = el("label"), inp = el("input"); inp.type = "number"; inp.id = "bingoCount"; inp.min = "1"; inp.max = "40"; inp.value = String(BINGO.n);
   inp.addEventListener("change", () => { BINGO.n = Math.max(1, Math.min(40, Math.round(+inp.value) || 1)); inp.value = String(BINGO.n); });
@@ -9630,10 +9680,10 @@ function renderBingo() {
   fresh.addEventListener("click", () => { BINGO.seed = Math.floor(Math.random() * 1e9); renderBingo(); });
   row.append(lab, print, fresh); m.append(row);
   const start = el("button", "btn primary wide", "Start calling the words"); start.type = "button"; start.id = "bingoStart";
-  start.addEventListener("click", () => { BINGO.order = shuffle(BINGO.pool); BINGO.at = -1; renderBingoCall(); });
+  start.addEventListener("click", () => { BINGO.order = shuffle(BINGO.pool); BINGO.at = -1; BINGO.check = null; renderBingoCall(); });
   m.append(start);
-  m.append(el("p", "note", "The first two cards, as they print (two to a page):"));
-  const pv = el("div", "sheet-preview"); pv.id = "bingoPreview"; pv.innerHTML = bingoPages(Math.min(2, BINGO.n)); m.append(pv);
+  m.append(el("p", "note", BINGO.blank ? "A blank card, as it prints (one to a page, with big squares to write in). No printer? The children draw a 3 by 3 grid on paper, and you show the words on the screen when you start." : "The first two cards, as they print (two to a page). Each card has a number, so you can check a card on the screen when someone calls bingo."));
+  const pv = el("div", "sheet-preview"); pv.id = "bingoPreview"; pv.innerHTML = bingoPages(Math.min(BINGO.blank ? 1 : 2, BINGO.n)); m.append(pv);
 }
 function renderBingoCall() {
   clearTimeout(BINGO.timer);
@@ -9645,9 +9695,16 @@ function renderBingoCall() {
     stage.replaceChildren(...(BINGO.read ? [] : [el("div", "bs-pic", picOf(W))]), fa("div", "bs-fa", Z(W.fa)), el("div", "bs-tr", `${W.tr} · ${W.m}`), el("div", "bs-count", `Word ${BINGO.at + 1} of ${BINGO.order.length}`));
     $("bingoShow").hidden = true;
   };
-  if (!W) stage.append(el("div", "bs-q", "🎉"), el("p", "bs-tr", "Hand out the cards, then say the first word."));
+  if (!W) stage.append(el("div", "bs-q", "🎉"), el("p", "bs-tr", BINGO.blank ? "Once every card is filled in, say the first word." : "Hand out the cards, then say the first word."));
   else if (!can) show(); // no sound for this word: the teacher reads it out
-  else { stage.append(el("div", "bs-q", "?"), el("p", "bs-tr", `Listen… Word ${BINGO.at + 1} of ${BINGO.order.length}`)); BINGO.timer = setTimeout(show, BINGO_REVEAL); }
+  else { // a ring that empties while the class looks for the word
+    const ring = el("div", "bingo-ring"); ring.id = "bingoRing"; const q = el("span", null, "?"); ring.append(q);
+    stage.append(ring, el("p", "bs-tr", `Listen… Word ${BINGO.at + 1} of ${BINGO.order.length}`));
+    const wait = bingoWait(), t0 = performance.now();
+    const tick = now => { const p = Math.min(100, ((now - t0) / wait) * 100); ring.style.setProperty("--p", (100 - p).toFixed(1)); if (p < 100 && ring.isConnected) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    BINGO.timer = setTimeout(show, wait);
+  }
   m.append(stage);
   const row = el("div", "bingo-row");
   const next = el("button", "btn primary", !W ? "Say the first word" : done ? "Every word has been called" : "Say the next word"); next.type = "button"; next.id = "bingoNext"; next.disabled = done;
@@ -9661,8 +9718,41 @@ function renderBingoCall() {
   const back = el("button", "link-btn", "Back to the cards"); back.type = "button"; back.id = "bingoCards";
   back.addEventListener("click", () => { stopSound(); renderBingo(); });
   row.append(next, again, reveal, win, back); m.append(row);
+  if (BINGO.blank && BINGO.at < 0) { // the words, big, for children filling in their own cards
+    const words = el("button", "btn quiet", "Show the words to copy"); words.type = "button"; words.id = "bingoWords";
+    words.addEventListener("click", () => {
+      const big = el("div", "bingo-big"); big.id = "bingoBig";
+      BINGO.pool.forEach(x => { const sp = fa("span", null, Z(x.fa)); if (!BINGO.read) sp.append(el("span", "pic", picOf(x))); big.append(sp); });
+      stage.replaceChildren(el("p", "bs-tr", "Write 8 of these in your squares, one each, in any order."), big); words.hidden = true;
+    });
+    row.append(words);
+  }
+  if (BINGO.at >= 0 && !BINGO.blank) { // check a card by its number
+    const chk = el("div", "bingo-check"); chk.id = "bingoCheck";
+    const crow = el("div", "bingo-row"), clab = el("label"), cin = el("input"); cin.type = "number"; cin.id = "bingoCardNo"; cin.min = "1"; cin.max = String(BINGO.n); cin.placeholder = "7";
+    clab.append(document.createTextNode("Someone called bingo? Card number:"), cin);
+    const go = el("button", "btn quiet", "Check the card"); go.type = "button"; go.id = "bingoCheckBtn";
+    const out = el("div"); out.id = "bingoCheckOut";
+    const doCheck = () => {
+      const k = Math.round(+cin.value) - 1; if (!(k >= 0 && k < BINGO.n)) { out.replaceChildren(el("p", "note", `Type a card number from 1 to ${BINGO.n}.`)); return; }
+      const r = bingoCheck(k); BINGO.check = k;
+      const grid = el("div", "bingo-grid");
+      for (let i = 0; i < 9; i++) {
+        const c = el("div", "bc" + (i === 4 ? " free" : "") + (r.hit[i] ? " hit" : "") + (r.win && r.win.includes(i) ? " line" : ""));
+        if (i === 4) c.textContent = "⭐"; else c.innerHTML = bingoWordHtml(r.ws[i < 4 ? i : i - 1]);
+        grid.append(c);
+      }
+      const verdict = el("p", r.win ? "note strong" : "note"); verdict.id = "bingoVerdict";
+      verdict.textContent = r.win ? `Bingo! Card ${k + 1} has a full line.` : `Not yet: card ${k + 1} has ${r.best} of 3 in its best line.`;
+      out.replaceChildren(verdict, grid);
+      if (r.win) { confetti(90); chime(); }
+    };
+    go.addEventListener("click", doCheck); cin.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doCheck(); } });
+    crow.append(clab, go); chk.append(crow, out); m.append(chk);
+    if (BINGO.check != null) { cin.value = String(BINGO.check + 1); doCheck(); }
+  }
   if (BINGO.at >= 0) {
-    m.append(el("p", "note", "Called so far (to check a card):"));
+    m.append(el("p", "note", "Called so far:"));
     const called = el("div", "bingo-called"); called.id = "bingoCalled";
     BINGO.order.slice(0, BINGO.at + 1).forEach(x => called.append(el("span", null, BINGO.read ? Z(x.fa) : `${picOf(x)} ${Z(x.fa)}`)));
     m.append(called);
