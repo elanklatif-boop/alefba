@@ -36,8 +36,8 @@ with sync_playwright() as p:
         pg.screenshot(path=PAD + f"entry_welcome_{'wide' if wide else 'phone'}.png")
         c.close()
     c, pg, errs, joins = page(b); pg.goto(URL); pg.wait_for_timeout(1300)
-    pg.click("#obJoinBtn"); pg.wait_for_timeout(300); gate(pg, "joinGate")
-    check("Join your class asks for the code and a name", pg.is_visible("#joinCode") and pg.is_visible("#joinName"))
+    pg.click("#obJoinBtn"); pg.wait_for_timeout(300)
+    check("Join your class goes straight to the code and a name (no grown-up question)", pg.is_visible("#joinCode") and pg.is_visible("#joinName") and not pg.is_visible("#joinGateForm"))
     pg.click("#joinCancel"); pg.wait_for_timeout(300)
     check("Not now goes back to the welcome", pg.is_visible("#onboard") and pg.is_visible("#obJoinBtn"))
     pg.click("#obTeachBtn"); pg.wait_for_timeout(400)
@@ -46,7 +46,6 @@ with sync_playwright() as p:
 
     # ---- a teacher's link, for a class of 13 and up ----
     c, pg, errs, joins = page(b); pg.goto(URL + "#join=abc234"); pg.wait_for_timeout(1300)
-    gate(pg, "joinGate")
     check("the link opens joining with the code filled in", pg.input_value("#joinCode") == "ABC234", pg.locator("#joinCode").count() and pg.input_value("#joinCode"))
     check("and takes the code out of the address", "#join" not in pg.url)
     pg.screenshot(path=PAD + "entry_join.png")
@@ -57,8 +56,8 @@ with sync_playwright() as p:
     check("no page errors", not errs, errs); c.close()
     # a class for 7 to 12, which the teacher later changes to 13 and up
     c, pg, errs, joins = page(b, join_ages="kids", progress_ages="kids"); pg.goto(URL + "#join=ABC234"); pg.wait_for_timeout(1300)
-    gate(pg, "joinGate"); pg.fill("#joinName", "Sara"); pg.click("#joinOk"); pg.wait_for_timeout(900)
-    check("a class for 7 to 12 gives the children's conversations", pg.evaluate("S.profile.adult") is False and pg.evaluate("S.cls.ages") == "kids")
+    pg.fill("#joinName", "Sara"); pg.click("#joinOk"); pg.wait_for_timeout(900)
+    check("a class for 7 to 12: joined with no grown-up question, and it gives the children's conversations", not pg.is_visible("#joinGateForm") and pg.evaluate("S.profile.adult") is False and pg.evaluate("S.cls.ages") == "kids")
     pg.unroute("**/api/class/progress")
     pg.route("**/api/class/progress", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"name": "Sara", "class": cls("teens")})))
     pg.evaluate("syncClass(true)"); pg.wait_for_timeout(800)

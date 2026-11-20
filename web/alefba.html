@@ -6766,9 +6766,9 @@ function grownUpGate(id, title, intro, then) {
   inp.focus();
 }
 const CLASS_SHARES = "Your teacher will see the name you type here and your progress: which lessons are done, which days you practised, and your streak. Your talks are never shared. You can leave the class any time from the Review tab.";
-function openJoinClass(prefill) {
-  grownUpGate("joinGate", "Joining a class", "A teacher's class can see this learner's first name or nickname and their progress. A grown-up says yes first.", () => showJoinForm(prefill));
-}
+// Joining asks nothing extra, except for a class for ages 3 to 6: there a grown-up says yes first (the server says so
+// when the code is for such a class, and the app asks the grown-up, then joins).
+function openJoinClass(prefill) { showJoinForm(prefill); }
 // From the welcome screen, or a link a teacher sent (learnalefba.com/#join=ABC234): the welcome stays underneath until
 // they've joined, so "Not now" goes back to it.
 function joinFromLink(code) { openJoinClass(code); }
@@ -6826,13 +6826,15 @@ function showJoinForm(prefill) {
   f.append(lc, code, ln, name, el("p", "note", CLASS_SHARES), err, ok, no);
   box.append(h, f);
   const say = t => { err.hidden = !t; err.textContent = t || ""; };
+  let grownUp = isAdult();
   f.addEventListener("submit", async e => {
     e.preventDefault(); say("");
     if (!code.value.trim()) return say("Type the class code your teacher gave you.");
     if (!name.value.trim()) return say("Type your first name or a nickname, so your teacher knows it's you.");
     ok.disabled = true;
-    const r = await apiPost("/class/join", { code: code.value, name: name.value });
+    const r = await apiPost("/class/join", { code: code.value, name: name.value, grownUp });
     ok.disabled = false;
+    if (r.error === "grown_up") return grownUpGate("joinGate", "A class for ages 3 to 6", "Its teacher will see the child's first name or nickname and what they practise. A grown-up says yes first.", () => { grownUp = true; f.requestSubmit(); });
     if (r.ok && r.data.token) {
       S.cls = { token: r.data.token, name: r.data.name, cname: r.data.class.name, ages: r.data.class.ages || null, assigned: (r.data.class.assigned || []).slice(0, 40), fullUntil: Number(r.data.class.fullUntil) || 0, talks: r.data.class.talks || null };
       if (!S.profile) S.profile = { skipped: true, goal: 2, adult: false };

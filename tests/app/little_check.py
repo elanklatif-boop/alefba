@@ -27,12 +27,19 @@ with sync_playwright() as p:
     pg.click("#obBack"); pg.wait_for_timeout(300)
     # a teacher's class for ages 4 to 6: joining it turns little mode on
     CLS = {"name": "Little ones", "ages": "little", "assigned": [], "fullUntil": 0, "talks": None}
-    pg.route("**/api/class/join", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"token": "T" * 43, "name": "Dara", "class": CLS})))
+    tries = []
+    def join(r):
+        body = json.loads(r.request.post_data or "{}"); tries.append(body.get("grownUp"))
+        if body.get("grownUp") is not True: return r.fulfill(status=409, content_type="application/json", body=json.dumps({"error": "grown_up"}))
+        r.fulfill(status=200, content_type="application/json", body=json.dumps({"token": "T" * 43, "name": "Dara", "class": CLS}))
+    pg.route("**/api/class/join", join)
     pg.route("**/api/class/progress", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"name": "Dara", "class": CLS})))
     pg.click("#obJoinBtn"); pg.wait_for_timeout(300)
+    pg.fill("#joinCode", "ABC234"); pg.fill("#joinName", "Dara"); pg.click("#joinOk"); pg.wait_for_timeout(700)
+    check("a class for ages 3 to 6: a grown-up says yes first", pg.is_visible("#joinGateForm") and "3 to 6" in pg.inner_text("#joinGateTitle"), tries)
     q = pg.inner_text("#joinGateForm"); import re; a, bb = map(int, re.findall(r"(\d+) × (\d+)", q)[0])
-    pg.fill("#joinGateAnswer", str(a * bb)); pg.click("#joinGateOk"); pg.wait_for_timeout(300)
-    pg.fill("#joinCode", "ABC234"); pg.fill("#joinName", "Dara"); pg.click("#joinOk"); pg.wait_for_timeout(900)
+    pg.fill("#joinGateAnswer", str(a * bb)); pg.click("#joinGateOk"); pg.wait_for_timeout(900)
+    check("then it joins by itself", tries == [False, True], tries)
     prof = pg.evaluate("S.profile")
     check(f"joining a class for ages 4 to 6 opens little mode, with no level check ({prof})", pg.is_visible("#little") and prof.get("little") is True and prof.get("name") == "Dara" and pg.is_hidden("#onboard"))
     check("it opens on a menu, not a lesson: Flashcards, Games, Letters", [t.split("\n")[0] for t in pg.locator(".little-act .lw-en").all_inner_texts()] == ["Flashcards", "Games", "Letters"] and pg.is_hidden("#littleHome"), pg.locator(".little-act .lw-en").all_inner_texts())

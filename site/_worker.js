@@ -1713,6 +1713,8 @@ async function classJoin(request, env, url, s) {
   if (!name) return reply({ error: "bad_name" }, 400);
   const c = await env.DB.prepare("SELECT * FROM classes WHERE code = ?").bind(code).first();
   if (!c) return reply({ error: "bad_code" }, 404);
+  // a class for ages 3 to 6: a grown-up says yes first (the app asks them, then tries again). Older classes join as before.
+  if (c.ages === "little" && body.grownUp !== true) return reply({ error: "grown_up" }, 409);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM class_members WHERE class_id = ?").bind(c.id).first();
   if (n && n.n >= CLASS.maxMembers) return reply({ error: "class_full" }, 409);
   const token = randomToken(), now = Date.now(), mid = randomId();

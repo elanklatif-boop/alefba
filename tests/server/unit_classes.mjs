@@ -141,6 +141,8 @@ r = await T.post(env(), "/api/class/create", { name: "Little ones", ages: "littl
 check("a class for ages 4 to 6", r.status === 200 && r.json.class.ages === "little", r.json);
 const little = r.json.class;
 r = await K.post(env(), "/api/class/join", { code: little.code, name: "Nima" });
+check("a class for ages 3 to 6 needs a grown-up's yes first", r.status === 409 && r.json.error === "grown_up", r.json);
+r = await K.post(env(), "/api/class/join", { code: little.code, name: "Nima", grownUp: true });
 check("a learner joining it is told the class is for little ones", r.status === 200 && r.json.class.ages === "little", r.json);
 const ltok = r.json.token;
 r = await T.post(env(), "/api/class/ages", { id: little.id, ages: "teens" });
