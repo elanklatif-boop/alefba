@@ -1343,10 +1343,10 @@ async function askClaude(env, body) {
   let why = "problem";
   if (res.status === 402 || /credit balance/i.test(msg)) why = "billing";
   else if (/usage limits/i.test(msg) || /spend_limit/i.test(code)) why = "limit_reached";
-  else if (/workspace/i.test(msg) && (res.status === 400 || res.status === 404)) why = "workspace";
+  else if (/workspace/i.test(msg) && res.status >= 400 && res.status < 500) why = "workspace"; // a key that isn't tied to one workspace
   else if (res.status === 401 || res.status === 403) why = "key_rejected";
   else if (res.status === 429 || res.status === 529 || res.status >= 500) why = "busy";
-  return { ok: false, status: res.status, why, type: String(err.type || "").replace(/[^a-z_]/g, "") };
+  return { ok: false, status: res.status, why, type: String(err.type || "").replace(/[^a-z_]/g, ""), msg: msg.replace(/[^\w .,:;'()\/-]/g, "").slice(0, 140) };
 }
 function claudeHeaders(env) {
   const h = { "content-type": "application/json", authorization: "Bearer " + env.ANTHROPIC_API_KEY.trim(), "anthropic-version": "2023-06-01" };
@@ -1394,7 +1394,7 @@ async function checkPage(request, env, url, s) {
       messages: [{ role: "user", content: "This is a setup check. Say hello in Persian." }],
     });
     claude = r.ok ? { ok: true, status: "working", message: CLAUDE_SAYS.working }
-      : { ok: false, status: r.why, message: CLAUDE_SAYS[r.why] + (r.why === "problem" && r.type ? ` (Claude said: ${r.type})` : "") };
+      : { ok: false, status: r.why, message: CLAUDE_SAYS[r.why] + (r.status ? ` (What Anthropic answered: ${r.status}${r.type ? " " + r.type : ""}${r.msg ? `, "${r.msg}"` : ""}.)` : "") };
     if (r.ok && s.db) { try { await ensureSchema(env); await addSpend(env, null, costMicro(r.data.usage)); } catch (e) {} }
   }
   items.push({ name: "Claude (the talks)", ...claude });
