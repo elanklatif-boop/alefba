@@ -6984,7 +6984,9 @@ function weekLetterSec(c) {
     b.addEventListener("click", async () => {
       msg.textContent = "Saving…";
       const r = await apiPost("/class/assign", { id: c.id, lessons: g === cur ? [] : [weekLetterId(g)] });
-      if (r.ok) teachClass(c.id); else msg.textContent = "That didn't save. Try again.";
+      if (!r.ok) { msg.textContent = "That didn't save. Try again."; return; }
+      await teachClass(c.id); // the page is drawn again: stay on the letters, not back at the top
+      const sec2 = $("weekLetterSec"); if (sec2) sec2.scrollIntoView({ block: "start" });
     });
     grid.append(b);
   });

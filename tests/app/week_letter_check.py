@@ -42,6 +42,7 @@ with sync_playwright() as p:
     check("it says what little learners do and what the letter is for", "no lessons to assign" in pg.inner_text("#weekLetterSec") and "No letter picked yet" in pg.inner_text("#weekLetterMsg"))
     pg.click("#wl-letter-be"); pg.wait_for_timeout(900)
     check("tapping ب makes it the letter of the week", saved == [["letter-be"]] and pg.get_attribute("#wl-letter-be", "aria-pressed") == "true" and "ب" in pg.inner_text("#weekLetterMsg"), saved)
+    check("and the page stays on the letters (it doesn't jump back to the top)", pg.evaluate("(() => { const r = document.querySelector('#weekLetterMsg').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()"))
     cards = {n: pg.inner_text(f"#mem-{i}") for n, i in (("Dara", "m1"), ("Nika", "m2"), ("Arya", "m3"))}
     check("Dara traced it: ✓, with 2 letters traced", "traced ✓" in cards["Dara"] and "2 letters traced" in cards["Dara"], cards["Dara"])
     check("Nika hasn't yet", "not traced yet" in cards["Nika"] and "1 letter traced" in cards["Nika"], cards["Nika"])
