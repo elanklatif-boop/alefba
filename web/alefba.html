@@ -4074,10 +4074,12 @@ async function recordClip(maxMs, vad) {
         let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
         const level = Math.sqrt(sum / buf.length), t = performance.now() - t0;
         if (t < 240) { room = Math.min(0.04, Math.max(room, level)); return; } // the first moment: how loud the room is
-        const loud = level > Math.max(0.012, room * 2.5);
+        // Starting to speak takes a clearly loud moment (two frames in a row); once they're speaking, quieter sounds
+        // keep the clip going, so the softer middle of a sentence, or a breath between words, doesn't end it.
+        const loud = level > (out.spoke ? Math.max(0.007, room * 1.6) : Math.max(0.012, room * 2.5));
         run = loud ? run + 1 : 0;
-        if (run >= 2) { if (!out.spoke) { out.spoke = true; if (vad.onSpeech) vad.onSpeech(); } lastLoud = t; }
-        if (out.spoke && t - lastLoud > (vad.pauseMs || 1000)) stopNow(); // they've stopped talking
+        if (run >= (out.spoke ? 1 : 2)) { if (!out.spoke) { out.spoke = true; if (vad.onSpeech) vad.onSpeech(); } lastLoud = t; }
+        if (out.spoke && t - lastLoud > (vad.pauseMs || 1800)) stopNow(); // they've stopped talking
         else if (!out.spoke && t > (vad.waitMs || 7000)) { out.quiet = true; stopNow(); } // nobody spoke
       }, 50);
     } catch (e) { clearInterval(watch); } // without the level check it records as before, until a tap or the time is up
@@ -9832,8 +9834,8 @@ async function listen(auto) {
   mic.classList.add("rec"); mic.innerHTML = STOP_ICON; inp.placeholder = auto ? "Listening… go ahead" : "Listening… tap the square when done";
   let wav, rec = null;
   try {
-    rec = TALK_REC = await recordClip(auto ? 15000 : 12000, { ctx: VAD_CTX, pauseMs: 1000, waitMs: auto ? 8000 : 10000 });
-    if (rec.auto && !auto) inp.placeholder = "Listening… it stops when you stop";
+    rec = TALK_REC = await recordClip(15000, { ctx: VAD_CTX, pauseMs: 1800, waitMs: auto ? 8000 : 10000 }); // a learner pauses to think mid-sentence: nearly 2 seconds of quiet before it sends
+    if (rec.auto && !auto) inp.placeholder = "Listening… say the whole sentence; it sends after 2 seconds of quiet";
     wav = await rec.done;
   }
   catch (e) { TALK_REC = null; TALK_MIC_BUSY = false; mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; if (!stillHere()) return; if (auto) { mine.handsFree = false; inp.placeholder = replyHint(); return; } const t = micTrouble(e); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.help) openMicHelp(); return; }
