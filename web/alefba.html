@@ -4073,7 +4073,7 @@ async function recordClip(maxMs, vad) {
         an.getFloatTimeDomainData(buf);
         let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
         const level = Math.sqrt(sum / buf.length), t = performance.now() - t0;
-        if (t < 240) { room = Math.min(0.04, Math.max(room, level)); return; } // the first moment: how loud the room is
+        if (t < 240) { room = Math.min(0.02, Math.max(room, level)); return; } // the first moment: how loud the room is (capped, in case they're already talking)
         // Starting to speak takes a clearly loud moment (two frames in a row); once they're speaking, quieter sounds
         // keep the clip going, so the softer middle of a sentence, or a breath between words, doesn't end it.
         const loud = level > (out.spoke ? Math.max(0.007, room * 1.6) : Math.max(0.012, room * 2.5));
@@ -6407,10 +6407,16 @@ function sayLine(r, slow, head, heard) {
   sayText(r.fa, { slow, voice: charVoice(TK.conv), after: () => { if (head) head.classList.remove("playing"); if (heard) heard(); } }).then(ok => { if (!ok && head) head.classList.remove("playing"); });
 }
 // What the microphone heard, before it's sent: in voice mode the learner can't see their words in the box first.
-function showHeard(text, auto) {
+function showHeard(text, auto, wav) {
   clearHeard();
   const c = el("div", "heard"); c.id = "heardCard";
   c.append(el("span", "note strong", "I heard:"), fa("p", "fa-line", text));
+  if (wav) { // the clip that was sent, so they can tell whether the microphone caught all of it
+    const secs = Math.max(0, (wav.byteLength - 44) / 32000);
+    const me = el("button", "play hear-me"); me.id = "heardMe"; me.type = "button"; me.innerHTML = ICON.sound;
+    me.append(document.createTextNode(`Hear what I said (${secs.toFixed(1)} s)`)); me.addEventListener("click", () => playClip(wav));
+    c.append(me);
+  }
   // the same line in Finglish and in the learner's language, so they can tell it heard them right
   const g = el("div", "heard-gloss"); g.append(el("p", "tr-always", "…")); c.append(g);
   glossLine(text).then(r => {
@@ -6426,13 +6432,7 @@ function showHeard(text, auto) {
   const again = el("button", "btn quiet", "Say it again"); again.type = "button"; again.id = "heardAgain"; again.addEventListener("click", () => { c.remove(); $("talkMic").click(); });
   const type = el("button", "btn quiet", "Fix it by typing"); type.type = "button"; type.id = "heardType"; type.addEventListener("click", () => { c.remove(); $("talkInput").value = text; $("talkInput").focus(); });
   acts.append(ok, again, type); c.append(acts);
-  if (auto) { // hands-free: it goes by itself in a moment, unless they tap the card to stop it and check
-    const bar = el("div", "heard-bar"); bar.append(el("span")); c.prepend(bar); c.classList.add("auto");
-    const note = el("span", "note heard-auto", "Sending… tap here to wait"); c.insertBefore(note, acts);
-    const t = setTimeout(() => { if (c.isConnected) { c.remove(); send(text); } }, HEARD_SEND_MS);
-    const hold = () => { clearTimeout(t); c.classList.remove("auto"); bar.remove(); note.remove(); if (TK) TK.handsFree = false; };
-    c.addEventListener("pointerdown", hold, { once: true }); c.addEventListener("keydown", hold, { once: true });
-  }
+  // Nothing is sent until they tap Send: what was heard should be checked first, even in voice mode.
   $("chat").append(c); scrollChat();
   setTimeout(() => ok.focus(), 0);
 }
@@ -7656,7 +7656,7 @@ function addAiBubble(r, early) {
   if (canSayText() && !(early && early.said && early.fa === r.fa)) { const n = TK.replyN; sayLine(r, false, head, () => lineHeard(n)); }
 }
 // Hands-free talking in voice mode: once the learner has answered out loud, the microphone opens by itself when the
-// character has finished speaking, stops when they pause, and what it heard is sent after a moment.
+// character has finished speaking, stops when they pause, and what it heard is shown for them to check and send.
 function lineHeard(n) { if (!TK || TK.replyN !== n) return; TK.heardOut = true; maybeListen(); }
 function maybeListen() {
   if (!TK || !TK.voice || !TK.handsFree || !TK.heardOut || TK.busy || TK.done || !TK.started) return;
@@ -9856,7 +9856,7 @@ async function listen(auto) {
   if (!stillHere()) return;
   if (!r.ok) { const t = micTrouble({ name: r.error }); inp.placeholder = t.text; if (t.stop) { SAY.off = true; mic.hidden = true; } if (t.plan) { refreshAccount().then(() => { accountChanged(); openSpeakLocked("mic"); }); } return; }
   if (!r.text) { inp.placeholder = "We couldn't hear anything. Try again, a bit louder."; return; }
-  if (TK.voice) { showHeard(r.text, TK.handsFree); return; } // voice mode: check what was heard, then send
+  if (TK.voice) { showHeard(r.text, TK.handsFree, wav); return; } // voice mode: check what was heard, then send
   inp.value = r.text; inp.focus();
 }
 $("teachBack").addEventListener("click", () => { if (TEACH.picked && TEACH.cur) teachClass(TEACH.cur.id); else if (TEACH.cur) teachList(); else closeTeacher(); });

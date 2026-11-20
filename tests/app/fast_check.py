@@ -51,7 +51,19 @@ def page(b, voice):
     return c, pg, errs
 def launch(p, wav):
     return p.chromium.launch(args=["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", f"--use-file-for-fake-audio-capture={wav}%noloop", "--autoplay-policy=no-user-gesture-required"])
+def answer_wav(path):
+    """A pretend answer for the fake microphone: a third of a second of quiet, then speech-like sound up to 1.7 s, then quiet
+    until 10 s (the file must go on past the end of the recording: once it ends, Chrome's fake microphone gives noise)."""
+    import math, struct, wave
+    rate = 16000; out = []
+    for i in range(int(rate * 10)):
+        t = i / rate
+        v = 0 if t < 0.3 or t > 1.7 else 0.5 * math.sin(2 * math.pi * 180 * t) * (0.6 + 0.4 * math.sin(2 * math.pi * 4 * t)) * (0.7 + 0.3 * math.sin(2 * math.pi * 11 * t))
+        out.append(struct.pack("<h", int(v * 32767)))
+    with wave.open(path, "wb") as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate); w.writeframes(b"".join(out))
 with sync_playwright() as p:
+    import os
+    if not os.path.exists(PAD + "answer.wav"): answer_wav(PAD + "answer.wav")
     b = launch(p, PAD + "answer.wav")
     # ---- reading mode: the line comes early, then the rest ----
     c, pg, errs = page(b, False)
@@ -77,12 +89,14 @@ with sync_playwright() as p:
     pg.click("#talkMic")
     pg.wait_for_function("window.__hears >= 1", timeout=9000)
     took = pg.evaluate("window.__hearAt[0]") - t0
-    check(f"the microphone stops by itself after the learner pauses ({took:.0f} ms, the answer ends at 1.7 s)", 1700 < took < 4200, took)
-    pg.wait_for_selector("#heardCard.auto", timeout=3000)
-    check("what it heard is shown, with 'Sending…'", "Sending" in pg.inner_text("#heardCard") and "خوبم" in pg.inner_text("#heardCard"))
+    check(f"the microphone stops by itself after the learner pauses ({took:.0f} ms, the answer ends at 1.7 s and it waits nearly 2 s of quiet)", 2500 < took < 5500, took)
+    pg.wait_for_selector("#heardCard", timeout=3000)
+    check("what it heard is shown, with a Send button and a way to hear the clip, and nothing is sent by itself", "خوبم" in pg.inner_text("#heardCard") and pg.is_visible("#heardSend") and pg.is_visible("#heardMe") and "Sending" not in pg.inner_text("#heardCard") and pg.locator("#heardCard.auto").count() == 0)
     pg.screenshot(path=PAD + "fast_heard.png")
-    pg.wait_for_function("window.__talks >= 2", timeout=4000)
-    check("and sent by itself a moment later", pg.locator("#heardCard").count() == 0 and "خوبم" in pg.inner_text("#chat .msg.me >> nth=-1"))
+    pg.wait_for_timeout(2500)
+    check("it's still there after a few seconds, waiting for the learner to check it", pg.locator("#heardCard").count() == 1 and pg.evaluate("window.__talks") == 1)
+    pg.click("#heardSend"); pg.wait_for_function("window.__talks >= 2", timeout=4000)
+    check("Send sends it", pg.locator("#heardCard").count() == 0 and "خوبم" in pg.inner_text("#chat .msg.me >> nth=-1"))
     pg.wait_for_timeout(600)
     check("the answer's line is spoken as soon as it comes", pg.evaluate("window.__said.length") == 2 and pg.locator("#chat .msg.ai.early").count() == 1, pg.evaluate("window.__said"))
     check("the microphone doesn't open while the rest of the reply is still coming", not pg.evaluate("!!TALK_REC"))
@@ -94,11 +108,10 @@ with sync_playwright() as p:
     hears = pg.evaluate("window.__hears")
     check("a dropped clip isn't sent anywhere", hears == 1 and not pg.evaluate("!!TALK_REC"), hears)
     check("no page errors", not errs, errs)
-    # tapping the 'I heard' card stops it going by itself
-    pg.evaluate("showHeard('خوبم', true); 0"); pg.wait_for_timeout(200)
-    pg.click("#heardCard .fa-line"); pg.wait_for_timeout(2200)
-    check("tapping what it heard keeps it there to check (not sent)", pg.locator("#heardCard").count() == 1 and pg.evaluate("window.__talks") == 2 and "Sending" not in pg.inner_text("#heardCard"))
-    check("and the next answer waits for a tap again", pg.evaluate("TK.handsFree") is False)
+    # the 'I heard' card never goes by itself
+    pg.evaluate("showHeard('خوبم', true); 0"); pg.wait_for_timeout(2200)
+    check("what it heard stays there to check (not sent)", pg.locator("#heardCard").count() == 1 and pg.evaluate("window.__talks") == 2 and "Sending" not in pg.inner_text("#heardCard"))
+    check("and the microphone still opens by itself for the next answer (only sending needs a tap)", pg.evaluate("TK.handsFree") is True)
     pg.evaluate("clearHeard(); 0")
     # typing turns hands-free off
     pg.evaluate("TK.handsFree = true; 0"); pg.fill("#talkInput", "khubam"); pg.click("#talkSend"); pg.wait_for_timeout(2400)

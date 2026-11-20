@@ -816,6 +816,12 @@ check("the earlier version's Stripe customer and used free talks are carried ove
     r = await hear(Hz, env({ AI, ...noStripe, ...VOICE }), wav());
     check("hear: if Azure heard nothing, Whisper is the back-up", r.status === 200 && r.json.text === "از ویسپر" && whisperCalls.length === 2, r.json);
     azureNoMatch = false;
+    // a sentence (a clip of 2.5 seconds or more) goes to Whisper first, since Azure's short-audio service stops at the first pause
+    azureCalls.length = 0; whisperCalls.length = 0;
+    r = await hear(Hz, env({ AI, ...noStripe, ...VOICE }), wav(16000 * 2 * 4));
+    check("hear: a 4-second clip goes to Whisper first, with its pauses kept, and Azure isn't asked", r.status === 200 && r.json.text === "از ویسپر" && whisperCalls.length === 1 && whisperCalls[0].vad_filter === false && azureCalls.length === 0, { r: r.json, w: whisperCalls.length, a: azureCalls.length });
+    r = await hear(Hz, env({ AI: { run: async () => { throw new Error("down"); } }, ...noStripe, ...VOICE }), wav(16000 * 2 * 4));
+    check("hear: if Whisper is down for a sentence, Azure is the back-up", r.status === 200 && r.json.text === "من کافی دوست دارم" && azureCalls.length === 1, { r: r.json, a: azureCalls.length });
     const AIlatin = { run: async () => ({ text: "من خوش اومد PYM JBZ" }) };
     r = await hear(Hz, env({ AI: AIlatin, ...noStripe }), wav());
     check("hear: stray Latin letters Whisper makes up are dropped", r.status === 200 && r.json.text === "من خوش اومد", r.json);

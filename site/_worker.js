@@ -749,24 +749,31 @@ async function hear(request, env, url, s) {
   const expect = String(url.searchParams.get("expect") || "").normalize("NFC").trim();
   const prompt = expect.length <= 300 && /^[\u0600-\u06FF\u200c\s.,!?؟،]+$/.test(expect) && /[\u0621-\u06CC]/.test(expect) ? expect : "یک کلمه یا یک جمله‌ی کوتاه فارسی.";
   let text = "";
-  // Azure's Persian speech recognition is much better than Whisper at short Persian phrases, so it goes first when the
-  // Azure voice is set up; Whisper is the back-up if Azure is down or hears nothing.
-  if (s.voice) {
+  // Azure's Persian speech recognition is much better than Whisper at short Persian phrases, so short clips (a word
+  // or two) go there first when the Azure voice is set up. But Azure's short-audio service writes down only the first
+  // phrase and stops at the first pause, so a sentence with a pause in it (a learner thinking) would lose its second
+  // half. Longer clips go to Whisper first, which hears the whole clip. Each is the other's back-up.
+  const seconds = (buf.length - 44) / 32000, sentence = seconds >= HEAR_SENTENCE_SECS;
+  const whisper = async () => {
+    const r = await env.AI.run(HEAR_MODEL, {
+      audio: base64(buf), language: "fa", task: "transcribe", vad_filter: !sentence, // a sentence keeps its pauses: the filter can drop a soft start
+      condition_on_previous_text: false, initial_prompt: prompt,
+    });
+    return cleanHeard(String((r && (r.text || (r.transcription_info && r.transcription_info.text))) || ""));
+  };
+  if (s.voice && !sentence) {
     const az = await azureHear(env, buf);
     if (az) return reply({ text: az });
   }
-  try {
-    const r = await env.AI.run(HEAR_MODEL, {
-      audio: base64(buf), language: "fa", task: "transcribe", vad_filter: true,
-      condition_on_previous_text: false, initial_prompt: prompt,
-    });
-    text = String((r && (r.text || (r.transcription_info && r.transcription_info.text))) || "");
-  } catch (e) {
+  try { text = await whisper(); } catch (e) {
+    if (s.voice && sentence) { const az = await azureHear(env, buf); if (az) return reply({ text: az }); }
     await settleBudget(env, hold.keys, -hold.amount);
     return reply({ error: "hear_failed" }, 502);
   }
-  return reply({ text: cleanHeard(text) });
+  if (!text && s.voice && sentence) text = await azureHear(env, buf); // Whisper heard nothing in a long clip: let Azure try
+  return reply({ text });
 }
+const HEAR_SENTENCE_SECS = 2.5; // a clip this long is a sentence, not a word
 // Whisper sometimes makes up stray Latin letters when it isn't sure; the learner is speaking Persian, so drop them.
 function cleanHeard(t) { return String(t || "").replace(/[A-Za-z]+/g, " ").replace(/\s+/g, " ").trim().replace(/[.。]+$/, "").slice(0, 300); }
 // A WAV file of silence (16 kHz, mono, 16-bit), for testing the speech-to-text the way a real clip goes.
