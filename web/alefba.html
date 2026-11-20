@@ -4119,6 +4119,7 @@ async function hearClip(wav, expect) {
   try { j = await r.json(); } catch (e) {}
   if (r.ok && j && typeof j.text === "string") return { ok: true, text: j.text };
   const error = (j && j.error) || "server_error";
+  if (!["needs_plan", "sign_in", "too_short", "too_long"].includes(error)) count("mic_fail"); // the website's fault, not the learner's: counted, so it shows in the stats
   if (error === "needs_plan" || error === "not_configured") { if (ACCT) { ACCT = { ...ACCT, hear: false }; accountChanged(); } }
   if (error === "sign_in" && ACCT) { ACCT = { ...ACCT, signedIn: false, hear: false }; accountChanged(); }
   return { ok: false, error };
@@ -4181,6 +4182,10 @@ function micTrouble(e) {
   if (name === "not_configured") return { text: "Speaking isn't working on the website right now. Try again later.", stop: true };
   if (name === "resting") return { text: "That's lots of speaking for today! There's more tomorrow.", stop: true };
   if (name === "too_long") return { text: "That was a bit long. Try saying just the word.", stop: false };
+  if (name === "too_short") return { text: "That was very short. Try again, and say the whole word.", stop: false };
+  if (name === "hear_failed") return { text: "The website's listening isn't working right now. You can type instead, and try the microphone again later.", stop: false };
+  if (name === "paused") return { text: "Listening is paused on the website today. You can type instead.", stop: false };
+  if (name === "network") return { text: "No connection just now. Check the internet and try again.", stop: false };
   return { text: "That couldn't be checked just now. Let's try again in a moment.", stop: false };
 }
 

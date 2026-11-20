@@ -259,6 +259,17 @@ const beforeCheck = state.claudeHits.length;
 r = await new Agent().call(env({ DAILY_BUDGET: "0.000001" }), "/api/check");
 check("and the setup check says today's limit was reached, without asking Claude", r.json.items[0].status === "daily_limit" && /DAILY_BUDGET/.test(r.json.items[0].message) && state.claudeHits.length === beforeCheck, r.json.items[0]);
 
+// the microphone on the setup check: Whisper gets a real test clip, and says what went wrong
+{
+  const runs = [];
+  r = await new Agent().call(env({ AI: { run: async (m, a) => { runs.push(a); return { text: "" }; } } }), "/api/check");
+  const it = r.json.items.find(i => /Workers AI/.test(i.name));
+  check("the setup check sends a second of silence through Whisper, and reports it working", it && it.ok && /test clip/.test(it.message) && runs.length === 1 && typeof runs[0].audio === "string" && runs[0].audio.length > 40000, { it, n: runs.length });
+  r = await new Agent().call(env({ AI: { run: async () => { throw new Error("3040: Daily neurons limit exceeded"); } }, DAILY_BUDGET: "7" }), "/api/check"); // a different setup, so the minute's cache isn't reused
+  const bad = r.json.items.find(i => /Workers AI/.test(i.name));
+  check("when Whisper fails, the check says the microphone fails for everyone, suspects the daily allowance, and quotes Cloudflare", bad && !bad.ok && /fails for everyone/.test(bad.message) && /allowance/.test(bad.message) && /neurons limit/.test(bad.message), bad);
+}
+
 // ---------------- plans ----------------
 r = await new Agent().post(env(), "/api/checkout", { plan: "basic" });
 check("choosing a plan needs sign-in", r.status === 401, r.json);

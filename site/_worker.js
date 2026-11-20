@@ -216,7 +216,7 @@ const FIRST_KINDS = [["new", "Start learning (new to Persian)", ["alef", "be", "
   ["heard", "Already speak some Persian", ["hear bâbâ", "question", "hear mâmân", "question", "hear âb", "read nân", "new word bârân"]],
   ["other", "Came another way (Find my level, a class)", []]];
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_show", "nudge_on", "cal_on", "comeback_show", "from_email",
-  "ob_start", "ob_heard", "page_error", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "play_link", "game_lesson", "guide_open", "guide_start", "bingo_print", "bingo_call",
+  "ob_start", "ob_heard", "page_error", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "play_link", "game_lesson", "guide_open", "guide_start", "bingo_print", "bingo_call", "mic_fail",
   ...FIRST_KINDS.flatMap(([k]) => [...Array.from({ length: 12 }, (_, i) => `first_${k}_${i + 1}`), `first_${k}_done`, `first_${k}_left`])];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
@@ -253,7 +253,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
     ["open_child", "Children"], ["open_adult", "Adults"], ["open_unset", "Not chosen yet"], ["lesson_start", "Lessons started"], ["lesson_done", "Lessons finished"], ["practice_done", "Writing practice"], ["review_done", "Reviews"], ["game_done", "Games"], ["talk_start", "Talks started"], ["nudge_show", "Email offer shown"], ["nudge_on", "Asked for the email"], ["comeback_show", "First lesson done: asked to come back"], ["cal_on", "Set a calendar reminder"], ["from_email", "Came from the email"],
     ["ob_start", "Welcome: Start learning"], ["ob_heard", "Welcome: Already speak some"], ["ob_demo", "Welcome: tapped the nân / nun taste"], ["ob_level", "Welcome: Find my level"], ["ob_join", "Welcome: Join your class"], ["ob_little", "Welcome: Little one"], ["ob_teacher", "Welcome: I'm a teacher"], ["ob_signin", "Welcome: Sign in"],
     ["who_adult", "Said: teen or adult"], ["who_child", "Said: child"], ["who_little", "Said: little one"], ["who_teacher", "Said: teacher"], ["join_done", "Joined a class"], ["class_made", "Classes made"],
-    ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"], ["books_open", "Library: Books for families tapped"], ["taarof_link", "Taarof link (learnalefba.com/taarof): test opened"], ["rally_link", "Rally link (learnalefba.com/rally): rally opened"], ["play_link", "Classroom game link (learnalefba.com/play): opened"], ["bingo_print", "Bingo: cards printed"], ["bingo_call", "Bingo: games called on a screen"], ["game_lesson", "Game score card: Try a free lesson tapped"], ["taarof_share", "Taarof games: Challenge a friend tapped"], ["guide_open", "Guide pages (e.g. What is taarof?): opened"], ["guide_start", "Guide pages: went to the app"]];
+    ["name_open", "Name page: opened"], ["name_made", "Name page: names made"], ["name_share", "Name page: shared or saved"], ["name_start", "Name page: went to the app"], ["books_open", "Library: Books for families tapped"], ["taarof_link", "Taarof link (learnalefba.com/taarof): test opened"], ["rally_link", "Rally link (learnalefba.com/rally): rally opened"], ["play_link", "Classroom game link (learnalefba.com/play): opened"], ["bingo_print", "Bingo: cards printed"], ["bingo_call", "Bingo: games called on a screen"], ["mic_fail", "Microphone: the website couldn't check a clip (not the learner's fault)"], ["game_lesson", "Game score card: Try a free lesson tapped"], ["taarof_share", "Taarof games: Challenge a friend tapped"], ["guide_open", "Guide pages (e.g. What is taarof?): opened"], ["guide_start", "Guide pages: went to the app"]];
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const total = k => Object.values(days).reduce((t, d) => t + (d[k] || 0), 0);
   const head = "<tr><th>Day</th>" + cols.map(c => `<th>${esc(c[1])}</th>`).join("") + "</tr>";
@@ -769,6 +769,22 @@ async function hear(request, env, url, s) {
 }
 // Whisper sometimes makes up stray Latin letters when it isn't sure; the learner is speaking Persian, so drop them.
 function cleanHeard(t) { return String(t || "").replace(/[A-Za-z]+/g, " ").replace(/\s+/g, " ").trim().replace(/[.。]+$/, "").slice(0, 300); }
+// A WAV file of silence (16 kHz, mono, 16-bit), for testing the speech-to-text the way a real clip goes.
+function silentWav(seconds) {
+  const n = 16000 * seconds * 2, b = new Uint8Array(44 + n), v = new DataView(b.buffer), str = (o, t) => { for (let i = 0; i < t.length; i++) b[o + i] = t.charCodeAt(i); };
+  str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, "data"); v.setUint32(40, n, true);
+  return b;
+}
+// The status Azure's speech-to-text gives a clip (200 when it's working), for the setup check.
+async function azureHearStatus(env, wav) {
+  const region = String(env.AZURE_SPEECH_REGION).trim().toLowerCase();
+  try {
+    const res = await fetch(serviceURL(env.AZURE_BASE_URL, `https://${region}.stt.speech.microsoft.com`) + "/speech/recognition/conversation/cognitiveservices/v1?language=fa-IR&format=simple", {
+      method: "POST", headers: { "Ocp-Apim-Subscription-Key": String(env.AZURE_SPEECH_KEY).trim(), "content-type": "audio/wav; codecs=audio/pcm; samplerate=16000", accept: "application/json", "user-agent": "Alefba" }, body: wav, signal: AbortSignal.timeout(15000) });
+    return res.status;
+  } catch (e) { return 0; }
+}
 // Azure speech to text for a short clip (about 12 seconds at most). Returns the Persian text, or "" to fall back.
 async function azureHear(env, wav) {
   const region = String(env.AZURE_SPEECH_REGION).trim().toLowerCase();
@@ -1449,10 +1465,23 @@ async function checkPage(request, env, url, s) {
     else if (acc.data && acc.data.charges_enabled === false) items.push({ name: "Payments (Stripe)", ok: false, message: "Live key set, but Stripe can't take payments yet. Finish activating the account in Stripe." });
     else items.push({ name: "Payments (Stripe)", ok: true, message: `Live: plans are ${dollars(p.basic)} for ${p.basicTalks} talks a month, ${dollars(p.unlimited)} a month for unlimited, or ${dollars(p.yearly)} a year.` });
   }
-  items.push(s.ai
-    ? { name: "Speaking practice (Workers AI)", ok: true, message: "Connected. Talk voice typing works, and families with a plan get speaking practice (they hear themselves next to the real voice)." }
-    : { name: "Speaking practice (Workers AI)", ok: false, optional: true, message: "Not set up yet. To let families with a plan practice speaking, add a Workers AI binding with the variable name AI under Settings, then Bindings, then upload the site again." });
+  if (!s.ai) items.push({ name: "Speaking practice (Workers AI)", ok: false, optional: true, message: "Not set up yet. To let families with a plan practice speaking, add a Workers AI binding with the variable name AI under Settings, then Bindings, then upload the site again." });
+  else { // a real test: a second of silence through Whisper, the way a learner's clip goes
+    const silent = silentWav(1);
+    try {
+      await env.AI.run(HEAR_MODEL, { audio: base64(silent), language: "fa", task: "transcribe", vad_filter: true, condition_on_previous_text: false, initial_prompt: "سلام" });
+      items.push({ name: "Speaking practice (Workers AI)", ok: true, message: "Connected, and Whisper just checked a test clip. Talk voice typing works, and families with a plan get speaking practice." });
+    } catch (e) {
+      const msg = String((e && e.message) || e || "").slice(0, 200);
+      items.push({ name: "Speaking practice (Workers AI)", ok: false, message: `Workers AI is connected but Whisper couldn't check a test clip, so the microphone fails for everyone (learners see "the website's listening isn't working"). ${/quota|limit|neurons|exceeded|402|429/i.test(msg) ? "This looks like the free Workers AI allowance for today being used up: in Cloudflare, open Workers & Pages, then AI, and check the usage; the Workers Paid plan lifts the limit." : "Try again in a minute; if it keeps failing, check Workers & Pages, then AI, in Cloudflare."} (What Cloudflare answered: "${msg}".)` });
+    }
+  }
   // spoken conversations
+  if (s.voice) { // and Microsoft's speech-to-text, which goes first for the microphone
+    const st = await azureHearStatus(env, silentWav(1));
+    if (st !== 200) items.push({ name: "Microphone (Microsoft speech-to-text)", ok: false, optional: true, message: st === 401 || st === 403 ? "Azure didn't accept AZURE_SPEECH_KEY for the microphone, so clips go to Whisper instead (which is worse at short Persian phrases). If the free Azure allowance for the month is used up, this comes back next month, or the Speech resource can move to the paid tier." : st === 429 ? "Azure's speech-to-text is rate-limited right now, so clips go to Whisper instead." : `Azure's speech-to-text couldn't be reached (status ${st}), so clips go to Whisper instead.` });
+    else items.push({ name: "Microphone (Microsoft speech-to-text)", ok: true, message: "Azure just checked a test clip. Learners' clips go here first, with Whisper as the back-up." });
+  }
   if (!s.voice) items.push({ name: "Spoken conversations (Microsoft voices)", ok: false, optional: true, message: "Not set up yet. Characters are read aloud only on devices with their own Persian voice. To give every family with a plan spoken conversations, make a free Speech resource in Azure, then add AZURE_SPEECH_KEY and AZURE_SPEECH_REGION (like eastus) in Cloudflare and upload the site again." });
   else {
     const r = await azureSpeak(env, "سلام", SAY_VOICES.f, false);
