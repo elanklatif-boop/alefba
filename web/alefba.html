@@ -788,6 +788,11 @@ button.phrase:hover { border-color: var(--turq); }
 .confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); } }
 @media (prefers-reduced-motion: reduce) { .balloon { animation: none; } .balloon.popped { opacity: .3; } }
+/* Read it: the balloons carry a word in Persian instead of a picture */
+.sky.read .balloon { width: min(88px, 21vw); aspect-ratio: 5 / 6; }
+.balloon-fa { font-family: var(--font-fa); font-weight: 700; font-size: clamp(1rem, 4.4vw, 1.25rem); color: var(--ink); direction: rtl; white-space: nowrap; line-height: 1.3; }
+.game-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.game-modes .game-kind { padding-block: 10px; }
 /* learnalefba.com/play on a classroom screen: the balloon game big enough to see from the back of the room (phones stay as they are) */
 .class-play-note { background: var(--saffron-soft); border-radius: 16px; padding: 14px 16px; display: grid; gap: 4px; }
 @media (min-width: 900px) {
@@ -799,6 +804,8 @@ button.phrase:hover { border-color: var(--turq); }
   body.class-play #exBox .ex-title { font-size: 2.4rem; }
   body.class-play #exBox .ex-sub { font-size: 1.35rem; }
   body.class-play #balloonPlay { font-size: 1.25rem; padding: 14px 24px; }
+  body.class-play .sky.read .balloon { width: min(170px, 13vw, 22vh); }
+  body.class-play .balloon-fa { font-size: clamp(1.6rem, 2.6vw, 2.8rem); }
 }
 .reward { display: flex; flex-direction: column; align-items: center; gap: 8px; background: var(--saffron-soft); border-radius: 16px; padding: 14px 16px; }
 .reward-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
@@ -2964,6 +2971,20 @@ const picOf = W => (W && PICS[W.tr]) || "";
 // Words with a picture, one per picture (mâdar and mâmân share one), so a picture never has two right answers.
 function picWords(pool) { const seen = new Set(); return shuffle(pool.filter(W => picOf(W) && !seen.has(picOf(W)) && seen.add(picOf(W)))); }
 const GAME_PAIRS = 6, BALLOON_ROUNDS = 6;
+// The balloon game has two ways to play. Pictures (easier): hear a word, pop its picture. Read it (harder): hear a word
+// and pop it written in Persian, among words that look and sound alike, ten rounds, six balloons on a wide screen.
+const BALLOON_READ_ROUNDS = 10;
+const balloonRead = () => !!(S.prefs && S.prefs.balloonRead);
+const plainFa = s => Z(s).replace(/[\u200c\s!?.،؟]/g, "");
+// words for Read it: one word (not a phrase), short enough for a balloon, with a sound, one per spelling
+function readWords(pool) { const seen = new Set(); return shuffle(pool.filter(W => W.fa && !/\s/.test(Z(W.fa).trim()) && plainFa(W.fa).length <= 8 && hasAudio(wordAudio(W)) && !seen.has(plainFa(W.fa)) && seen.add(plainFa(W.fa)))); }
+// wrong answers that look and sound like the right one: letters in common, the same first or last letter, a similar length
+function lookAlikes(W, pool, n) {
+  const a = plainFa(W.fa), A = new Set(a);
+  const score = x => { const b = plainFa(x.fa); let s = 0; for (const ch of new Set(b)) if (A.has(ch)) s += 1; if (b[0] === a[0]) s += 2; if (b[b.length - 1] === a[a.length - 1]) s += 1; return s - Math.abs(b.length - a.length) * 0.5; };
+  const cands = readWords(pool).filter(x => plainFa(x.fa) !== a);
+  return shuffle(cands.sort((x, y) => score(y) - score(x)).slice(0, n + 3)).slice(0, n);
+}
 const gameWords = lv => picWords(lv.words);
 // ================= THE TAAROF GAME =================
 // Six everyday scenes, two turns each. Someone offers, insists or thanks you, and you pick what to say: the polite
@@ -4385,23 +4406,24 @@ function showMemory(box, ex) {
   return setMain("Continue", false, false);
 }
 function showBalloons(box, ex) {
-  box.append(el("span", "ex-tag", "Game"), el("h2", "ex-title", "Pop the balloon"));
+  box.append(el("span", "ex-tag", ex.read ? "Game · Read it" : "Game"), el("h2", "ex-title", ex.read ? "Pop the word you hear" : "Pop the balloon"));
   const B = R.balloon = { round: 0, right: 0 };
-  const sub = el("p", "ex-sub"); const sky = el("div", "sky"); sky.id = "sky";
+  const sub = el("p", "ex-sub"); const sky = el("div", "sky" + (ex.read ? " read" : "")); sky.id = "sky";
+  const N = ex.read && innerWidth >= 700 ? 6 : 4; sky.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
   const again = el("button", "play", ""); again.type = "button"; again.id = "balloonPlay"; again.innerHTML = ICON.sound; again.append(document.createTextNode("Play the word again"));
   const score = el("p", "ex-sub balloon-score"); score.id = "balloonScore"; score.setAttribute("aria-live", "polite");
   box.append(sub, again, sky, score);
   const COLORS = ["b1", "b2", "b3", "b4"];
   const round = () => {
     const W = ex.words[B.round], a = wordAudio(W), can = hasAudio(a);
-    sub.replaceChildren(document.createTextNode(can ? "Listen, then pop the balloon with the right picture." : "Pop the balloon with the picture for "), ...(can ? [] : [fa("span", "fa", W.fa), document.createTextNode(` (${W.tr}).`)]));
+    sub.replaceChildren(document.createTextNode(ex.read ? "Listen, then pop the balloon with that word, written in Persian." : can ? "Listen, then pop the balloon with the right picture." : "Pop the balloon with the picture for "), ...(can || ex.read ? [] : [fa("span", "fa", W.fa), document.createTextNode(` (${W.tr}).`)]));
     again.hidden = !can; again.onclick = () => speak(a);
-    const others = picWords(ex.level.words.concat(WORDS)).filter(x => picOf(x) !== picOf(W)).slice(0, 3);
+    const others = ex.read ? lookAlikes(W, ex.level.words.concat(WORDS), N - 1) : picWords(ex.level.words.concat(WORDS)).filter(x => picOf(x) !== picOf(W)).slice(0, 3);
     const opts = shuffle([W, ...others]); let missed = false;
     sky.replaceChildren();
     opts.forEach((x, i) => {
-      const b = el("button", "balloon " + COLORS[i]); b.type = "button"; b.id = "balloon-" + i; b.style.animationDelay = `${-i * 0.7}s`;
-      b.setAttribute("aria-label", x.m); b.append(el("span", "balloon-pic", picOf(x)));
+      const b = el("button", "balloon " + COLORS[i % COLORS.length]); b.type = "button"; b.id = "balloon-" + i; b.style.animationDelay = `${-i * 0.7}s`;
+      b.setAttribute("aria-label", x.m); b.append(ex.read ? fa("span", "balloon-fa", Z(x.fa)) : el("span", "balloon-pic", picOf(x)));
       b.addEventListener("click", () => {
         if (R.phase !== "answer" || b.disabled) return;
         if (x === W) {
@@ -4438,6 +4460,10 @@ function showRepeat(box, ex) {
 let GAME_KIND = "memory";
 const knownPicWords = () => picWords(WORDS.filter(W => knowsWord(W)));
 function startGame(kind, pool, name) {
+  if (kind === "balloons" && balloonRead()) {
+    startLesson(null, [{ type: "balloons", read: true, level: { words: pool }, words: readWords(pool).slice(0, BALLOON_READ_ROUNDS) }], name);
+    R.game = true; return;
+  }
   const ws = picWords(pool);
   const ex = kind === "memory" ? { type: "memory", words: ws.slice(0, GAME_PAIRS) } : { type: "balloons", level: { words: pool }, words: ws.slice(0, BALLOON_ROUNDS) };
   startLesson(null, [ex], name);
@@ -4447,11 +4473,11 @@ function renderGamesTab() {
   const v = $("view-games"); if (!v) return; v.replaceChildren();
   if (document.body.classList.contains("class-play")) {
     const n = el("div", "class-play-note"); n.id = "classPlayNote";
-    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen and pick the words below. Alefba says a word, and the class shouts which balloon to pop."));
+    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen. Pick Pictures for beginners or Read it for pupils who can read, then the words below. Alefba says a word, and the class shouts which balloon to pop."));
     v.append(n);
   }
   const top = el("div", "plan-card");
-  top.append(el("b", null, "Play with your Persian words"), el("p", "note", "Pick a game, then the words to play with. Games use the words that have pictures."));
+  top.append(el("b", null, "Play with your Persian words"), el("p", "note", GAME_KIND === "balloons" && balloonRead() ? "Pick a game, then the words to play with." : "Pick a game, then the words to play with. Games use the words that have pictures."));
   const kinds = el("div", "game-kinds"); kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", "Pick a game");
   [["memory", "🃏", "Memory", "Find each word's picture"], ["balloons", "🎈", "Balloons", "Pop the word you hear"]].forEach(([k, e, t, d]) => {
     const b = el("button", "game-kind"); b.type = "button"; b.id = "gk-" + k; b.setAttribute("aria-pressed", String(GAME_KIND === k));
@@ -4459,23 +4485,35 @@ function renderGamesTab() {
     b.addEventListener("click", () => { GAME_KIND = k; renderGamesTab(); });
     kinds.append(b);
   });
-  top.append(kinds); v.append(top);
+  top.append(kinds);
+  const reading = GAME_KIND === "balloons" && balloonRead();
+  if (GAME_KIND === "balloons") {
+    const modes = el("div", "game-modes"); modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "How hard");
+    [[false, "bm-pics", "Pictures", "Easier: pop the picture"], [true, "bm-read", "Read it", "Harder: pop the word in Persian"]].forEach(([rd, id, t, d]) => {
+      const b = el("button", "game-kind"); b.type = "button"; b.id = id; b.setAttribute("aria-pressed", String(balloonRead() === rd));
+      b.append(el("b", null, t), el("span", null, d));
+      b.addEventListener("click", () => { S.prefs.balloonRead = rd; save(); renderGamesTab(); });
+      modes.append(b);
+    });
+    top.append(modes);
+  }
+  v.append(top);
   const list = el("div", "topic-list");
-  const name = () => (GAME_KIND === "memory" ? "Memory game" : "Balloon game");
-  const known = knownPicWords();
+  const name = () => (GAME_KIND === "memory" ? "Memory game" : reading ? "Balloon game, Read it" : "Balloon game");
+  const known = reading ? readWords(WORDS.filter(knowsWord)) : knownPicWords();
   if (known.length >= GAME_PAIRS) {
     const b = el("button", "topic"); b.type = "button"; b.id = "gw-known";
     b.append(el("span", "step-emoji game-row-pic", "⭐"));
-    const t = el("span", "topic-text"); t.append(el("b", null, "Words I've learned"), el("span", "note", `${known.length} words with pictures, mixed from every level`)); b.append(t);
+    const t = el("span", "topic-text"); t.append(el("b", null, "Words I've learned"), el("span", "note", `${known.length} words ${reading ? "to read" : "with pictures"}, mixed from every level`)); b.append(t);
     b.addEventListener("click", () => startGame(GAME_KIND, WORDS.filter(knowsWord), name()));
     list.append(b);
   }
   LEVELS.forEach(lv => {
-    const n = gameWords(lv).length; if (n < GAME_PAIRS) return;
+    const n = reading ? readWords(lv.words).length : gameWords(lv).length; if (n < GAME_PAIRS) return;
     const locked = lessonLocked(lv.lessons[0]);
     const b = el("button", "topic" + (locked ? " locked" : "")); b.type = "button"; b.id = "gw-" + (lv.index + 1);
     if (locked) b.insertAdjacentHTML("beforeend", ICON.lock); else b.append(el("span", "step-emoji game-row-pic", stickerOf(lv)));
-    const t = el("span", "topic-text"); t.append(el("b", null, `Level ${lv.index + 1}: ${lv.title}`), el("span", "note", locked ? "Comes with a plan" : `${n} words with pictures`)); b.append(t);
+    const t = el("span", "topic-text"); t.append(el("b", null, `Level ${lv.index + 1}: ${lv.title}`), el("span", "note", locked ? "Comes with a plan" : `${n} words ${reading ? "to read" : "with pictures"}`)); b.append(t);
     b.addEventListener("click", () => (locked ? openLocked(lv.lessons[0]) : startGame(GAME_KIND, lv.words, `${name()}: Level ${lv.index + 1}`)));
     list.append(b);
   });
@@ -4483,7 +4521,7 @@ function renderGamesTab() {
     const b = el("button", "topic"); b.type = "button"; b.id = "gw-" + lv.id;
     b.append(el("span", "step-emoji game-row-pic", lv.pic));
     const tg = lv.lessons.find(l => l.kind === "taarof"); // the Taarof pack's own game, in place of memory and balloons
-    const t = el("span", "topic-text"); t.append(el("b", null, tg ? "The taarof game" : lv.title), el("span", "note", tg ? "Six everyday scenes: what do you say? · free for everyone" : `${gameWords(lv).length} words with pictures · free for everyone`)); b.append(t);
+    const t = el("span", "topic-text"); t.append(el("b", null, tg ? "The taarof game" : lv.title), el("span", "note", tg ? "Six everyday scenes: what do you say? · free for everyone" : `${reading ? readWords(lv.words).length + " words to read" : gameWords(lv).length + " words with pictures"} · free for everyone`)); b.append(t);
     b.addEventListener("click", () => (tg ? openLesson(tg) : startGame(GAME_KIND, lv.words, `${name()}: ${lv.title}`)));
     list.append(b);
     const rl = lv.lessons.find(l => l.kind === "rally"); // and the arcade one

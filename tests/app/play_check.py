@@ -44,6 +44,32 @@ with sync_playwright() as p:
     pg.click("#mainBtn"); pg.wait_for_timeout(600)
     if pg.evaluate("!!R"): pg.click("#mainBtn"); pg.wait_for_timeout(600)
     check("afterwards it's back on the Games tab, still with no welcome", pg.evaluate("!R") and pg.is_visible("#view-games") and not pg.is_visible("#onboard"))
+    # ---- Read it: the harder way, words in Persian on the balloons ----
+    check("under Balloons: Pictures (picked) and Read it", pg.get_attribute("#bm-pics", "aria-pressed") == "true" and pg.is_visible("#bm-read"))
+    pg.click("#bm-read"); pg.wait_for_timeout(300)
+    check("Read it is picked, and the levels say how many words there are to read", pg.get_attribute("#bm-read", "aria-pressed") == "true" and "to read" in pg.inner_text("#gw-1"), pg.inner_text("#gw-1"))
+    pg.click("#gw-1"); pg.wait_for_timeout(700)
+    info = pg.evaluate("""(() => { const ex = current(); const bs = [...document.querySelectorAll('.balloon')];
+      return { read: !!ex.read, rounds: ex.words.length, n: bs.length, text: bs.map(b => b.textContent), allFa: bs.every(b => b.querySelector('.balloon-fa')),
+               fit: bs.every(b => { const t = b.querySelector('.balloon-fa'); return t && t.getBoundingClientRect().width <= b.getBoundingClientRect().width + 1; }),
+               w: bs[0].getBoundingClientRect().width }; })()""")
+    check(f"6 balloons, each with a word in Persian ({info['text']})", info["read"] and info["n"] == 6 and info["allFa"], info)
+    check(f"every word fits inside its balloon (balloons {round(info['w'])}px wide)", info["fit"] and info["w"] >= 120, info)
+    check(f"{info['rounds']} rounds (10 when the level has enough words)", info["rounds"] == min(10, pg.evaluate("readWords(LEVELS[0].words).length")), info["rounds"])
+    alike = 0; played = 0
+    for _ in range(14):
+        if pg.evaluate("!R || R.phase === 'result'"): break
+        r = pg.evaluate("""(() => { const ex = current(), W = ex.words[R.balloon.round], a = plainFa(W.fa);
+          const bs = [...document.querySelectorAll('.balloon')], i = bs.findIndex(b => b.textContent === Z(W.fa));
+          const others = bs.filter((b, k) => k !== i).map(b => plainFa(b.textContent));
+          return { i, alike: others.some(o => o[0] === a[0] || [...new Set(o)].filter(ch => a.includes(ch)).length >= 2) }; })()""")
+        played += 1; alike += r["alike"]
+        pg.locator(f"#balloon-{r['i']}").click(force=True); pg.wait_for_timeout(850)
+    check("Read it plays to the end", pg.evaluate("R && R.phase === 'result'"))
+    check(f"the wrong answers look like the right one (in {alike} of {played} rounds a wrong word shares its first letter or two letters)", played and alike >= played - 1, (alike, played))
+    pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/play_read_done.png")
+    pg.click("#mainBtn"); pg.wait_for_timeout(600)
+    if pg.evaluate("!!R"): pg.click("#mainBtn"); pg.wait_for_timeout(600)
     check("no page errors (classroom screen)", not errs, errs); c.close()
 
     # ---- the same link on a phone: balloons as they always were ----
@@ -51,6 +77,14 @@ with sync_playwright() as p:
     pg.goto(BASE + "play.html"); pg.wait_for_timeout(1800); pg.click("#gw-1"); pg.wait_for_timeout(700)
     bw = pg.evaluate("document.querySelector('.balloon').getBoundingClientRect().width")
     check(f"on a phone the balloons are their usual size ({round(bw)}px)", bw <= 80, bw)
+    pg.click("#quitBtn"); pg.wait_for_timeout(200)
+    if pg.is_visible("#leaveBtn"): pg.click("#leaveBtn"); pg.wait_for_timeout(300)
+    pg.click("#bm-read"); pg.wait_for_timeout(200); pg.click("#gw-1"); pg.wait_for_timeout(700)
+    info = pg.evaluate("""(() => { const bs = [...document.querySelectorAll('.balloon')];
+      return { n: bs.length, fit: bs.every(b => { const t = b.querySelector('.balloon-fa'); return t && t.getBoundingClientRect().width <= b.getBoundingClientRect().width + 1; }),
+               inSky: bs.every(b => b.getBoundingClientRect().right <= innerWidth) }; })()""")
+    check("Read it on a phone: 4 balloons, every word inside its balloon and on the screen", info["n"] == 4 and info["fit"] and info["inSky"], info)
+    pg.screenshot(path="/tmp/claude-0/-home-claude/b7b836a8-070c-54c2-99a3-2a27892ac005/scratchpad/play_read_phone.png")
     check("no page errors (phone)", not errs, errs); c.close()
 
     # ---- a normal first visit is unchanged ----
