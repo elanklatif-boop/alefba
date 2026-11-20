@@ -4186,7 +4186,7 @@ function micTrouble(e) {
   if (name === "hear_failed") return { text: "The website's listening isn't working right now. You can type instead, and try the microphone again later.", stop: false };
   if (name === "paused") return { text: "Listening is paused on the website today. You can type instead.", stop: false };
   if (name === "network") return { text: "No connection just now. Check the internet and try again.", stop: false };
-  return { text: "That couldn't be checked just now. Let's try again in a moment.", stop: false };
+  return { text: `That couldn't be checked just now. Let's try again in a moment.${name && typeof name === "string" ? ` (${name})` : ""}`, stop: false }; // the code in brackets says why, for anyone writing in about it
 }
 
 // When the browser has the microphone switched off for Alefba: the steps to turn it on, for the browser and
