@@ -26,6 +26,7 @@ with sync_playwright() as p:
     check("no welcome in front of it", not pg.is_visible("#onboard"))
     check("the Games tab, with Balloons picked", pg.is_visible("#view-games") and pg.get_attribute("#gk-balloons", "aria-pressed") == "true")
     check("a note for teachers at the top", pg.is_visible("#classPlayNote") and "big screen" in pg.inner_text("#classPlayNote"))
+    check("the two classroom games to pick from, Balloons and Bingo (no Memory)", pg.is_visible("#gk-balloons") and pg.is_visible("#gk-bingo") and pg.locator("#gk-memory").count() == 0)
     pg.evaluate("sendUsage()"); pg.wait_for_timeout(300)
     check("it's counted once (play_link)", sent.count("play_link") == 1, sent)
     pg.click("#gw-1"); pg.wait_for_timeout(700)

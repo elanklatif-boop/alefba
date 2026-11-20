@@ -751,6 +751,8 @@ button.phrase:hover { border-color: var(--turq); }
 .step.game { border-color: var(--saffron); background: var(--saffron-soft); }
 .step-emoji { font-size: 1rem; line-height: 1; }
 .game-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.game-kinds.two { grid-template-columns: 1fr 1fr; }
+.game-kinds.two .game-kind { padding-block: 18px; } .game-kinds.two .game-kind-pic { font-size: 2rem; }
 .game-kind { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font: inherit; color: var(--ink); background: var(--raised); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 8px; cursor: pointer; }
 .game-kind[aria-pressed="true"] { border-color: var(--turq); background: var(--turq-soft); }
 .game-kind span:last-child { font-size: 0.82rem; color: var(--muted); }
@@ -4541,13 +4543,15 @@ function renderGamesTab() {
   const v = $("view-games"); if (!v) return; v.replaceChildren();
   if (document.body.classList.contains("class-play")) {
     const n = el("div", "class-play-note"); n.id = "classPlayNote";
-    n.append(el("b", null, "Playing with a class?"), el("p", "note", "Put this on the big screen. Balloons: Alefba says a word, and the class shouts which balloon to pop. Bingo: print a card for each child, and the screen calls the words. Pick Pictures for beginners or Read it for pupils who can read."));
+    n.append(el("b", null, "Two games for a class"), el("p", "note", "Put this on the big screen. Balloons: Alefba says a word, and the class shouts which balloon to pop. Bingo: print a card for each child, and the screen calls the words. Pick Pictures for beginners or Read it for pupils who can read."));
     v.append(n);
   }
+  const inClass = document.body.classList.contains("class-play");
   const top = el("div", "plan-card");
-  top.append(el("b", null, "Play with your Persian words"), el("p", "note", GAME_KIND === "balloons" && balloonRead() ? "Pick a game, then the words to play with." : "Pick a game, then the words to play with. Games use the words that have pictures."));
-  const kinds = el("div", "game-kinds"); kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", "Pick a game");
-  [["memory", "🃏", "Memory", "Find each word's picture"], ["balloons", "🎈", "Balloons", "Pop the word you hear"], ["bingo", "🎉", "Bingo", "Printed cards, for a class"]].forEach(([k, e, t, d]) => {
+  top.append(el("b", null, inClass ? "Pick a game, then the words" : "Play with your Persian words"), ...(inClass ? [] : [el("p", "note", GAME_KIND === "balloons" && balloonRead() ? "Pick a game, then the words to play with." : "Pick a game, then the words to play with. Games use the words that have pictures.")]));
+  const kinds = el("div", "game-kinds" + (inClass ? " two" : "")); kinds.setAttribute("role", "group"); kinds.setAttribute("aria-label", "Pick a game");
+  const KINDS = [["memory", "🃏", "Memory", "Find each word's picture"], ["balloons", "🎈", "Balloons", "Pop the word you hear"], ["bingo", "🎉", "Bingo", "Printed cards, for a class"]];
+  (inClass ? KINDS.filter(k => k[0] !== "memory") : KINDS).forEach(([k, e, t, d]) => {
     const b = el("button", "game-kind"); b.type = "button"; b.id = "gk-" + k; b.setAttribute("aria-pressed", String(GAME_KIND === k));
     b.append(el("span", "game-kind-pic", e), el("b", null, t), el("span", null, d));
     b.addEventListener("click", () => { GAME_KIND = k; renderGamesTab(); });
