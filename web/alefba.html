@@ -1036,6 +1036,18 @@ canvas.trace { display: block; width: 100%; height: 100%; touch-action: none; cu
 .little-world .ic { font-size: 4rem; line-height: 1.1; }
 .little-world .w { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.3; color: var(--muted-strong); }
 .little-menu { display: grid; gap: 14px; }
+/* the letter of the week, from the teacher of a class for ages 3 to 6: first on the little menu, with a star */
+.little-week { --u: var(--saffron-soft); aspect-ratio: auto; grid-template-columns: auto 1fr; justify-items: start; text-align: start; column-gap: 18px; padding: 16px 20px; place-items: center start; margin-bottom: 14px; width: 100%; box-shadow: 0 0 0 4px var(--saffron), 0 5px 0 color-mix(in srgb, var(--saffron) 70%, #000); }
+.little-week .g { grid-row: span 3; font-family: var(--font-fa); font-size: 4.2rem; line-height: 1.1; }
+.little-week .ic { font-size: 1.6rem; line-height: 1; }
+.little-week .lw-en { font-weight: 700; font-size: 1.2rem; }
+.little-week .d { color: var(--muted-strong); }
+.little-tile.week { box-shadow: 0 0 0 4px var(--saffron), 0 3px 0 var(--line); }
+.week-letters { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin: 10px 0 6px; }
+@media (max-width: 460px) { .week-letters { grid-template-columns: repeat(6, 1fr); } }
+.week-letter { aspect-ratio: 1 / 1; border-radius: 12px; border: 1.5px solid var(--line); background: var(--raised); font: inherit; color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.week-letter span { font-family: var(--font-fa); font-size: 1.6rem; line-height: 1; }
+.week-letter[aria-pressed="true"] { background: var(--saffron-soft); border-color: var(--saffron); box-shadow: 0 0 0 2px var(--saffron); }
 .little-act { aspect-ratio: auto; grid-template-columns: auto 1fr; justify-items: start; text-align: start; column-gap: 16px; padding: 18px 20px; place-items: center start; }
 .little-act .ic { grid-row: span 3; font-size: 3.4rem; }
 .little-act .w { font-size: 1.5rem; }
@@ -6677,7 +6689,7 @@ const inClass = () => !!(WEB && S.cls && S.cls.token);
 const LESSON_ID_RE = /^[a-z][a-z0-9-]{0,23}$/;
 function classSummary() {
   return {
-    done: Object.keys(S.done).filter(id => S.done[id] === true && LESSON_ID_RE.test(id)).slice(0, 400),
+    done: Object.keys(S.done).filter(id => S.done[id] === true && LESSON_ID_RE.test(id)).concat(Object.keys(littleDone()).filter(g => BY_GLYPH[g] && LITTLE_LETTERS.includes(g)).map(weekLetterId)).slice(0, 400),
     days: S.days.filter(d => d >= daysAgo(30)), streak: streakDays(), best: S.best || 0,
     letters: LETTERS.filter(knowsLetter).length, words: WORDS.filter(knowsWord).length, today: todayStr(),
   };
@@ -6718,7 +6730,7 @@ function lessonLabel(ls, generic) {
   if (ls.level) return `Level ${ls.level.index + 1}: ${ls.kind === "talk" && (generic || !ls.title) ? "Conversation" : ls.title}`;
   return ls.unit ? `${ls.unit.title}: ${ls.title}` : ls.title;
 }
-const lessonLabelById = id => { const ls = LESSONS.find(l => l.id === id); return ls ? lessonLabel(ls, true) : id; };
+const lessonLabelById = id => { if (LETTER_BY_ID[id]) return `Letter of the week: ${LETTER_BY_ID[id]}`; const ls = LESSONS.find(l => l.id === id); return ls ? lessonLabel(ls, true) : id; };
 function classCard() {
   if (!inClass()) return null;
   const items = (S.cls.assigned || []).map(id => LESSONS.find(l => l.id === id)).filter(Boolean);
@@ -6928,11 +6940,21 @@ function learnerCard(c, mem) {
   const p = mem.progress, row = el("div", "learner-card"); row.id = "mem-" + mem.id;
   const top = el("div", "learner-top"); top.append(el("b", null, mem.name), el("span", "note", seenText(mem.seen)));
   row.append(top);
-  if (!p) row.append(el("p", "note", "Hasn't done a lesson since joining."));
+  if (c.ages === "little") {
+    const wl = weekLetter(c.assigned), done = (p && p.done) || [];
+    if (!p) row.append(el("p", "note", "Hasn't practised since joining."));
+    else {
+      const week = new Set(Array.from({ length: 7 }, (_, k) => daysAgo(k))), d7 = (p.days || []).filter(d => week.has(d)).length;
+      const nt = done.filter(x => LETTER_BY_ID[x]).length;
+      row.append(el("p", null, `Practised ${d7} of the last 7 days · streak ${p.streak || 0} · ${nt} letter${nt === 1 ? "" : "s"} traced`));
+    }
+    if (wl) { const ok = done.includes(weekLetterId(wl)); row.append(el("p", "note" + (ok ? " good" : ""), ok ? `Letter of the week ${wl}: traced ✓` : `Letter of the week ${wl}: not traced yet`)); }
+  }
+  else if (!p) row.append(el("p", "note", "Hasn't done a lesson since joining."));
   else {
     const week = new Set(Array.from({ length: 7 }, (_, k) => daysAgo(k)));
     const d7 = (p.days || []).filter(d => week.has(d)).length;
-    const nd = (p.done || []).length;
+    const nd = (p.done || []).filter(x => !LETTER_BY_ID[x]).length;
     row.append(el("p", null, `Practised ${d7} of the last 7 days · streak ${p.streak || 0} · ${nd} lesson${nd === 1 ? "" : "s"} done`));
     if (c.assigned.length) {
       const n = c.assigned.filter(id => (p.done || []).includes(id)).length;
@@ -6949,6 +6971,27 @@ function learnerCard(c, mem) {
   });
   row.append(rm);
   return row;
+}
+function weekLetterSec(c) {
+  const sec = el("section", "teach-sec"); sec.id = "weekLetterSec";
+  sec.append(el("h3", null, "Letter of the week"), el("p", "note", "Little learners trace letters and tap pictures, so there are no lessons to assign. Tap the letter you taught this week: each child sees it first at home, with a star, and below you'll see who has traced it."));
+  const cur = weekLetter(c.assigned), msg = el("p", "note"); msg.id = "weekLetterMsg"; msg.setAttribute("role", "status");
+  msg.textContent = cur ? `This week's letter: ${cur}. Tap it again to clear it.` : "No letter picked yet.";
+  const grid = el("div", "week-letters"); grid.dir = "rtl";
+  LITTLE_LETTERS.forEach(g => {
+    const b = el("button", "week-letter"); b.type = "button"; b.id = "wl-" + weekLetterId(g); b.setAttribute("aria-pressed", String(g === cur)); b.setAttribute("aria-label", BY_GLYPH[g][1]);
+    b.append(fa("span", null, g));
+    b.addEventListener("click", async () => {
+      msg.textContent = "Saving…";
+      const r = await apiPost("/class/assign", { id: c.id, lessons: g === cur ? [] : [weekLetterId(g)] });
+      if (r.ok) teachClass(c.id); else msg.textContent = "That didn't save. Try again.";
+    });
+    grid.append(b);
+  });
+  const sh = el("button", "btn quiet", cur ? `Print a tracing sheet for ${cur}` : "Print tracing sheets"); sh.type = "button"; sh.id = "weekSheets";
+  sh.addEventListener("click", () => { if (cur) SHEETS.picked = new Set([cur]); openSheets(); });
+  sec.append(grid, msg, sh);
+  return sec;
 }
 async function teachClass(id) {
   TEACH.picked = null; $("teachFoot").hidden = true;
@@ -6978,16 +7021,18 @@ async function teachClass(id) {
   ag.append(agePicker(c.ages || null, async k => {
     agMsg.textContent = "Saving…";
     const r2 = await apiPost("/class/ages", { id: c.id, ages: k });
-    if (r2.ok) { c.ages = k; agMsg.textContent = "Saved. Students get this when they next open Alefba."; } else agMsg.textContent = "That didn't save. Try again.";
+    if (r2.ok) { const was = c.ages; c.ages = k; if ((was === "little") !== (k === "little")) return teachClass(c.id); agMsg.textContent = "Saved. Students get this when they next open Alefba."; } else agMsg.textContent = "That didn't save. Try again.";
   }), agMsg);
   m.append(ag);
   m.append(schoolPlanSec(c));
+  if (c.ages === "little") m.append(weekLetterSec(c)); else {
   const as = el("section", "teach-sec"); as.append(el("h3", null, "Assigned lessons"));
   if (!c.assigned.length) as.append(el("p", "note", "Nothing assigned yet. Learners carry on with their own lessons."));
   else { const ul = el("ul", "assigned-list"); ul.id = "assignedList"; c.assigned.forEach(x => ul.append(el("li", null, lessonLabelById(x)))); as.append(ul, el("p", "note", "Learners see these at the top of their Lessons tab.")); }
   as.append(teachBackBtn(c.assigned.length ? "Change the assigned lessons" : "Choose lessons to assign", teachAssign));
   as.lastChild.id = "assignBtn";
   m.append(as);
+  }
   const ls = el("section", "teach-sec"); ls.append(el("h3", null, `Learners (${c.members.length})`));
   if (!c.members.length) ls.append(el("p", "note", "No one has joined yet. Share the code above."));
   c.members.forEach(mem => ls.append(learnerCard(c, mem)));
@@ -9017,6 +9062,11 @@ function showView(name) {
 // say what to do, and every letter traced earns a star. Grown-ups leave by pressing and holding a small button.
 const isLittle = () => !!(S.profile && S.profile.little);
 const LITTLE_LETTERS = Array.from(ALPHA_UNITS.map(u => u.letters).join(""));
+// A class for ages 3 to 6 has a letter of the week instead of assigned lessons. It's kept with the assigned lessons as
+// "letter-be", and each letter a child traces goes to the class the same way, so the teacher sees who has traced it.
+const weekLetterId = g => "letter-" + slug(lid(BY_GLYPH[g])).toLowerCase().replace(/_/g, "-");
+const LETTER_BY_ID = Object.fromEntries(LITTLE_LETTERS.map(g => [weekLetterId(g), g]));
+const weekLetter = list => { const id = (list || []).find(x => LETTER_BY_ID[x]); return id ? LETTER_BY_ID[id] : null; };
 const LITTLE_TONES = ["var(--turq-soft)", "var(--saffron-soft)", "var(--rose-soft)", "var(--lapis-soft)", "var(--good-soft)"];
 const LITTLE_ICON = {
   next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.4 5 14 3.6 5.6 12l8.4 8.4 1.4-1.4-7-7z"/></svg>',
@@ -9113,6 +9163,14 @@ function littleHome() {
   littleStars(); littleBack(null); sayEn("Hi! What do you want to do today?");
   const m = $("littleMain"); m.replaceChildren();
   const hi = el("div", "little-hello"); hi.append(fa("span", "little-title", "الفبا")); m.append(hi);
+  const wl = inClass() && weekLetter(S.cls.assigned);
+  if (wl) {
+    const done = !!littleDone()[wl];
+    const b = el("button", "little-world little-week"); b.type = "button"; b.id = "littleWeek"; b.setAttribute("aria-label", `From your teacher: ${BY_GLYPH[wl][1]}`);
+    b.append(fa("span", "g", wl), el("span", "ic", done ? "⭐" : "🌟"), el("span", "lw-en", "From your teacher"), el("span", "d", done ? "Traced! Trace it again" : "This week's letter: tap to trace it"));
+    b.addEventListener("click", () => littleLetter(wl));
+    m.append(b);
+  }
   const grid = el("div", "little-menu");
   LITTLE_MENU.forEach(([k, ic, f, en, d]) => {
     const b = el("button", "little-world little-act"); b.type = "button"; b.id = "lm-" + k;
@@ -9262,7 +9320,8 @@ function littleLetters(talk) {
     const row = el("div", "little-unit"); row.dir = "rtl"; row.style.setProperty("--u", LITTLE_TONES[i % LITTLE_TONES.length]);
     Array.from(u.letters).forEach(g => {
       const L = BY_GLYPH[g], lw = littleWord(g), pic = lw && lw.pic, done = !!littleDone()[g];
-      const b = el("button", "little-tile"); b.type = "button"; b.id = "lt-" + slug(lid(L));
+      const wk = inClass() && weekLetter(S.cls.assigned) === g;
+      const b = el("button", "little-tile" + (wk ? " week" : "")); b.type = "button"; b.id = "lt-" + slug(lid(L));
       b.setAttribute("aria-label", L[1] + (done ? ", traced" : ""));
       b.append(fa("span", "g", g));
       if (pic) b.append(el("span", "p", pic));
