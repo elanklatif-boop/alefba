@@ -16,7 +16,7 @@ assert "googleapis" not in app and "gstatic" not in app
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c3780'/%3E"
            "%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f2b23c' font-family='Tahoma,sans-serif'%3E%D8%A7%3C/text%3E%3C/svg%3E")
 DESC = "Learn to read and speak Persian (Farsi) online, the way Iranians actually talk: the alphabet, real voices and practice conversations. For kids, families and adults. Free lessons to start."
-TITLE = "Learn Persian (Farsi) Online, Free to Start | Alefba الفبا"
+TITLE = "Alefba الفبا: Learn Persian (Farsi) Online, Free to Start"
 # Questions and answers shown at the foot of the home page, and the same ones told to search engines (they must match what people can see).
 FAQ = [
  ("Is Alefba free?", "Yes, to start. The Persian alphabet, the first 3 levels, the Shab-e Yalda pack and the Taarof pack are free, with no account needed. Teacher mode is free for teachers. A plan opens all 16 levels, the stories, the games and the AI talks."),
