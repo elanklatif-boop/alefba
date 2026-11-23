@@ -6605,6 +6605,12 @@ function accountChanged() { if (ACCT && ACCT.signedIn) $("obSignIn").hidden = tr
 // The way to the plans from anywhere: the account sheet when signed in, signing in first when not.
 const plansBtnText = () => { const signed = !!(ACCT && ACCT.signedIn); return talksToYou() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"; };
 function goPlans(after) { const cb = after || renderAll; if (ACCT && ACCT.signedIn) openAccount(cb); else openSignIn(cb); }
+// What a plan costs, as the welcome says it: the real monthly price and the yearly one (not a yearly price divided by
+// 12, which nobody can actually pay each month). The server's prices once they're known, the usual ones before that.
+const planPriceLine = () => {
+  const P = typeof ACCT !== "undefined" && ACCT && ACCT.prices ? ACCT.prices : {}, ok = v => /^\$[\d.]+$/.test(v || "");
+  return `${ok(P.basic) ? P.basic : "$4.99"} a month or ${ok(P.yearly) ? P.yearly : "$39"} a year`;
+};
 const planPrices = A => (A && A.prices ? `${A.prices.basic} a month for ${A.basicTalks || 20} talks, ${A.prices.unlimited} a month for unlimited talks, or ${A.prices.yearly} a year` : "");
 // Tapping something that needs a plan (Voice mode, or the microphone in a talk) explains it, instead of doing nothing.
 function openSpeakLocked(kind) {
@@ -7447,12 +7453,18 @@ function openAccount(after) {
   no.addEventListener("click", () => wrap.remove());
   inp.focus();
 }
+// A line with Alefba's email, so a grown-up with a question knows where to write.
+const CONTACT_EMAIL = "hello@learnalefba.com";
+function contactLine(lead) {
+  const p = el("p", "note contact-line"); const a = el("a", null, CONTACT_EMAIL); a.href = "mailto:" + CONTACT_EMAIL;
+  p.append(document.createTextNode(lead), a, document.createTextNode(".")); return p;
+}
 function renderAccountBody(body, wrap, after) {
   body.replaceChildren();
   const A = ACCT || {};
   const close = () => { wrap.remove(); accountChanged(); if (after) after(); };
   const closeB = el("button", "btn quiet wide", "Close"); closeB.id = "acctClose"; closeB.type = "button"; closeB.addEventListener("click", close);
-  if (!A.signedIn) { body.append(el("p", null, "This device isn't signed in."), closeB); return; }
+  if (!A.signedIn) { body.append(el("p", null, "This device isn't signed in."), contactLine("Questions? Email "), closeB); return; }
   body.append(el("p", "acct-line", `Signed in as ${A.email}. ${planLine(A)}.`));
   const err = el("p", "gate-err"); err.id = "acctErr"; err.hidden = true; err.setAttribute("aria-live", "polite");
   const say = t => { err.hidden = !t; err.textContent = t || ""; };
@@ -7510,6 +7522,7 @@ function renderAccountBody(body, wrap, after) {
       body.append(m);
     }
   }
+  body.append(contactLine("Questions about plans or anything else? Email "));
   const out = el("button", "btn quiet wide", "Sign out on this device"); out.id = "acctSignOut"; out.type = "button";
   out.addEventListener("click", async () => { out.disabled = true; await apiPost("/auth/signout", {}); await refreshAccount(); close(); });
   const del = el("button", "text-btn danger", "Delete account"); del.id = "acctDelete"; del.type = "button";
@@ -7925,8 +7938,7 @@ function welcomeFirst(main) {
   heard.addEventListener("click", () => { count("ob_heard", true); startFirst("heard"); });
   main.append(heard);
   if (WEB) {
-    const y = typeof ACCT !== "undefined" && ACCT && ACCT.prices && /^\$[\d.]+$/.test(ACCT.prices.yearly || "") ? parseFloat(ACCT.prices.yearly.slice(1)) : 39;
-    main.append(el("p", "ob-free small", `No sign-up needed. The alphabet and the first ${FREE_LEVELS} levels are free; a plan opens all ${LEVELS.length} levels, from about $${(y / 12).toFixed(2)} a month.`));
+    main.append(el("p", "ob-free small", `No sign-up needed. The alphabet and the first ${FREE_LEVELS} levels are free; a plan opens all ${LEVELS.length} levels, for ${planPriceLine()}.`));
   }
   const quick = el("div", "ob-quick"); quick.id = "obExtra";
   const mk = (id, t, fn) => { const b = el("button", "link-btn", t); b.type = "button"; b.id = id; b.addEventListener("click", fn); quick.append(b); };
@@ -7979,9 +7991,8 @@ function renderOB() {
     main.append(el("p", "ob-sub", "Written and spoken Persian, for kids, teens and grown-ups."));
     const demo = obDemo(); if (demo) main.append(demo); // something to tap and hear before anything to read
     if (WEB) { // the first thing parents ask: what's free, and what the rest costs (the yearly price from the server once it's known)
-      const y = typeof ACCT !== "undefined" && ACCT && ACCT.prices && /^\$[\d.]+$/.test(ACCT.prices.yearly || "") ? parseFloat(ACCT.prices.yearly.slice(1)) : 39;
       const free = el("p", "ob-free", `The whole alphabet and the first ${FREE_LEVELS} levels are free. No sign-up needed to start. `);
-      free.append(el("span", "ob-price", `A plan opens all ${LEVELS.length} levels, from about $${(y / 12).toFixed(2)} a month.`)); main.append(free);
+      free.append(el("span", "ob-price", `A plan opens all ${LEVELS.length} levels, for ${planPriceLine()}.`)); main.append(free);
     }
     // students with a class code and teachers: the first thing they see, not something to hunt for
     if (WEB && WEB.api) main.append(classEntries());

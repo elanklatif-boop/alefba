@@ -20,7 +20,7 @@ TITLE = "Alefba الفبا: Learn Persian (Farsi) Online, Free to Start"
 # Questions and answers shown at the foot of the home page, and the same ones told to search engines (they must match what people can see).
 FAQ = [
  ("Is Alefba free?", "Yes, to start. The Persian alphabet, the first 3 levels, the Shab-e Yalda pack and the Taarof pack are free, with no account needed. Teacher mode is free for teachers. A plan opens all 16 levels, the stories, the games and the AI talks."),
- ("How much does a plan cost?", "A plan opens all 16 levels, the stories, the games and the AI talks for the whole family: $5 a month, or $39 a year (about $3.25 a month). You can cancel any time. Persian schools can get a school plan for their students."),
+ ("How much does a plan cost?", "A plan opens all 16 levels, the stories, the games and the AI talks for the whole family: $4.99 a month, or $39 a year. You can cancel any time. Persian schools can get a school plan for their students."),
  ("Does Alefba teach spoken Persian or book Persian?", "Both, side by side. Books say nân (bread) and khâne (house), but people say nun and khune. Alefba shows how each word and sentence is written and how Iranians actually say it, with real recorded voices."),
  ("What ages is Alefba for?", "Children 7 to 12, teens and adults have their own lessons and conversations, and there's a little mode for ages 3 to 6 with pictures, flashcards and letter tracing, with no reading needed."),
  ("Can I learn the Persian alphabet with Alefba?", "Yes. All 32 letters, one at a time, with each letter's shapes, its sound recorded by a real voice, a word that uses it, and tracing practice."),
@@ -51,7 +51,7 @@ ABOUT = (
  '</style>'
  '<h2 id="siteAboutH">Learn Persian (Farsi) online, the way Iranians actually speak</h2>'
  '<p>Alefba teaches you to read and speak Persian. Books say <span lang="fa">نان</span> (nân) and <span lang="fa">خانه</span> (khâne), but people say <span lang="fa">نون</span> (nun) and <span lang="fa">خونه</span> (khune), so every word and sentence shows both, with real recorded voices. Free Persian lessons to start, in your browser, with nothing to download.</p>'
- '<p><b>Price:</b> the alphabet and the first 3 levels are free. A plan opens all 16 levels: $5 a month, or $39 a year (about $3.25 a month).</p>'
+ '<p><b>Price:</b> the alphabet and the first 3 levels are free. A plan opens all 16 levels: $4.99 a month, or $39 a year.</p>'
  '<ul><li>The Persian alphabet: all 32 letters, with tracing</li><li>252 everyday words and 16 short stories</li><li>Practice conversations at your level</li>'
  '<li>A free Taarof pack: Persian manners, with a game</li><li>A little mode for ages 3 to 6</li><li>A free teacher mode for Persian schools</li></ul>'
  '<h3>Questions</h3>'
