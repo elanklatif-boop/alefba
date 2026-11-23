@@ -6668,6 +6668,7 @@ function renderPlansTab() {
     v.append(tc);
   }
   if (WEB.parentsUrl) { const adult = isAdult() && WEB.adultsUrl; const a = el("a", "plans-link", adult ? "Plans, privacy and how talks work" : "For parents: how talks and privacy work"); a.href = adult ? WEB.adultsUrl : WEB.parentsUrl; a.target = "_blank"; a.rel = "noopener"; v.append(a); }
+  v.append(contactLine("Questions about plans, or anything else? Email "));
 }
 // ================= PROGRESS ON EVERY DEVICE (website only) =================
 // Once a grown-up turns it on, each learner's progress is kept with the family's sign-in, and merged with what each
@@ -7454,9 +7455,9 @@ function openAccount(after) {
   inp.focus();
 }
 // A line with Alefba's email, so a grown-up with a question knows where to write.
-const CONTACT_EMAIL = "hello@learnalefba.com";
 function contactLine(lead) {
-  const p = el("p", "note contact-line"); const a = el("a", null, CONTACT_EMAIL); a.href = "mailto:" + CONTACT_EMAIL;
+  const mail = "hello@learnalefba.com";
+  const p = el("p", "note contact-line"); const a = el("a", null, mail); a.href = "mailto:" + mail;
   p.append(document.createTextNode(lead), a, document.createTextNode(".")); return p;
 }
 function renderAccountBody(body, wrap, after) {
