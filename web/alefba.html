@@ -359,6 +359,21 @@ a.btn { text-decoration: none; }
 .ex-sub { margin: -8px 0 0; color: var(--muted); }
 .glyph { direction: rtl; font-family: var(--font-fa); font-weight: 600; font-size: clamp(72px, 24vw, 116px); line-height: 1.3; text-align: center; padding: 4px 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow-wrap: anywhere; }
 .glyph.word { font-size: clamp(48px, 15vw, 84px); }
+/* the first card of the first lesson: the goal, and a letter to tap */
+.first-goal { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; text-align: center; padding: 10px 14px; border-radius: 14px; background: var(--saffron-soft); color: inherit; border: 1px solid color-mix(in srgb, #f0b649 55%, transparent); }
+.first-goal .goal-lead { flex-basis: 100%; font-weight: 600; font-size: 0.95rem; text-wrap: balance; }
+.first-goal .goal-word { font-family: var(--font-fa); font-weight: 700; font-size: 2.4rem; line-height: 1.3; }
+.first-goal .goal-word .hl { color: #c2304f; }
+.first-goal .goal-tr { font-size: 0.9rem; color: var(--muted); }
+.tap-glyph { cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; transition: border-color .2s; }
+.tap-glyph:hover, .tap-glyph:focus-visible { border-color: var(--lapis-text); }
+.tap-glyph.tapped { animation: glyphPop .45s ease-out; }
+@keyframes glyphPop { 0% { transform: scale(1); } 35% { transform: scale(1.08); box-shadow: 0 0 0 10px color-mix(in srgb, #f0b649 35%, transparent); } 100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; } }
+.tap-hint { margin: -4px 0 0; text-align: center; font-weight: 600; color: var(--lapis-text); animation: littlePulse 1.6s ease-in-out infinite; }
+.tap-hint.done { animation: none; opacity: .65; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .first-goal .goal-word .hl { color: #ff8aa3; } }
+:root[data-theme="dark"] .first-goal .goal-word .hl { color: #ff8aa3; }
+@media (prefers-reduced-motion: reduce) { .tap-hint { animation: none; } .tap-glyph.tapped { animation: none; } }
 .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
 .fact .k { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
@@ -5576,12 +5591,33 @@ function showExercise() {
 
   if (ex.type === "introLetter" || ex.type === "introForms") {
     const L = ex.L;
+    // The very first card for someone new to Persian (a quarter of them used to leave here): it says where the
+    // 2 minutes lead, shows alef inside that word, puts the sound in plain words, and the letter itself is the
+    // thing to tap.
+    const firstCard = !!(R.first && R.first.k === "new" && R.pos === 0 && ex.type === "introLetter" && L[0] === "ا");
+    if (firstCard) {
+      const goal = el("div", "first-goal"); goal.id = "firstGoal";
+      const word = el("span", "goal-word"); word.lang = "fa"; word.dir = "rtl";
+      ["ب", "ا", "ب", "ا"].forEach(ch => { if (ch === "ا") word.append(el("span", "hl", ch)); else word.append(document.createTextNode(ch)); });
+      goal.append(el("span", "goal-lead", "In 2 minutes you'll read your first Persian word"), word, el("span", "goal-tr", "bâbâ, dad"));
+      box.append(goal);
+    }
     box.append(el("span", "ex-tag", ex.type === "introLetter" ? "New letter" : "Letter shapes"));
     box.append(el("h2", "ex-title", ex.type === "introLetter" ? `This is ${L[1]}` : `${L[1]} inside a word`));
-    box.append(fa("div", "glyph", L[0]));
+    const glyph = fa("div", "glyph", L[0]);
+    box.append(glyph);
+    if (firstCard && hasAudio(ex.audio)) {
+      glyph.classList.add("tap-glyph"); glyph.id = "firstGlyph"; glyph.tabIndex = 0;
+      glyph.setAttribute("role", "button"); glyph.setAttribute("aria-label", `Hear ${L[1]}`);
+      const tap = () => { glyph.classList.remove("tapped"); void glyph.offsetWidth; glyph.classList.add("tapped"); hint.classList.add("done"); speak(ex.audio); };
+      glyph.addEventListener("click", tap);
+      glyph.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(); } });
+      const hint = el("p", "tap-hint", "👆 Tap the letter to hear it"); hint.id = "firstTapHint";
+      box.append(hint);
+    }
     if (ex.type === "introLetter") {
       const facts = el("div", "facts");
-      [["Name", L[1]], ["Sound", L[2]]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
+      [["Name", L[1]], ["Sound", firstCard ? "â, like the a in “father”" : L[2]]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
       box.append(facts);
       const W = LETTER_EXAMPLE[L[0]];
       if (W && !ex.lite) box.append(mixed(["", "Like in ", W.fa, endDot(` (${W.tr}), which means ${W.m}`)], "ex-sub letter-example"));
@@ -5593,7 +5629,7 @@ function showExercise() {
     }
     // a new letter: its name
     const after = ex.type === "introLetter" ? () => sayLetterHelp(L) : null;
-    if (hasAudio(ex.audio)) { box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
+    if (hasAudio(ex.audio)) { if (!firstCard) box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
     return setMain("Continue", true);
   }
   if (ex.type === "heardWord") {
