@@ -29,7 +29,8 @@ with sync_playwright() as p:
                squares: cards.map(cd => cd.querySelectorAll('.bc').length), same: words[0].join() === words[1].join(), uniq: words.map(w => new Set(w).size), cut: !!document.querySelector('#bingoPreview .bingo-cut') }; })()""")
     check("the preview shows two cards on one page, 3 x 3 with a free star, pictures, a cut line between them", info["n"] == 2 and info["squares"] == [9, 9] and info["free"] == [1, 1] and info["pics"] == [8, 8] and info["cut"], info)
     check("no word twice on a card, and the two cards differ", info["uniq"] == [8, 8] and not info["same"], info)
-    check("each card has its number", pg.evaluate("[...document.querySelectorAll('#bingoPreview .bingo-head .num')].map(n => n.textContent)") == ["Card 1", "Card 2"])
+    nums = pg.evaluate("[...document.querySelectorAll('#bingoPreview .bingo-head .num')].map(n => n.textContent)")
+    check("each card has its number and the game code", len(nums) == 2 and nums[0].startswith("Card 1 · Game P") and nums[1].startswith("Card 2 · Game P") and nums[0][-5:] == nums[1][-5:], nums)
     check("the class gets 5 seconds by default, with 3 and 8 on offer", pg.get_attribute("#bingoWait-5", "aria-pressed") == "true" and pg.is_visible("#bingoWait-3") and pg.is_visible("#bingoWait-8"))
     # blank cards: the children write the words in themselves
     pg.click("#bingoBlank"); pg.wait_for_timeout(300)

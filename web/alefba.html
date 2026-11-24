@@ -360,6 +360,11 @@ a.btn { text-decoration: none; }
 .glyph { direction: rtl; font-family: var(--font-fa); font-weight: 600; font-size: clamp(72px, 24vw, 116px); line-height: 1.3; text-align: center; padding: 4px 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow-wrap: anywhere; }
 .glyph.word { font-size: clamp(48px, 15vw, 84px); }
 /* the first card of the first lesson: the goal, and a letter to tap */
+.bingo-printed { display: grid; gap: 4px; }
+.bingo-printed p { margin: 0; }
+.bingo-code summary { cursor: pointer; color: var(--lapis-text); font-weight: 600; font-size: 0.92rem; }
+.bingo-code .bingo-row { margin-top: 8px; }
+.bingo-code .text-input { max-width: 160px; text-transform: uppercase; letter-spacing: 0.08em; }
 .first-goal { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; text-align: center; padding: 10px 14px; border-radius: 14px; background: var(--saffron-soft); color: inherit; border: 1px solid color-mix(in srgb, #f0b649 55%, transparent); }
 .first-goal .goal-lead { flex-basis: 100%; font-weight: 600; font-size: 0.95rem; text-wrap: balance; }
 .first-goal .goal-word { font-family: var(--font-fa); font-weight: 700; font-size: 2.4rem; line-height: 1.3; }
@@ -4571,7 +4576,7 @@ function showRepeat(box, ex) {
 let GAME_KIND = "memory";
 const knownPicWords = () => picWords(WORDS.filter(W => knowsWord(W)));
 function startGame(kind, pool, name) {
-  if (kind === "bingo") { openBingo(balloonRead() ? readWords(pool) : picWords(pool), balloonRead(), name); return; }
+  if (kind === "bingo") { openBingo(pool, name); return; }
   if (kind === "balloons" && balloonRead()) {
     startLesson(null, [{ type: "balloons", read: true, level: { words: pool }, words: readWords(pool).slice(0, BALLOON_READ_ROUNDS) }], name);
     R.game = true; return;
@@ -9675,7 +9680,7 @@ function bingoCardWords(k) {
 }
 const bingoWordHtml = W => (BINGO.read ? `<span class="w${plainFa(W.fa).length >= 6 ? " long" : ""}" lang="fa">${escX(Z(W.fa))}</span>` : `<span class="pic">${picOf(W)}</span><span class="w small" lang="fa">${escX(Z(W.fa))}</span>`);
 function bingoCardHtml(k) {
-  const head = `<div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="num">Card ${k + 1}</span><span class="sheet-name">Name: ____________</span></div>`;
+  const head = `<div class="bingo-head"><b>Alefba Bingo</b><span>${escX(BINGO.name)}</span><span class="num">Card ${k + 1} · Game ${bingoCode(BINGO.read, BINGO.seed)}</span><span class="sheet-name">Name: ____________</span></div>`;
   if (BINGO.blank) { // the children fill the squares in themselves, from the words at the top
     const words = BINGO.pool.map(W => `<span lang="fa">${escX(Z(W.fa))}${BINGO.read ? "" : `<span class="pic">${picOf(W)}</span>`}</span>`).join("");
     const cells = Array.from({ length: 9 }, (_, i) => (i === 4 ? '<div class="bc free">⭐</div>' : '<div class="bc blank"></div>')).join("");
@@ -9703,14 +9708,42 @@ function bingoPages(n) {
   for (let k = 0; k < n; k += 2) pages.push(`<div class="sheet-page bingo-page">${bingoCardHtml(k)}${k + 1 < n ? `<hr class="bingo-cut">${bingoCardHtml(k + 1)}` : ""}<p class="sheet-foot">Alefba · learnalefba.com</p></div>`);
   return pages.join("");
 }
-function openBingo(pool, read, name) {
-  Object.assign(BINGO, { pool, read, name, seed: Math.floor(Math.random() * 1e9), order: [], at: -1, counted: false, blank: false, check: null });
+// A game's cards come from its words, Pictures or Read it, and a seed. The words are sorted, so the same level, way and
+// seed always give the same cards. A game code (e.g. R7K3P: R for Read it, P for Pictures, then the seed) is printed on
+// every card, and the cards a device printed are remembered for that level: so calling the words and checking a card
+// on the screen always match the paper, even if the way to play was switched since, or it's another device.
+const BINGO_SEEDS = 36 ** 4;
+const bingoCode = (read, seed) => (read ? "R" : "P") + seed.toString(36).toUpperCase().padStart(4, "0");
+function bingoParse(code) { const m = /^([RP])([0-9A-Z]{4})$/.exec(String(code || "").trim().toUpperCase().replace(/[\s-]/g, "")); return m ? { read: m[1] === "R", seed: parseInt(m[2], 36) } : null; }
+function bingoUse(read, seed) {
+  const words = (read ? readWords(BINGO.levelPool) : picWords(BINGO.levelPool)).slice().sort((a, b) => (a.tr < b.tr ? -1 : a.tr > b.tr ? 1 : 0));
+  Object.assign(BINGO, { read, seed, pool: words, order: [], at: -1, check: null });
+}
+function bingoPrinted() { const all = (S.prefs && S.prefs.bingoPrinted) || {}, p = all[BINGO.name]; return p && Date.now() - p.at < 180 * 864e5 && bingoParse(p.code) ? p : null; }
+function openBingo(levelPool, name) {
+  Object.assign(BINGO, { levelPool, name, counted: false, blank: false, fromPrint: null });
+  const p = bingoPrinted(), c = p && bingoParse(p.code);
+  if (c) { bingoUse(c.read, c.seed); Object.assign(BINGO, { fromPrint: p, blank: !!p.blank, n: p.n || BINGO.n }); }
+  else bingoUse(balloonRead(), Math.floor(Math.random() * BINGO_SEEDS));
   $("bingoTitle").textContent = "Bingo: " + name;
   openOverlay("bingo"); renderBingo();
+}
+// new cards: the way to play chosen now, a new seed, and the cards printed before are forgotten
+function bingoNewCards() {
+  const all = (S.prefs && S.prefs.bingoPrinted) || {}; delete all[BINGO.name];
+  BINGO.fromPrint = null; bingoUse(balloonRead(), Math.floor(Math.random() * BINGO_SEEDS));
 }
 function renderBingo() {
   clearTimeout(BINGO.timer);
   const m = $("bingoMain"); m.replaceChildren(); $("bingoBody").scrollTop = 0;
+  if (BINGO.fromPrint) {
+    const p = BINGO.fromPrint, d = new Date(p.at);
+    const box = el("div", "note good bingo-printed"); box.id = "bingoFromPrint";
+    box.append(el("p", null, `These are the cards you printed on ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} (game ${p.code}, ${BINGO.read ? "Read it" : "Pictures"}). The words called and the card checks match them.`));
+    const again = el("button", "link-btn", "Make new cards instead"); again.type = "button"; again.id = "bingoForget";
+    again.addEventListener("click", () => { bingoNewCards(); save(); renderBingo(); });
+    box.append(again); m.append(box);
+  }
   m.append(el("p", "lead", `Every child gets a card, each one different, with ${BINGO.read ? "words in Persian" : "pictures"} from ${BINGO.name} (${BINGO.pool.length} words). On the screen, Alefba says a word, and a few seconds later shows it, so the class can check. The first full line wins.`));
   const opts = el("div", "bingo-row");
   const waits = el("div", "game-modes bingo-waits"); waits.setAttribute("role", "group"); waits.setAttribute("aria-label", "Time to find each word");
@@ -9730,10 +9763,36 @@ function renderBingo() {
   inp.addEventListener("change", () => { BINGO.n = Math.max(1, Math.min(40, Math.round(+inp.value) || 1)); inp.value = String(BINGO.n); });
   lab.append(document.createTextNode("How many cards?"), inp);
   const print = el("button", "btn primary", "Print the cards"); print.type = "button"; print.id = "bingoPrint";
-  print.addEventListener("click", () => { count("bingo_print"); $("printSheets").innerHTML = bingoPages(BINGO.n); try { window.print(); } catch (e) {} });
+  print.addEventListener("click", () => {
+    count("bingo_print"); $("printSheets").innerHTML = bingoPages(BINGO.n);
+    // remember these cards for this level, so the game played later matches the paper
+    const all = S.prefs.bingoPrinted = S.prefs.bingoPrinted || {};
+    all[BINGO.name] = { code: bingoCode(BINGO.read, BINGO.seed), n: BINGO.n, blank: BINGO.blank, at: Date.now() };
+    const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 12); S.prefs.bingoPrinted = Object.fromEntries(keep);
+    BINGO.fromPrint = S.prefs.bingoPrinted[BINGO.name]; save();
+    try { window.print(); } catch (e) {}
+    renderBingo();
+  });
   const fresh = el("button", "btn quiet", "Different cards"); fresh.type = "button"; fresh.id = "bingoShuffle";
-  fresh.addEventListener("click", () => { BINGO.seed = Math.floor(Math.random() * 1e9); renderBingo(); });
+  fresh.addEventListener("click", () => { bingoNewCards(); save(); renderBingo(); });
   row.append(lab, print, fresh); m.append(row);
+  // cards printed on another device: their game code brings back the same cards here
+  const codeRow = el("details", "bingo-code"); codeRow.id = "bingoCodeBox";
+  codeRow.append(el("summary", null, "Printed the cards on another device? Type the game code"));
+  const cf = el("form", "bingo-row"); cf.noValidate = true;
+  const ci = el("input", "text-input"); ci.id = "bingoCodeInput"; ci.placeholder = "e.g. R7K3P"; ci.autocomplete = "off"; ci.maxLength = 8;
+  const cb = el("button", "btn quiet", "Use these cards"); cb.type = "submit"; cb.id = "bingoCodeGo";
+  const ce = el("p", "gate-err"); ce.hidden = true; ce.id = "bingoCodeErr";
+  cf.append(ci, cb); codeRow.append(cf, ce);
+  cf.addEventListener("submit", e => {
+    e.preventDefault(); const c = bingoParse(ci.value);
+    if (!c) { ce.hidden = false; ce.textContent = "That doesn't look like a game code. It's on every card, after the card number, e.g. Game R7K3P."; return; }
+    bingoUse(c.read, c.seed);
+    const all = S.prefs.bingoPrinted = S.prefs.bingoPrinted || {};
+    all[BINGO.name] = { code: bingoCode(c.read, c.seed), n: BINGO.n, blank: false, at: Date.now() }; BINGO.fromPrint = all[BINGO.name]; save();
+    renderBingo();
+  });
+  m.append(codeRow);
   const start = el("button", "btn primary wide", "Start calling the words"); start.type = "button"; start.id = "bingoStart";
   start.addEventListener("click", () => { BINGO.order = shuffle(BINGO.pool); BINGO.at = -1; BINGO.check = null; renderBingoCall(); });
   m.append(start);
