@@ -4117,8 +4117,7 @@ async function recordClip(maxMs, vad, onStart, raw) {
   return out;
 }
 // Tidy a recording so "Hear yourself" sounds like the real voice next to it: the quiet before and after the words is
-// cut (keeping a little either side, so no word is clipped), the room noise between words is turned well down, and
-// the voice is brought to the same loudness as the app's recordings (not louder, and the noise isn't boosted with
+// cut (keeping a little either side, so no word is clipped), and the voice is brought to the same loudness as the app's recordings (not louder, and the noise isn't boosted with
 // it). A short silence goes in front, because speakers (Bluetooth ones especially) swallow the first moment of a sound.
 function cleanVoice(pcm, rate) {
   const F = Math.round(rate * 0.02), nF = Math.floor(pcm.length / F);
@@ -4126,7 +4125,7 @@ function cleanVoice(pcm, rate) {
   const rms = new Float32Array(nF);
   for (let f = 0; f < nF; f++) { let s = 0; for (let i = f * F; i < (f + 1) * F; i++) s += pcm[i] * pcm[i]; rms[f] = Math.sqrt(s / F); }
   const sorted = Array.from(rms).sort((a, b) => a - b), floor = Math.max(1e-5, sorted[Math.floor(nF * 0.1)]), top = sorted[nF - 1];
-  let start = 0, end = pcm.length, gains = null;
+  let start = 0, end = pcm.length, voiced = null;
   if (top > floor * 4) {
     // a frame is voice when it's clearly above the room; voice spreads 80 ms before and 240 ms after, so soft starts
     // (h, f, s) and endings fade out naturally instead of being chopped
@@ -4134,18 +4133,19 @@ function cleanVoice(pcm, rate) {
     for (let f = 0; f < nF; f++) if (rms[f] > thr) for (let k = Math.max(0, f - 4); k <= Math.min(nF - 1, f + 12); k++) open[k] = 1;
     let a = open.indexOf(1), b = open.lastIndexOf(1);
     // only when what's left is long enough to be a word: a soft voice is never thrown away as noise
-    if (a >= 0 && (b - a + 1) * F >= rate * 0.3) { start = a * F; end = Math.min(pcm.length, (b + 1) * F); gains = Array.from(open, o => (o ? 1 : 0.2)); } // between words: a fifth as loud
+    if (a >= 0 && (b - a + 1) * F >= rate * 0.3) { start = a * F; end = Math.min(pcm.length, (b + 1) * F); voiced = open; }
+    // nothing between the first and last sound is turned down: a softer part of a phrase (the ʿ in تعارف, a quieter
+    // second word) would drop out, and switching the room noise off and on sounds like the microphone cutting out
   }
   // loudness: the voice at the level of the app's recordings, at most 8 times louder, never peaking above half
   let s = 0, n = 0, peak = 0;
-  for (let i = start; i < end; i++) { const f = Math.min(nF - 1, Math.floor(i / F)); if (!gains || gains[f] === 1) { s += pcm[i] * pcm[i]; n++; } const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
+  for (let i = start; i < end; i++) { const f = Math.min(nF - 1, Math.floor(i / F)); if (!voiced || voiced[f]) { s += pcm[i] * pcm[i]; n++; } const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
   const level = n ? Math.sqrt(s / n) : 0;
   const lift = level > 1e-4 ? Math.min(8, 0.055 / level, 0.5 / Math.max(peak, 1e-4)) : 1;
   const lead = Math.round(rate * 0.25), tail = Math.round(rate * 0.15), fade = Math.round(rate * 0.01);
   const out = new Float32Array(lead + (end - start) + tail);
   for (let i = start; i < end; i++) {
     let g = lift;
-    if (gains) { const x = i / F - 0.5, f0 = Math.max(0, Math.min(nF - 1, Math.floor(x))), f1 = Math.min(nF - 1, f0 + 1), t = Math.max(0, Math.min(1, x - f0)); g *= gains[f0] + (gains[f1] - gains[f0]) * t; }
     const j = i - start; if (j < fade) g *= j / fade; if (end - i <= fade) g *= (end - i) / fade;
     out[lead + j] = pcm[i] * g;
   }
