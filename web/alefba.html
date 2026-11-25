@@ -4065,9 +4065,12 @@ function heardMatches(heard, targets) {
 // waiting for a tap; and if nobody speaks at all, it stops after a while with nothing to send (quiet is then true).
 // cancel() drops the clip: done gives null. onStart is called once the recorder is really running (the microphone
 // takes a moment to switch on, and words said before that are lost), and finish() stops a moment after the tap, so the
-// end of a word said while tapping is kept.
-async function recordClip(maxMs, vad, onStart) {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+// end of a word said while tapping is kept. raw asks for the microphone's own sound, without the browser's echo and
+// noise filters and its automatic volume: those take a second or so to settle each time the microphone opens, and on
+// laptop microphones they swallow a short word said straight away. cleanVoice tidies the sound afterwards instead.
+async function recordClip(maxMs, vad, onStart, raw) {
+  const filters = !raw;
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: filters, noiseSuppression: filters, autoGainControl: filters } });
   let rec;
   try { rec = new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(t => t.stop()); throw e; } // the microphone is switched off again if recording can't start
   const chunks = [], out = { quiet: false, dropped: false, spoke: false };
@@ -4109,7 +4112,7 @@ async function recordClip(maxMs, vad, onStart) {
     } catch (e) { clearInterval(watch); } // without the level check it records as before, until a tap or the time is up
   }
   out.done = done; out.stop = stopNow; out.cancel = () => { out.dropped = true; stopNow(); };
-  out.finish = () => { if (out.finishing) return; out.finishing = true; setTimeout(stopNow, 400); };
+  out.finish = () => { if (out.finishing) return; out.finishing = true; setTimeout(stopNow, 250); };
   out.auto = !!watch;
   return out;
 }
@@ -4130,14 +4133,14 @@ function cleanVoice(pcm, rate) {
     const thr = Math.max(floor * 2.5, top * 0.03), open = new Uint8Array(nF);
     for (let f = 0; f < nF; f++) if (rms[f] > thr) for (let k = Math.max(0, f - 4); k <= Math.min(nF - 1, f + 12); k++) open[k] = 1;
     let a = open.indexOf(1), b = open.lastIndexOf(1);
-    if (a >= 0) { start = a * F; end = Math.min(pcm.length, (b + 1) * F); }
-    gains = Array.from(open, o => (o ? 1 : 0.2)); // between words: a fifth as loud
+    // only when what's left is long enough to be a word: a soft voice is never thrown away as noise
+    if (a >= 0 && (b - a + 1) * F >= rate * 0.3) { start = a * F; end = Math.min(pcm.length, (b + 1) * F); gains = Array.from(open, o => (o ? 1 : 0.2)); } // between words: a fifth as loud
   }
-  // loudness: the voice at the level of the app's recordings, at most 6 times louder, never peaking above half
+  // loudness: the voice at the level of the app's recordings, at most 8 times louder, never peaking above half
   let s = 0, n = 0, peak = 0;
   for (let i = start; i < end; i++) { const f = Math.min(nF - 1, Math.floor(i / F)); if (!gains || gains[f] === 1) { s += pcm[i] * pcm[i]; n++; } const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
   const level = n ? Math.sqrt(s / n) : 0;
-  const lift = level > 1e-4 ? Math.min(6, 0.055 / level, 0.5 / Math.max(peak, 1e-4)) : 1;
+  const lift = level > 1e-4 ? Math.min(8, 0.055 / level, 0.5 / Math.max(peak, 1e-4)) : 1;
   const lead = Math.round(rate * 0.25), tail = Math.round(rate * 0.15), fade = Math.round(rate * 0.01);
   const out = new Float32Array(lead + (end - start) + tail);
   for (let i = start; i < end; i++) {
@@ -5995,7 +5998,7 @@ async function sayTap(mic, heard) {
   Y.live = false;
   const live = () => { if (!R || R.say !== Y || !Y.rec) return; Y.live = true; mic.classList.remove("warming"); mic.innerHTML = STOP_ICON; mic.append(document.createTextNode("Speak now… tap when done")); };
   let wav;
-  try { Y.rec = await recordClip(ex.maxMs, null, live); Y.starting = false; setTimeout(() => { if (!Y.live) live(); }, 700); wav = await Y.rec.done; }
+  try { Y.rec = await recordClip(ex.maxMs, null, live, true); Y.starting = false; setTimeout(() => { if (!Y.live) live(); }, 700); wav = await Y.rec.done; }
   catch (e) { Y.rec = null; Y.starting = false; if (!R || current() !== ex) return; return sayTrouble(mic, heard, micTrouble(e)); }
   Y.rec = null; Y.live = false;
   if (!R || R.phase !== "answer" || current() !== ex) return; // the lesson was closed or the card changed meanwhile
