@@ -4238,7 +4238,8 @@ function openMuteHelp() {
   const steps = /Mac/.test(ua) && !(navigator.maxTouchPoints > 1)
     ? ["While Alefba is listening, click Control Center (the switches at the top right of the screen).", "Click Mic Mode and choose Standard instead of Voice Isolation."]
     : ["Open Sound settings: press the Windows key and type “Sound settings”.", "Under Input, click your microphone.", "Turn off Audio enhancements, Voice Clarity or Noise suppression, whichever is there.",
-       "If your computer has its own sound app (Realtek Audio Console, Dolby, MaxxAudio, Intel Smart Sound or Windows Studio Effects), turn off noise cancellation there too."];
+       "Have Realtek Audio Console? Open it, click Microphone Array, and turn on Authentic Recording (under Disable Microphone Effect).",
+       "Another sound app (Dolby, MaxxAudio, Intel Smart Sound or Windows Studio Effects)? Turn off noise cancellation there."];
   steps.forEach(t => ol.append(el("li", null, t)));
   box.append(wrapSteps, el("p", "note", "Then say the word again. To check the microphone on its own, open learnalefba.com/#mictest."));
   const ok = el("button", "btn primary wide", "OK"); ok.id = "muteHelpClose"; ok.type = "button"; ok.addEventListener("click", () => wrap.remove());
@@ -6149,7 +6150,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v171";
+const APP_VERSION = "v172";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
