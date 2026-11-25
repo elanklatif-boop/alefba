@@ -59,7 +59,26 @@ with sync_playwright() as p:
         return { secs: n / 16000, first: loud[0], last: loud[loud.length - 1], pcm: window.__pcm }; }""")
     check("the sound is recorded directly, not through MediaRecorder", r["pcm"] == 1, r)
     check("the whole 5 second phrase is kept, to its last word", r["secs"] > 4.8 and r["last"] - r["first"] > 4.3, r)
-    check("no page errors", not errs, errs)
     b.close()
+    # a laptop whose noise cancelling muted the middle of "mâdar" (a real recording: a second of dead silence between
+    # two loud parts): the app says so and shows how to fix it; a normal recording shows no such tip
+    for wav, muted in ((os.path.join(os.path.dirname(os.path.abspath(__file__)), "speak_mic_muted.wav"), True), (WAV, False)):
+        b = p.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", f"--use-file-for-fake-audio-capture={wav}%noloop",
+                                    "--autoplay-policy=no-user-gesture-required"])
+        ctx = b.new_context(viewport={"width": 1280, "height": 800}, permissions=["microphone"])
+        ctx.add_init_script("localStorage.setItem('alefba-v3', " + json.dumps(json.dumps(ST)) + ")")
+        ctx.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(PAID)))
+        pg = ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)))
+        pg.goto(BASE + "?nostats"); pg.wait_for_timeout(900)
+        pg.evaluate("document.querySelectorAll('.sheet-wrap').forEach(x => x.hidden = true)")
+        pg.evaluate("startLesson({ id: 'x', title: 'x', practice: true }, [exSay(WORDS.find(W => W.tr === 'emshab') || WORDS[0])])"); pg.wait_for_timeout(300)
+        pg.click("#micBtn"); pg.wait_for_timeout(3600); pg.click("#micBtn"); pg.wait_for_timeout(1500)
+        has = pg.evaluate("({ tip: !!document.getElementById('muteFixBtn'), sheet: !!document.getElementById('muteHelpSheet'), text: document.getElementById('heard').textContent, gap: LAST_RAW && LAST_RAW.muted })")
+        if muted:
+            check("a muted microphone is spotted, with the fix opened once", has["tip"] and has["sheet"] and "muted" in has["text"], has)
+        else:
+            check("a normal recording shows no muted-microphone tip", not has["tip"] and not has["sheet"], has)
+        b.close()
+    check("no page errors", not errs, errs)
 print(f"{sum(OK)}/{len(OK)}")
 sys.exit(0 if all(OK) else 1)
