@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shab-e Yalda: Take Your Hafez Fâl | Alefba</title>
+<meta name="description" content="On Shab-e Yalda, the longest night of the year, families read a poem by Hafez for each person's wish. Make a wish and take your fâl, learn five Yalda words, and play Yalda bingo with a class. Free.">
+<link rel="canonical" href="https://learnalefba.com/yalda">
+<meta property="og:title" content="Take your Yalda fâl">
+<meta property="og:description" content="Make a wish and open the book of Hafez, the way families do on Shab-e Yalda. Free, from Alefba.">
+<meta property="og:url" content="https://learnalefba.com/yalda">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alefba">
+<meta property="og:image" content="https://learnalefba.com/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Alefba: learn to read and speak Persian">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://learnalefba.com/icons/og-image.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121a3a'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23b3263a'/%3E%3Cpath d='M18 34a14 14 0 0 0 28 0z' fill='%23f2b23c'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Shab-e Yalda: a night-blue band with the book of Hafez (pomegranate red, saffron lettering) for the fâl; below it,
+   five Yalda words, things for a class or a party, what Yalda is, and the way into Alefba.
+   "Show it big" turns the page into the fâl alone, in large type, for a classroom screen. */
+:root {
+  --bg: #f3f5f8; --surface: #ffffff; --ink: #14203f; --muted: #56627e; --line: #dbe1ec;
+  --night: #121a3a; --night-2: #1d2b5e; --night-ink: #ffffff; --night-muted: #c2cbe6;
+  --pom: #b3263a; --pom-deep: #7e1427; --pom-soft: #f8e3e6; --saffron: #f2b23c; --saffron-ink: #2a1a00;
+  --link: #1f3d8a; --turq: #0a7170; --turq-soft: #dbeeed;
+  --font-ui: "Lexend", "Segoe UI", system-ui, sans-serif; --font-head: "Literata", "Iowan Old Style", Georgia, serif;
+  --font-fa: "Vazirmatn", "Tahoma", sans-serif; --font-fa-display: "Lalezar", "Vazirmatn", "Tahoma", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0c1224; --surface: #151d38; --ink: #e8ecf6; --muted: #9aa6c4; --line: #2a3660; --pom-soft: #3a1820; --link: #a9bcff; --turq: #3bbfba; --turq-soft: #123a3c; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-ui); }
+.wrap { max-width: 46rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: var(--link); }
+button { font: inherit; }
+
+/* the night band */
+.night { position: relative; background: radial-gradient(120% 80% at 50% 0%, var(--night-2), var(--night) 70%); color: var(--night-ink); padding-top: env(safe-area-inset-top, 0px); overflow: hidden; }
+.night::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background-image: radial-gradient(1.5px 1.5px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 28% 42%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 74% 12%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 88% 36%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 52% 8%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 6% 64%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 94% 70%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 40% 88%, #fff 50%, transparent 51%); }
+.night .wrap { position: relative; padding-block: 18px 40px; display: grid; gap: 14px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; color: inherit; text-decoration: none; }
+.brand b { font-family: var(--font-head); font-size: 1.4rem; }
+.brand span { font-family: var(--font-fa); font-size: 1.6rem; color: var(--saffron); }
+.pill-link { color: inherit; font-weight: 600; text-decoration: none; border: 1.5px solid rgba(255,255,255,.45); border-radius: 999px; padding: 8px 16px; min-height: 44px; display: inline-flex; align-items: center; background: none; cursor: pointer; }
+.pill-link:hover { background: rgba(255,255,255,.12); }
+.pill-link:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
+.eyebrow { margin: 10px 0 0; color: var(--saffron); font-weight: 600; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; }
+h1 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.1; text-wrap: balance; }
+.lead { margin: 0; color: var(--night-muted); max-width: 36rem; }
+
+/* the book and the fâl */
+.stage { display: grid; justify-items: center; gap: 16px; margin-top: 8px; text-align: center; }
+.say { margin: 0; color: var(--night-muted); font-size: .95rem; }
+.say b { display: block; font-family: var(--font-fa); font-weight: 600; font-size: 1.35rem; color: #fff; direction: rtl; }
+.book { border: 0; background: none; padding: 0; cursor: pointer; perspective: 900px; -webkit-tap-highlight-color: transparent; }
+.book:focus-visible { outline: 3px solid var(--saffron); outline-offset: 8px; border-radius: 14px; }
+.cover { position: relative; width: 190px; height: 250px; border-radius: 8px 14px 14px 8px; background: linear-gradient(135deg, var(--pom), var(--pom-deep)); box-shadow: inset 10px 0 0 rgba(0,0,0,.22), 0 18px 40px rgba(0,0,0,.45); display: grid; place-items: center; transform-origin: left center; transition: transform .6s ease; }
+.cover::before { content: ""; position: absolute; inset: 12px 12px 12px 22px; border: 2px solid rgba(242,178,60,.7); border-radius: 6px; }
+.cover .t { font-family: var(--font-fa-display); font-size: 3.4rem; color: var(--saffron); line-height: 1; direction: rtl; }
+.cover .s { position: absolute; bottom: 28px; font-family: var(--font-fa); font-size: .95rem; color: rgba(255,255,255,.8); direction: rtl; }
+.book:hover .cover { transform: rotateY(-8deg); }
+.book.opening .cover { transform: rotateY(-75deg); }
+.tap { margin: 0; font-weight: 600; color: var(--saffron); }
+@media (prefers-reduced-motion: no-preference) {
+  .tap { animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+}
+
+.fal { width: 100%; max-width: 40rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18); border-radius: 22px; padding: 22px 20px; display: grid; gap: 12px; }
+.fal-label { margin: 0; color: var(--saffron); font-weight: 600; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; }
+.verse { margin: 0; font-family: var(--font-fa); font-weight: 700; font-size: clamp(1.2rem, 4.9vw, 2.1rem); line-height: 1.9; direction: rtl; text-wrap: balance; }
+.verse span { display: block; }
+.finglish { margin: 0; color: var(--night-muted); font-size: .98rem; }
+.finglish span { display: block; }
+.meaning { margin: 0; text-align: left; }
+.meaning b, .forwish b { color: var(--saffron); font-weight: 600; }
+.forwish { margin: 0; text-align: left; background: rgba(242,178,60,.12); border-radius: 14px; padding: 12px 14px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 4px; }
+.btn { border: 0; border-radius: 14px; padding: 12px 18px; min-height: 48px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.btn:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
+.btn.gold { background: var(--saffron); color: var(--saffron-ink); }
+.btn.ghost { background: rgba(255,255,255,.1); color: #fff; border: 1.5px solid rgba(255,255,255,.35); }
+.btn.ghost:hover { background: rgba(255,255,255,.18); }
+.note-saved { color: var(--saffron); font-weight: 600; align-self: center; }
+.bigbtn { justify-self: center; }
+
+/* below the band */
+main .wrap { padding-block: 32px 48px; display: grid; gap: 36px; }
+h2 { margin: 0 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.45rem; text-wrap: balance; }
+.sub { margin: 0 0 14px; color: var(--muted); }
+.words { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.word { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 12px; display: grid; gap: 2px; justify-items: center; text-align: center; }
+.word .pic { font-size: 2rem; line-height: 1.2; }
+.word .fa { font-family: var(--font-fa); font-weight: 700; font-size: 1.7rem; line-height: 1.5; direction: rtl; }
+.word .tr { font-weight: 600; }
+.word .en { color: var(--muted); font-size: .92rem; }
+.playbox { display: grid; justify-items: center; gap: 2px; margin-top: 6px; }
+.play { white-space: nowrap; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 6px 14px; min-height: 40px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: .9rem; }
+.play:hover { border-color: var(--turq); }
+.play:focus-visible { outline: 3px solid var(--turq); outline-offset: 2px; }
+.play.on { border-color: var(--turq); background: var(--turq-soft); }
+.word.two { grid-column: 1 / -1; }
+.ways { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
+.way { border: 1.5px solid var(--line); border-radius: 14px; padding: 8px; display: grid; gap: 0; justify-items: center; }
+.way small { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.way.said { border-color: var(--turq); background: var(--turq-soft); }
+.rv { font-size: .72rem; font-weight: 600; color: var(--turq); text-transform: uppercase; letter-spacing: .06em; }
+.class-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.cl { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; text-decoration: none; color: var(--ink); display: grid; gap: 4px; align-content: start; }
+.cl:hover { border-color: var(--pom); }
+.cl:focus-visible { outline: 3px solid var(--pom); outline-offset: 2px; }
+.cl .e { font-size: 1.7rem; }
+.cl b { font-size: 1.05rem; }
+.cl span { color: var(--muted); font-size: .92rem; }
+.tip { margin: 12px 0 0; color: var(--muted); font-size: .95rem; }
+.about p { margin: 0 0 10px; max-width: 40rem; }
+.cta { background: var(--pom-soft); border-radius: 22px; padding: 22px 20px; display: grid; gap: 8px; text-align: center; }
+.cta p { margin: 0; }
+.cta a { justify-self: center; background: var(--pom); color: #fff; font-weight: 700; text-decoration: none; border-radius: 999px; padding: 12px 26px; min-height: 48px; display: inline-flex; align-items: center; }
+.cta a:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+footer { color: var(--muted); font-size: .9rem; text-align: center; }
+footer p { margin: 0 0 6px; }
+
+/* Show it big: the fâl alone, large, for a classroom screen */
+body.big main, body.big .top, body.big h1, body.big .lead, body.big .eyebrow, body.big .bigbtn { display: none !important; }
+body.big .night { min-height: 100vh; }
+body.big .night .wrap { max-width: 1200px; padding-block: 28px; min-height: 100vh; align-content: center; }
+body.big .fal { max-width: 1100px; padding: 34px 40px; gap: 18px; }
+body.big .verse { font-size: clamp(2.4rem, 4.6vw, 4.4rem); line-height: 1.8; }
+body.big .finglish { font-size: clamp(1.2rem, 2vw, 1.8rem); }
+body.big .meaning, body.big .forwish { font-size: clamp(1.15rem, 1.8vw, 1.6rem); }
+body.big .say { font-size: 1.3rem; }
+body.big .say b { font-size: 2rem; }
+body.big .cover { width: 260px; height: 340px; }
+body.big .cover .t { font-size: 4.6rem; }
+body.big .tap { font-size: 1.4rem; }
+body.big .btn { font-size: 1.15rem; padding: 14px 22px; }
+.exitbig { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); z-index: 5; }
+</style>
+</head>
+<body>
+<section class="night" id="top">
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="./" id="brandLink"><b>Alefba</b><span lang="fa">الفبا</span></a>
+      <a class="pill-link" href="./" id="toApp">Learn Persian →</a>
+    </div>
+    <p class="eyebrow">Shab-e Yalda · around 21 December</p>
+    <h1>Take your Yalda fâl</h1>
+    <p class="lead">On Shab-e Yalda, the longest night of the year, families open the book of Hafez and read a poem for each person's wish. That poem is your fâl.</p>
+
+    <div class="stage" id="stage">
+      <p class="say" id="say">Close your eyes and make a wish. Families say first:<b lang="fa">ای حافظ شیرازی، تو محرم هر رازی</b>“Hafez of Shiraz, you who know every secret”</p>
+      <button class="book" type="button" id="book" aria-label="Open the book of Hafez">
+        <span class="cover" aria-hidden="true"><span class="t">حافظ</span><span class="s">دیوان</span></span>
+      </button>
+      <p class="tap" id="tapHint">Tap the book</p>
+
+      <section class="fal" id="fal" hidden aria-live="polite">
+        <p class="fal-label" id="falLabel">Your fâl</p>
+        <p class="verse" id="verse" lang="fa"></p>
+        <p class="finglish" id="finglish"></p>
+        <p class="meaning" id="meaning"></p>
+        <p class="forwish" id="forwish"></p>
+        <div class="actions">
+          <button class="btn ghost" type="button" id="hearFal" hidden>🔊 Hear it</button>
+          <button class="btn gold" type="button" id="againBtn">Take another fâl</button>
+          <button class="btn ghost" type="button" id="shareBtn">Send it to family</button>
+          <button class="btn ghost" type="button" id="saveBtn">Save the picture</button>
+          <span class="note-saved" id="saved" hidden>Saved</span>
+        </div>
+      </section>
+      <button class="pill-link bigbtn" type="button" id="bigBtn">For a class: show it big</button>
+    </div>
+  </div>
+</section>
+<button class="btn gold exitbig" type="button" id="exitBig" hidden>Exit big screen</button>
+
+<main>
+  <div class="wrap">
+    <section aria-labelledby="wordsH">
+      <h2 id="wordsH">Yalda night in 5 words</h2>
+      <p class="sub">What's on the table, and what everyone's waiting for. Tap to hear each one.</p>
+      <div class="words" id="words"></div>
+    </section>
+
+    <section aria-labelledby="classH">
+      <h2 id="classH">For your class or Yalda party</h2>
+      <p class="sub">Free, with nothing to set up and no sign-up.</p>
+      <div class="class-links">
+        <a class="cl" href="./#yalda-bingo" id="linkBingo"><span class="e" aria-hidden="true">🎟️</span><b>Print Yalda bingo cards</b><span>Every child gets a different card. The screen calls the Yalda words, and the first full line wins.</span></a>
+        <a class="cl" href="./#yalda-balloons" id="linkBalloons"><span class="e" aria-hidden="true">🎈</span><b>Play the balloon game</b><span>Alefba says a Yalda word, and the class shouts which balloon to pop.</span></a>
+        <a class="cl" href="./#yalda-story" id="linkStory"><span class="e" aria-hidden="true">📖</span><b>Read the Yalda story</b><span>Sara and Nima stay up late at Grandma's, with watermelon and Hafez.</span></a>
+      </div>
+      <p class="tip">On a classroom screen, open learnalefba.com/yalda and tap “For a class: show it big”. Each child makes a wish, and the class reads their fâl together.</p>
+    </section>
+
+    <section class="about" aria-labelledby="aboutH">
+      <h2 id="aboutH">What is Shab-e Yalda?</h2>
+      <p>Shab-e Yalda (شب یلدا) is the longest night of the year, the winter solstice, around 21 December. For thousands of years, Persian families have stayed up together that night to welcome the sun, which from the next day stays a little longer.</p>
+      <p>The table has watermelon and pomegranates, red like the dawn, with nuts, dried fruit and sweets. Grandparents tell stories, and someone opens the book of Hafez, the great poet of Shiraz, to read a fâl for each person's wish. In Iran, in Afghanistan and Tajikistan, and in Persian families everywhere, it's one of the warmest nights of the year.</p>
+    </section>
+
+    <section class="cta" aria-labelledby="ctaH">
+      <h2 id="ctaH">Read your fâl yourself next year</h2>
+      <p>Alefba teaches the Persian alphabet and everyday Persian, the way families really talk. For kids and adults. The alphabet and the first 3 levels are free.</p>
+      <a href="./" id="startBtn">Start learning Persian</a>
+    </section>
+
+    <footer>
+      <p>The poems are by Hafez (14th century), with simple meanings for today. Many of the words are recorded by a real family.</p>
+      <p><a href="./">learnalefba.com</a></p>
+    </footer>
+  </div>
+</main>
+<canvas id="card" width="1080" height="1350" hidden></canvas>
+
+<script id="falData" type="application/json">/*FAL_DATA*/[]</script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var FAL = []; try { FAL = JSON.parse($("falData").textContent.replace("/*FAL_DATA*/", "")); } catch (e) {}
+  var WORDS = [
+    { pic: "🍉", fa: "هندوانه", tr: "hendevâne", en: "watermelon", audio: "word_hendevaane.mp3", said: { fa: "هندونه", tr: "hendune", audio: "said_hendune.mp3" } },
+    { pic: "", svg: true, fa: "انار", tr: "anâr", en: "pomegranate", audio: "word_anaar.mp3" },
+    { pic: "🥜", fa: "آجیل", tr: "âjil", en: "nuts and dried fruit", audio: "word_aajil.mp3" },
+    { pic: "🕯️", fa: "شمع", tr: "sham", en: "candle", audio: "word_sham.mp3" },
+    { pic: "📖", fa: "فال حافظ", tr: "fâl-e hâfez", en: "a Hafez reading for your wish", audio: "word_faale_haafez.mp3" }
+  ];
+  // there's no pomegranate emoji, so a small drawing
+  var POM = '<svg viewBox="0 0 40 40" width="34" height="34"><path d="M15 9l2-5 3 4 3-4 2 5" fill="#7e1427"/><circle cx="20" cy="23" r="14" fill="#b3263a"/><circle cx="15" cy="18" r="4" fill="#d9475c" opacity=".7"/></svg>';
+  var have = {}, real = {}, cur = -1, order = [], audio = null;
+
+  function count(e) {
+    try {
+      if (localStorage.getItem("alefba-nostats") === "1") return;
+      var d = new Date(), day = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      var body = JSON.stringify({ e: [e], d: day });
+      if (navigator.sendBeacon) navigator.sendBeacon("api/usage", new Blob([body], { type: "application/json" }));
+      else fetch("api/usage", { method: "POST", headers: { "content-type": "application/json" }, body: body, keepalive: true });
+    } catch (x) {}
+  }
+  function play(file, btn) {
+    try { if (audio) { audio.pause(); } } catch (e) {}
+    document.querySelectorAll(".play.on").forEach(function (b) { b.classList.remove("on"); });
+    audio = new Audio("audio/" + file);
+    if (btn) { btn.classList.add("on"); audio.addEventListener("ended", function () { btn.classList.remove("on"); }); }
+    audio.play().catch(function () { if (btn) btn.classList.remove("on"); });
+  }
+  var falFile = function (i) { return "fal_" + String(i + 1).padStart(2, "0") + ".mp3"; };
+
+  // the order the fâls come in: shuffled once per visit, so "another" never repeats until all have been seen
+  function nextIndex() {
+    try { order = JSON.parse(sessionStorage.getItem("yalda-order") || "[]"); } catch (e) { order = []; }
+    if (!order.length) {
+      order = FAL.map(function (_, i) { return i; });
+      for (var i = order.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var k = order[i]; order[i] = order[j]; order[j] = k; }
+    }
+    var n = order.shift();
+    try { sessionStorage.setItem("yalda-order", JSON.stringify(order)); } catch (e) {}
+    return n;
+  }
+  function show(i) {
+    var f = FAL[i]; if (!f) return;
+    cur = i;
+    $("verse").replaceChildren(); $("finglish").replaceChildren();
+    f.fa.forEach(function (l) { var s = document.createElement("span"); s.textContent = l; $("verse").append(s); });
+    f.tr.forEach(function (l) { var s = document.createElement("span"); s.textContent = l; $("finglish").append(s); });
+    $("meaning").innerHTML = ""; var mb = document.createElement("b"); mb.textContent = "What it says: "; $("meaning").append(mb, document.createTextNode(f.en));
+    $("forwish").innerHTML = ""; var wb = document.createElement("b"); wb.textContent = "For your wish: "; $("forwish").append(wb, document.createTextNode(f.wish));
+    $("hearFal").hidden = !have[falFile(i)];
+    $("saved").hidden = true;
+    $("fal").hidden = false; $("book").hidden = true; $("tapHint").hidden = true; $("say").hidden = true;
+    $("againBtn").focus({ preventScroll: true });
+    if (!document.body.classList.contains("big")) $("fal").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function open() {
+    if (!FAL.length) return;
+    var b = $("book"); b.classList.add("opening");
+    count("yalda_fal");
+    setTimeout(function () { b.classList.remove("opening"); show(nextIndex()); }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550);
+  }
+  // "Take another": back to the book, so each person makes their own wish first
+  function again() {
+    $("fal").hidden = true; $("book").hidden = false; $("tapHint").hidden = false; $("say").hidden = false;
+    $("book").focus({ preventScroll: true });
+  }
+  $("book").addEventListener("click", open);
+  $("againBtn").addEventListener("click", again);
+  $("hearFal").addEventListener("click", function () { if (cur >= 0) play(falFile(cur)); });
+
+  // the picture to send: 4:5, with the link at the bottom so a screenshot passed round still leads back here
+  function wrapText(x, text, maxW) {
+    var words = text.split(" "), lines = [], line = "";
+    words.forEach(function (w) { var t = line ? line + " " + w : w; if (x.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; });
+    if (line) lines.push(line); return lines;
+  }
+  async function drawCard() {
+    var f = FAL[cur], c = $("card"), x = c.getContext("2d"), W = 1080, H = 1350;
+    try { await Promise.all([document.fonts.load('700 64px "Vazirmatn"', f.fa.join(" ")), document.fonts.load('400 100px "Lalezar"', "حافظ"), document.fonts.load('600 56px "Literata"'), document.fonts.load('400 32px "Lexend"'), document.fonts.load('600 32px "Lexend"')]); } catch (e) {}
+    var g = x.createRadialGradient(W / 2, 0, 80, W / 2, 200, 1300); g.addColorStop(0, "#1d2b5e"); g.addColorStop(1, "#121a3a");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.fillStyle = "rgba(255,255,255,0.7)";
+    [[90, 80, 2.5], [260, 170, 1.8], [820, 70, 2.5], [980, 210, 1.8], [560, 50, 1.8], [60, 520, 2], [1020, 600, 1.8], [150, 980, 1.8], [940, 1040, 2]].forEach(function (s) { x.beginPath(); x.arc(s[0], s[1], s[2], 0, Math.PI * 2); x.fill(); });
+    x.textAlign = "center"; x.textBaseline = "alphabetic";
+    x.fillStyle = "#f2b23c"; x.font = '600 54px "Literata", Georgia, serif'; x.fillText("My Yalda fâl", W / 2, 150);
+    x.direction = "rtl"; x.font = '400 64px "Lalezar", "Vazirmatn", sans-serif'; x.fillStyle = "#ffffff"; x.fillText("فال حافظ", W / 2, 240); x.direction = "ltr";
+    // the poem, how to say it, and what it means: measured first, then drawn in the middle of the space
+    x.direction = "rtl";
+    var size = 66; x.font = "700 " + size + 'px "Vazirmatn", Tahoma, sans-serif';
+    while (Math.max(x.measureText(f.fa[0]).width, x.measureText(f.fa[1]).width) > W - 180 && size > 38) { size -= 2; x.font = "700 " + size + 'px "Vazirmatn", Tahoma, sans-serif'; }
+    x.direction = "ltr";
+    function body(y0, draw) {
+      var y = y0;
+      x.direction = "rtl"; x.font = "700 " + size + 'px "Vazirmatn", Tahoma, sans-serif'; x.fillStyle = "#ffffff";
+      if (draw) { x.fillText(f.fa[0], W / 2, y); x.fillText(f.fa[1], W / 2, y + size * 1.7); }
+      x.direction = "ltr"; y += size * 1.7 + 76;
+      x.font = 'italic 400 30px "Lexend", system-ui, sans-serif'; x.fillStyle = "#c2cbe6";
+      f.tr.forEach(function (l) { wrapText(x, l, W - 140).forEach(function (ln) { if (draw) x.fillText(ln, W / 2, y); y += 42; }); });
+      y += 30; if (draw) { x.fillStyle = "rgba(242,178,60,0.6)"; x.fillRect(W / 2 - 60, y - 20, 120, 3); } y += 40;
+      x.font = '400 34px "Lexend", system-ui, sans-serif'; x.fillStyle = "rgba(255,255,255,0.92)";
+      wrapText(x, f.en, W - 160).forEach(function (ln) { if (draw) x.fillText(ln, W / 2, y); y += 48; });
+      y += 14; x.fillStyle = "#f2b23c"; x.font = '600 32px "Lexend", system-ui, sans-serif';
+      wrapText(x, "For your wish: " + f.wish, W - 160).forEach(function (ln) { if (draw) x.fillText(ln, W / 2, y); y += 46; });
+      return y - y0;
+    }
+    var top = 300, bottom = H - 200, h = body(0, false);
+    body(top + Math.max(60, (bottom - top - h) / 2) + size * 0.4, true);
+    // the link, small and tidy
+    var bw = 520, bh = 76, bx = (W - bw) / 2, by = H - 130;
+    x.fillStyle = "#f2b23c"; x.beginPath(); if (x.roundRect) x.roundRect(bx, by, bw, bh, 38); else x.rect(bx, by, bw, bh); x.fill();
+    x.fillStyle = "#2a1a00"; x.font = '600 36px "Lexend", system-ui, sans-serif'; x.fillText("learnalefba.com/yalda", W / 2, by + 50);
+    x.fillStyle = "rgba(255,255,255,0.75)"; x.font = '400 26px "Lexend", system-ui, sans-serif'; x.fillText("Take your own fâl", W / 2, by - 18);
+    return new Promise(function (ok) { c.toBlob(ok, "image/png"); });
+  }
+  var SHARE_TEXT = "I took my Yalda fâl 🍉 Make a wish and take yours: https://learnalefba.com/yalda";
+  async function saveIt() {
+    var blob = await drawCard(); if (!blob) return;
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "my-yalda-fal.png"; document.body.append(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    $("saved").hidden = false; count("yalda_share");
+  }
+  $("saveBtn").addEventListener("click", function () { if (cur >= 0) saveIt(); });
+  $("shareBtn").addEventListener("click", async function () {
+    if (cur < 0) return;
+    try {
+      var blob = await drawCard(), file = blob && new File([blob], "my-yalda-fal.png", { type: "image/png" });
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: SHARE_TEXT }); count("yalda_share"); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    // no sharing a picture here (most computers): WhatsApp with the message, and the picture saved to add to it
+    count("yalda_share");
+    window.open("https://wa.me/?text=" + encodeURIComponent(SHARE_TEXT), "_blank", "noopener");
+  });
+
+  // Show it big, for a classroom screen
+  function setBig(on) {
+    document.body.classList.toggle("big", on); $("exitBig").hidden = !on;
+    if (on) { count("yalda_big"); try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {}); } catch (e) {} window.scrollTo(0, 0); }
+    else { try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} }
+  }
+  $("bigBtn").addEventListener("click", function () { setBig(true); });
+  $("exitBig").addEventListener("click", function () { setBig(false); });
+  document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement && document.body.classList.contains("big")) setBig(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && document.body.classList.contains("big")) setBig(false); });
+
+  // the five words
+  function wordCard(w) {
+    var d = document.createElement("div"); d.className = "word" + (w.said ? " two" : "");
+    var p = document.createElement("span"); p.className = "pic"; p.setAttribute("aria-hidden", "true");
+    if (w.svg) p.innerHTML = POM; else p.textContent = w.pic;
+    d.append(p);
+    if (w.said) {
+      var ways = document.createElement("div"); ways.className = "ways";
+      [["In books", w.fa, w.tr, w.audio, ""], ["People say", w.said.fa, w.said.tr, w.said.audio, " said"]].forEach(function (v) {
+        var b = document.createElement("div"); b.className = "way" + v[4];
+        var s = document.createElement("small"); s.textContent = v[0];
+        var f = document.createElement("span"); f.className = "fa"; f.lang = "fa"; f.textContent = v[1];
+        var t = document.createElement("span"); t.className = "tr"; t.textContent = v[2];
+        b.append(s, f, t, playBtn(v[3]));
+        ways.append(b);
+      });
+      var en = document.createElement("span"); en.className = "en"; en.textContent = w.en + ": everyone says hendune at the table, but books write hendevâne.";
+      d.append(en, ways);
+      return d;
+    }
+    var fa = document.createElement("span"); fa.className = "fa"; fa.lang = "fa"; fa.textContent = w.fa;
+    var tr = document.createElement("span"); tr.className = "tr"; tr.textContent = w.tr;
+    var e2 = document.createElement("span"); e2.className = "en"; e2.textContent = w.en;
+    d.append(fa, tr, e2, playBtn(w.audio));
+    return d;
+  }
+  function playBtn(file) {
+    var box = document.createElement("span"); box.className = "playbox";
+    var b = document.createElement("button"); b.type = "button"; b.className = "play";
+    b.textContent = "🔊 Hear it";
+    b.addEventListener("click", function () { play(file, b); });
+    box.append(b);
+    if (real[file]) { var r = document.createElement("span"); r.className = "rv"; r.textContent = "real voice"; box.append(r); }
+    return box;
+  }
+  function renderWords() { $("words").replaceChildren(); WORDS.forEach(function (w) { $("words").append(wordCard(w)); }); }
+
+  // which sounds exist (the fâl's own recordings come later): the site's list of sounds, and which are family voices
+  renderWords();
+  Promise.all([fetch("audio/manifest.json").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+               fetch("audio/real_voice.json").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })])
+    .then(function (res) { res[0].forEach(function (f) { have[f] = true; }); res[1].forEach(function (f) { real[f] = true; }); renderWords(); if (cur >= 0) $("hearFal").hidden = !have[falFile(cur)]; });
+
+  ["toApp", "brandLink", "startBtn"].forEach(function (id) { $(id).addEventListener("click", function () { count("yalda_start"); }); });
+  ["linkBingo", "linkBalloons", "linkStory"].forEach(function (id) { $(id).addEventListener("click", function () { count("yalda_class"); }); });
+  count("yalda_open");
+})();
+</script>
+</body>
+</html>

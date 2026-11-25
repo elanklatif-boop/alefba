@@ -97,8 +97,12 @@ os.makedirs(os.path.join(OUT, "audio"))
 assert app.count("<title>Alefba الفبا</title>") == 1 and app.count("</main>") == 1
 app = app.replace("<title>Alefba الفبا</title>", f"<title>{TITLE}</title>").replace("</main>", "</main>\n" + ABOUT, 1)
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "yalda.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
+# the Yalda page carries its Hafez couplets inside it (from yalda-fal.json), so the fâl works at once, even offline
+_y = os.path.join(OUT, "yalda.html"); _yh = open(_y, encoding="utf-8").read()
+assert _yh.count("/*FAL_DATA*/[]") == 1
+open(_y, "w", encoding="utf-8").write(_yh.replace("/*FAL_DATA*/[]", json.dumps(json.load(open(os.path.join(HERE, "yalda-fal.json"), encoding="utf-8")), ensure_ascii=False)))
 shutil.copytree(os.path.join(HERE, "fonts"), os.path.join(OUT, "fonts"))
 shutil.copytree(os.path.join(HERE, "icons"), os.path.join(OUT, "icons"))
 shutil.copytree(os.path.join(HERE, "img"), os.path.join(OUT, "img"))  # screenshots for the teachers page

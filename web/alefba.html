@@ -10017,8 +10017,11 @@ const TAAROF_LINK = { "#taarof": ["taarof-game", "taarof_link"], "#rally": ["taa
 // learnalefba.com/play: the balloon game for a classroom screen. It opens on the Games tab with Balloons picked, with
 // bigger balloons on a big screen, and nothing in front of it: the welcome waits for a later visit.
 const PLAY_LINK = !!(WEB && location.hash === "#play");
-if (TAAROF_LINK) AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
-else if (PLAY_LINK) {}
+// From learnalefba.com/yalda: Yalda bingo or the balloon game with the Yalda words, set up for a classroom screen, or
+// the Yalda story. Nothing in front of them, like the play link: the welcome waits (until the story closes, for the story).
+const YALDA_LINK = (WEB && { "#yalda-bingo": "bingo", "#yalda-balloons": "balloons", "#yalda-story": "story" }[location.hash]) || null;
+if (TAAROF_LINK || YALDA_LINK === "story") AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
+else if (PLAY_LINK || YALDA_LINK) {}
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
@@ -10032,6 +10035,13 @@ if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, als
 else if (PLAY_LINK) {
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   count("play_link"); document.body.classList.add("class-play"); GAME_KIND = "balloons"; renderGamesTab(); showView("games");
+}
+else if (YALDA_LINK) {
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  const yp = SEASON_PACKS.find(p => p.id === "yalda");
+  if (!yp) { if (AFTER_LINK) { const f = AFTER_LINK; AFTER_LINK = null; f(); } }
+  else if (YALDA_LINK === "story") openLesson(yp.lessons.find(l => l.kind === "story"));
+  else { document.body.classList.add("class-play"); GAME_KIND = YALDA_LINK; renderGamesTab(); showView("games"); startGame(YALDA_LINK, yp.words, YALDA_LINK === "bingo" ? yp.title : `Balloons: ${yp.title}`); }
 }
 else if (location.hash === "#sheets" && WEB) openSheets();
 else if (/^#join=/i.test(location.hash) && WEB) { const jc = decodeURIComponent(location.hash.slice(6)).slice(0, 12); history.replaceState(null, "", location.pathname); joinFromLink(jc); }
