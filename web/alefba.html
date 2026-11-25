@@ -427,6 +427,7 @@ a.btn { text-decoration: none; }
 .play.mic { align-self: center; }
 .play.hear-me { align-self: center; }
 .play.mic.rec { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); animation: pulse 1.2s ease-in-out infinite; }
+.play.mic.rec.warming { border-color: var(--line); color: var(--muted); background: var(--raised); animation: none; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--bad-soft); } 50% { box-shadow: 0 0 0 10px transparent; } }
 .heard { margin: 0; text-align: center; color: var(--muted); }
 .say-judge { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
@@ -4062,14 +4063,17 @@ function heardMatches(heard, targets) {
 // second, one channel) that the speech-to-text reads on every device. The microphone is switched off after each clip.
 // With vad (an AudioContext that's running), recording stops by itself once the speaker has paused, instead of
 // waiting for a tap; and if nobody speaks at all, it stops after a while with nothing to send (quiet is then true).
-// cancel() drops the clip: done gives null.
-async function recordClip(maxMs, vad) {
+// cancel() drops the clip: done gives null. onStart is called once the recorder is really running (the microphone
+// takes a moment to switch on, and words said before that are lost), and finish() stops a moment after the tap, so the
+// end of a word said while tapping is kept.
+async function recordClip(maxMs, vad, onStart) {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
   let rec;
   try { rec = new MediaRecorder(stream); } catch (e) { stream.getTracks().forEach(t => t.stop()); throw e; } // the microphone is switched off again if recording can't start
   const chunks = [], out = { quiet: false, dropped: false, spoke: false };
   let timer = null, watch = null, src = null;
   const stopNow = () => { if (rec.state === "recording") rec.stop(); };
+  rec.onstart = () => { if (onStart) setTimeout(onStart, 120); };
   const done = new Promise((resolve, reject) => {
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onerror = e => { clearInterval(watch); stream.getTracks().forEach(t => t.stop()); reject(e); };
@@ -4105,7 +4109,43 @@ async function recordClip(maxMs, vad) {
     } catch (e) { clearInterval(watch); } // without the level check it records as before, until a tap or the time is up
   }
   out.done = done; out.stop = stopNow; out.cancel = () => { out.dropped = true; stopNow(); };
+  out.finish = () => { if (out.finishing) return; out.finishing = true; setTimeout(stopNow, 400); };
   out.auto = !!watch;
+  return out;
+}
+// Tidy a recording so "Hear yourself" sounds like the real voice next to it: the quiet before and after the words is
+// cut (keeping a little either side, so no word is clipped), the room noise between words is turned well down, and
+// the voice is brought to the same loudness as the app's recordings (not louder, and the noise isn't boosted with
+// it). A short silence goes in front, because speakers (Bluetooth ones especially) swallow the first moment of a sound.
+function cleanVoice(pcm, rate) {
+  const F = Math.round(rate * 0.02), nF = Math.floor(pcm.length / F);
+  if (nF < 5) return pcm;
+  const rms = new Float32Array(nF);
+  for (let f = 0; f < nF; f++) { let s = 0; for (let i = f * F; i < (f + 1) * F; i++) s += pcm[i] * pcm[i]; rms[f] = Math.sqrt(s / F); }
+  const sorted = Array.from(rms).sort((a, b) => a - b), floor = Math.max(1e-5, sorted[Math.floor(nF * 0.1)]), top = sorted[nF - 1];
+  let start = 0, end = pcm.length, gains = null;
+  if (top > floor * 4) {
+    // a frame is voice when it's clearly above the room; voice spreads 80 ms before and 240 ms after, so soft starts
+    // (h, f, s) and endings fade out naturally instead of being chopped
+    const thr = Math.max(floor * 2.5, top * 0.03), open = new Uint8Array(nF);
+    for (let f = 0; f < nF; f++) if (rms[f] > thr) for (let k = Math.max(0, f - 4); k <= Math.min(nF - 1, f + 12); k++) open[k] = 1;
+    let a = open.indexOf(1), b = open.lastIndexOf(1);
+    if (a >= 0) { start = a * F; end = Math.min(pcm.length, (b + 1) * F); }
+    gains = Array.from(open, o => (o ? 1 : 0.2)); // between words: a fifth as loud
+  }
+  // loudness: the voice at the level of the app's recordings, at most 6 times louder, never peaking above half
+  let s = 0, n = 0, peak = 0;
+  for (let i = start; i < end; i++) { const f = Math.min(nF - 1, Math.floor(i / F)); if (!gains || gains[f] === 1) { s += pcm[i] * pcm[i]; n++; } const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
+  const level = n ? Math.sqrt(s / n) : 0;
+  const lift = level > 1e-4 ? Math.min(6, 0.055 / level, 0.5 / Math.max(peak, 1e-4)) : 1;
+  const lead = Math.round(rate * 0.25), tail = Math.round(rate * 0.15), fade = Math.round(rate * 0.01);
+  const out = new Float32Array(lead + (end - start) + tail);
+  for (let i = start; i < end; i++) {
+    let g = lift;
+    if (gains) { const x = i / F - 0.5, f0 = Math.max(0, Math.min(nF - 1, Math.floor(x))), f1 = Math.min(nF - 1, f0 + 1), t = Math.max(0, Math.min(1, x - f0)); g *= gains[f0] + (gains[f1] - gains[f0]) * t; }
+    const j = i - start; if (j < fade) g *= j / fade; if (end - i <= fade) g *= (end - i) / fade;
+    out[lead + j] = pcm[i] * g;
+  }
   return out;
 }
 async function toWav(blob) {
@@ -4119,12 +4159,7 @@ async function toWav(blob) {
   const rate = 16000, len = Math.max(1, Math.ceil(decoded.duration * rate));
   const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, rate);
   const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
-  const pcm = (await off.startRendering()).getChannelData(0);
-  // laptop and phone microphones record quietly: bring the loudest part up to a normal level (at most 10 times louder),
-  // so "Hear yourself" is easy to hear and the speech-to-text gets a clear clip
-  let peak = 0;
-  for (let i = 0; i < pcm.length; i++) { const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
-  if (peak > 0.003) { const gain = Math.min(10, 0.89 / peak); if (gain > 1.05) for (let i = 0; i < pcm.length; i++) pcm[i] *= gain; }
+  const pcm = cleanVoice((await off.startRendering()).getChannelData(0), rate);
   const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
   const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
   str(0, "RIFF"); out.setUint32(4, 36 + pcm.length * 2, true); str(8, "WAVE"); str(12, "fmt "); out.setUint32(16, 16, true);
@@ -4363,7 +4398,7 @@ function exListenLetter(L, pool) {
 function exSay(W, sentence) {
   const sent = sentence && W.sentence;
   const targets = sent ? [W.sentence.fa] : [W.fa, W.two ? W.two.said.fa : "", W.two ? W.two.book.fa : ""];
-  return { type: "say", title: sent ? "Say this sentence out loud" : `Say the word for “${W.m}”`, sub: sent ? W.sentence.m : "", W, sentence: !!sent, glyph: sent ? W.sentence.fa : W.fa, cap: sent ? W.sentence.tr : W.tr, targets, maxMs: sent ? 8000 : 4000,
+  return { type: "say", title: sent ? "Say this sentence out loud" : `Say the word for “${W.m}”`, sub: sent ? W.sentence.m : "", W, sentence: !!sent, glyph: sent ? W.sentence.fa : W.fa, cap: sent ? W.sentence.tr : W.tr, targets, maxMs: sent ? 12000 : 7000,
     key: (sent ? "saysent:" : "say:") + W.tr, audio: sent ? sentenceAudio(W) : wordAudio(W), reveal: [sent ? W.sentence.fa : W.fa, ` (${sent ? W.sentence.tr : W.tr}).`], redo: () => exSay(W, sentence) };
 }
 function exWordMeaning(W, pool) {
@@ -5950,16 +5985,19 @@ function idkButton() {
 async function sayTap(mic, heard) {
   const ex = current(), Y = R.say;
   if (R.phase !== "answer" || !Y) return;
-  if (Y.rec) { Y.rec.stop(); return; } // tapped again: done talking
+  if (Y.rec) { if (Y.live) Y.rec.finish(); return; } // tapped again: done talking (it keeps listening a moment, for the end of the word)
   if (Y.starting) return; // a tap while the microphone is still being switched on
   stopSound();
   Y.starting = true;
-  mic.classList.add("rec"); mic.innerHTML = STOP_ICON; mic.append(document.createTextNode("Listening… tap when done"));
+  // "Listening" shows only once the microphone is really recording: words said before that would be lost
+  mic.classList.add("rec", "warming"); mic.innerHTML = MIC_ICON; mic.append(document.createTextNode("Getting ready…"));
   heard.hidden = true; const judge = $("sayJudge"); if (judge) judge.hidden = true;
+  Y.live = false;
+  const live = () => { if (!R || R.say !== Y || !Y.rec) return; Y.live = true; mic.classList.remove("warming"); mic.innerHTML = STOP_ICON; mic.append(document.createTextNode("Speak now… tap when done")); };
   let wav;
-  try { Y.rec = await recordClip(ex.maxMs); Y.starting = false; wav = await Y.rec.done; }
+  try { Y.rec = await recordClip(ex.maxMs, null, live); Y.starting = false; setTimeout(() => { if (!Y.live) live(); }, 700); wav = await Y.rec.done; }
   catch (e) { Y.rec = null; Y.starting = false; if (!R || current() !== ex) return; return sayTrouble(mic, heard, micTrouble(e)); }
-  Y.rec = null;
+  Y.rec = null; Y.live = false;
   if (!R || R.phase !== "answer" || current() !== ex) return; // the lesson was closed or the card changed meanwhile
   Y.mine = wav; Y.tries++;
   mic.classList.remove("rec"); mic.innerHTML = MIC_ICON; mic.append(document.createTextNode("Say it again"));
