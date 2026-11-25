@@ -4208,8 +4208,10 @@ function pcmToWav(pcm, rate) {
       res[i] = c ? sum / c : 0;
     }
   }
+  LAST_RAW = { pcm: res, rate: out, kind: "direct", micRate: rate };
   return wavBytes(cleanVoice(res, out), out);
 }
+let LAST_RAW = null; // the last recording before tidying (for learnalefba.com/#mictest)
 function wavBytes(pcm, rate) {
   const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
   const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
@@ -4230,7 +4232,9 @@ async function toWav(blob) {
   const rate = 16000, len = Math.max(1, Math.ceil(decoded.duration * rate));
   const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, rate);
   const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
-  return wavBytes(cleanVoice((await off.startRendering()).getChannelData(0), rate), rate);
+  const raw = (await off.startRendering()).getChannelData(0);
+  LAST_RAW = { pcm: new Float32Array(raw), rate, kind: "MediaRecorder (" + (blob.type || "?") + ")", micRate: decoded.sampleRate };
+  return wavBytes(cleanVoice(raw, rate), rate);
 }
 // Send a clip to the website to be written down. Returns { ok, text } or { ok: false, error }.
 async function hearClip(wav, expect) {
@@ -6105,6 +6109,47 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
+const APP_VERSION = "v170";
+function openMicTest() {
+  const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
+  const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
+  box.append(el("h3", null, "Microphone check"));
+  const ua = navigator.userAgent, browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "another browser";
+  const info = el("p", "note", `App ${APP_VERSION} · ${browser} · ${/Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /iPhone|iPad/.test(ua) ? "iPhone/iPad" : /Android/.test(ua) ? "Android" : "other"}`); info.id = "micInfo";
+  const how = el("p", null, "Tap Record, say “mâdar” once, then tap Stop.");
+  const rec = el("button", "btn primary wide", "Record"); rec.id = "micTestRec"; rec.type = "button";
+  const out = el("p", "note"); out.id = "micTestOut";
+  const row = el("div", "say-judge"); row.hidden = true;
+  const playRaw = el("button", "btn quiet", "Play as recorded"), playClean = el("button", "btn quiet", "Play as the app plays it");
+  playRaw.id = "micPlayRaw"; playClean.id = "micPlayClean"; row.append(playRaw, playClean);
+  const saves = el("p", "note"); saves.hidden = true;
+  const close = el("button", "btn quiet wide", "Close"); close.type = "button"; close.addEventListener("click", () => wrap.remove());
+  box.append(info, how, rec, out, row, saves, close);
+  document.body.append(wrap);
+  let cur = null, clean = null, raw = null;
+  const url = b => URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
+  rec.addEventListener("click", async () => {
+    if (cur) { if (cur.live) cur.finish(); return; }
+    stopSound(); rec.textContent = "Getting ready…"; out.textContent = ""; row.hidden = true; saves.hidden = true;
+    const t0 = performance.now(); let tLive = 0;
+    try {
+      cur = await recordClip(8000, null, () => { tLive = performance.now() - t0; if (cur) { cur.live = true; rec.textContent = "Speak now… tap to stop"; } }, true);
+      setTimeout(() => { if (cur && !cur.live) { cur.live = true; rec.textContent = "Speak now… tap to stop"; } }, 700);
+      const tStart = performance.now();
+      clean = await cur.done; const held = (performance.now() - tStart) / 1000; cur = null;
+      const R0 = LAST_RAW; raw = wavBytes(R0.pcm, R0.rate);
+      out.textContent = `Recorder: ${R0.kind}, microphone ${R0.micRate} a second. Recording ran ${held.toFixed(1)} s, ready after ${(tLive / 1000).toFixed(1)} s. ` +
+        `As recorded: ${(R0.pcm.length / R0.rate).toFixed(2)} s. As the app plays it: ${((clean.byteLength - 44) / 2 / 16000).toFixed(2)} s.`;
+      row.hidden = false; saves.hidden = false; saves.textContent = "";
+      const a1 = el("a", null, "Save as recorded"); a1.href = url(raw); a1.download = "mic-as-recorded.wav";
+      const a2 = el("a", null, "Save as the app plays it"); a2.href = url(clean); a2.download = "mic-as-app-plays.wav";
+      saves.append(a1, document.createTextNode(" · "), a2);
+    } catch (e) { cur = null; out.textContent = "The microphone didn't start: " + (e && (e.name || e.message) || e); }
+    rec.textContent = "Record again";
+  });
+  playRaw.addEventListener("click", () => raw && playClip(raw));
+  playClean.addEventListener("click", () => clean && playClip(clean));
+}
 function playClip(wav, after) {
   const id = ++SOUND_ID;
   try { PLAYER.onended = null; PLAYER.pause(); } catch (e) {}
@@ -10119,17 +10164,22 @@ const TAAROF_LINK = { "#taarof": ["taarof-game", "taarof_link"], "#rally": ["taa
 // learnalefba.com/play: the balloon game for a classroom screen. It opens on the Games tab with Balloons picked, with
 // bigger balloons on a big screen, and nothing in front of it: the welcome waits for a later visit.
 const PLAY_LINK = !!(WEB && location.hash === "#play");
+// learnalefba.com/#mictest: a microphone check for finding out where a recording gets cut. Record, then play the sound
+// exactly as it came in and as tidied; the numbers say how long each is, and both can be saved to send.
+const MIC_TEST = !!(WEB && location.hash === "#mictest");
 // From learnalefba.com/yalda: Yalda bingo or the balloon game with the Yalda words, set up for a classroom screen, or
 // the Yalda story. Nothing in front of them, like the play link: the welcome waits (until the story closes, for the story).
 const YALDA_LINK = (WEB && { "#yalda-bingo": "bingo", "#yalda-balloons": "balloons", "#yalda-story": "story" }[location.hash]) || null;
-if (TAAROF_LINK || YALDA_LINK === "story") AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
+if (MIC_TEST) {}
+else if (TAAROF_LINK || YALDA_LINK === "story") AFTER_LINK = () => { if (!S.profile) openOnboarding(); else if (isLittle()) openLittle(); };
 else if (PLAY_LINK || YALDA_LINK) {}
 else if (!S.profile || location.hash === "#welcome") openOnboarding(); // add #welcome to the link to show the welcome again
 else if (isLittle()) openLittle();
 // links to share: learnalefba.com/#sheets opens the tracing sheets; learnalefba.com/#join=ABC234 joins a class (the code is filled in)
 if (NOSTATS_SET) showNotice(NOSTATS_SET === "counted" ? "This device is counted again" : "This device isn't counted any more",
   NOSTATS_SET === "counted" ? "Visits from this device show in your stats again." : "Visits from this device are left out of your stats from now on. To count it again, open learnalefba.com/?nostats=off");
-if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, also for someone who has never been here
+if (MIC_TEST) { try { history.replaceState(null, "", location.pathname); } catch (e) {} openMicTest(); }
+else if (TAAROF_LINK) { // learnalefba.com/taarof: straight into the taarof game, also for someone who has never been here
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   const tg = LESSONS.find(l => l.id === TAAROF_LINK[0]);
   if (tg) { if (!FROM_GUIDE) count(TAAROF_LINK[1]); openLesson(tg); } else { const f = AFTER_LINK; AFTER_LINK = null; f(); }
