@@ -39,6 +39,26 @@ with sync_playwright() as p:
         check(f"try {attempt + 1}: 'Getting ready…' first, then 'Speak now'", labels[0].strip().startswith("Getting ready") and any("Speak now" in l for l in labels), labels[:4])
         check(f"try {attempt + 1}: the word is in the recording (at least half a second of voice)", r and r["loudSecs"] >= 0.5, r)
         pg.evaluate("closeLesson()"); pg.wait_for_timeout(300)
+    b.close()
+    # a long phrase said straight away (تعارف نکن, a sentence, امشب: 5 seconds with pauses): all of it must be kept,
+    # not only the first second (Safari's MediaRecorder kept only its first piece; the app now records the sound directly)
+    PHRASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "speak_mic_phrase.wav")
+    b = p.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", f"--use-file-for-fake-audio-capture={PHRASE}%noloop",
+                                "--autoplay-policy=no-user-gesture-required"])
+    ctx = b.new_context(viewport={"width": 1280, "height": 800}, permissions=["microphone"])
+    ctx.add_init_script("localStorage.setItem('alefba-v3', " + json.dumps(json.dumps(ST)) + ")")
+    ctx.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(PAID)))
+    pg = ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(BASE + "?nostats"); pg.wait_for_timeout(900)
+    pg.evaluate("document.querySelectorAll('.sheet-wrap').forEach(x => x.hidden = true)")
+    pg.evaluate("window.__pcm = 0; const o = pcmRecorder; pcmRecorder = function () { window.__pcm++; return o.apply(this, arguments); }; 0")
+    pg.evaluate("startLesson({ id: 'x', title: 'x', practice: true }, [exSay(WORDS.find(W => W.tr === 'emshab') || WORDS[0])])"); pg.wait_for_timeout(300)
+    pg.click("#micBtn"); pg.wait_for_timeout(6000); pg.click("#micBtn"); pg.wait_for_timeout(1500)
+    r = pg.evaluate("""() => { const w = R.say.mine, v = new DataView(w), n = (w.byteLength - 44) / 2, F = 1600, loud = [];
+        for (let f = 0; f + F <= n; f += F) { let t = 0; for (let i = f; i < f + F; i++) { const x = v.getInt16(44 + i * 2, true) / 32768; t += x * x; } if (Math.sqrt(t / F) > 0.02) loud.push(f / 16000); }
+        return { secs: n / 16000, first: loud[0], last: loud[loud.length - 1], pcm: window.__pcm }; }""")
+    check("the sound is recorded directly, not through MediaRecorder", r["pcm"] == 1, r)
+    check("the whole 5 second phrase is kept, to its last word", r["secs"] > 4.8 and r["last"] - r["first"] > 4.3, r)
     check("no page errors", not errs, errs)
     b.close()
 print(f"{sum(OK)}/{len(OK)}")
