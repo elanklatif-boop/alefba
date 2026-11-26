@@ -5407,7 +5407,23 @@ function makeTracer(cv, glyph, onInk, opts) {
       const missing = marks.filter((p, k) => { let c = 0; zones[k].forEach((v, i) => { if (v && offInk[i]) c++; }); return c < p.length * 0.25; }).length;
       const blob = Math.max(3, Math.round(Math.pow(lw * loose / step, 2) * 0.25)); // about a third of a tap of the pen: a wobble along the stroke is smaller
       const stray = new Uint8Array(N); for (let i = 0; i < N; i++) if (offInk[i] && !anyZone[i]) stray[i] = 1;
-      return { missing, extra: partsOf(stray, n).filter(p => p.length >= blob).length, marks: marks.length };
+      const extra = partsOf(stray, n).filter(p => p.length >= blob).length;
+      // People draw dots their own way: se's three dots in a row instead of a little triangle, te's two spread apart.
+      // So if the dots aren't where the printed ones are, count them instead: the same number of separate dots as
+      // the letter has, on the same side of the stroke (above or below), and over the letter, is right. Two dots on
+      // se (that's te) or a dot on top of be (that's nun) still isn't.
+      if ((missing || extra) && marks.length) {
+        const dotMax = Math.max(cells(lw * 2.5), Math.round(n * 0.12));
+        const kp = partsOf(Km, n), kb = kp.length ? boxOf([kp[0]], n) : null, gb = boxOf([gp[0]], n);
+        if (kb) {
+          const side = (b, ref) => (b[1] + b[3] / 2 < ref[1] + ref[3] / 2 ? "up" : "down");
+          const want = marks.map(p => side(boxOf([p], n), gb)).sort().join();
+          const reach = cells(lw * 1.5), over = b => { const cx = b[0] + b[2] / 2; return cx >= kb[0] - reach && cx <= kb[0] + kb[2] + reach; };
+          const drawn = kp.slice(1).filter(p => p.length >= blob).map(p => boxOf([p], n)).filter(b => Math.max(b[2], b[3]) <= dotMax);
+          if (drawn.length === marks.length && drawn.every(over) && drawn.map(b => side(b, kb)).sort().join() === want) return { missing: 0, extra: 0, marks: marks.length };
+        }
+      }
+      return { missing, extra, marks: marks.length };
     }
     const markNear = grow(mask(marks), cells(lw * 0.45));
     // A dot counts as written when ink covers half of it. Only the part of the dot away from the letter's stroke is
@@ -6193,7 +6209,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v175";
+const APP_VERSION = "v176";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
