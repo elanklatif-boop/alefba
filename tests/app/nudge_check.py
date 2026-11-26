@@ -61,12 +61,12 @@ with sync_playwright() as p:
     pg.locator("#nudgeSetCard").scroll_into_view_if_needed(); pg.screenshot(path="nudge/settings_form.png")
     check("no page errors", not errs, errs)
     c.close()
-    # straight into the first lesson, without saying who's learning: it doesn't assume a child or an adult
+    # straight into the first lesson, without saying who's learning: it might be a child, so it asks for a grown-up's email
     c, pg, errs = page(b, {**st(), "profile": {"skipped": True, "goal": 2, "adult": False, "first": "new"}})
     finish_first(pg)
     check("not said who's learning: the come-back card comes first, not the question", pg.is_visible("#comebackCard") and not pg.is_visible("#whoCard"))
     open_email(pg); t = pg.inner_text("#nudgeCard") if pg.is_visible("#nudgeCard") else ""
-    check("its email offer doesn't assume a child or an adult", t and "Grown-ups" not in t and "This is my email, and I'm an adult" in t, t)
+    check("its email offer asks for a grown-up's email (it might be a child), and the box says an adult is signing up", t and "Grown-ups" in t and pg.get_attribute("#nudgeEmail", "placeholder") == "A grown-up's email" and "This is my email, and I'm an adult" in t, t)
     pg.evaluate("closeLesson()"); finish_first(pg)
     check("the next lesson asks who's learning", pg.is_visible("#whoCard") and not pg.is_visible("#comebackCard"))
     pg.click("#whoMe"); pg.wait_for_timeout(300)

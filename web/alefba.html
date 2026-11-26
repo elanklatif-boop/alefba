@@ -2672,7 +2672,9 @@ ALPHA_UNITS.forEach(u => u.L.forEach(L => (UNIT_OF[L[0]] = u)));
 // before they move on. Recorded words only, spelled the way they sound (no silent vâv as in khâhar, no vowel marks),
 // the ones that use this unit's new letters first; earlier readable words fill in when a unit has too few new ones.
 const readLetters = u => ALPHA_UNITS.slice(0, u.index + 1).map(x => x.letters).join("") + "آ";
-function readWords(u) {
+// (its own name: the balloon game's readWords(pool), added later with the same name, had replaced it, so the
+// "Read your first words" lesson at the end of every letter group stopped opening)
+function unitReadWords(u) {
   const known = readLetters(u);
   const ok = W => !/[\s\u200c\u064b-\u0652]/.test(W.fa) && !W.two && !W.fa.includes("خوا") && hasAudio(wordAudio(W)) && Array.from(W.fa).every(ch => known.includes(ch));
   const isNew = W => Array.from(W.fa).some(ch => u.letters.includes(ch));
@@ -3650,6 +3652,8 @@ function loadState() {
   }
   S.rest = restLeft();
   useRestDays();
+  // letter groups got a "finished" card later than levels did: ones finished before that don't all pop up at once
+  if (!S.rewardsSeen || !S.rewardsSeen.unitsFrom) { S.rewardsSeen = S.rewardsSeen || {}; S.rewardsSeen.unitsFrom = 1; ALPHA_UNITS.forEach(u => { if (unitLearned(u)) S.rewardsSeen["u" + u.index] = 1; }); }
   buildLevels();
   if (S.speak == null && activeProfile()) { // a plan made before speaking and reading were checked separately
     S.speak = Math.max({ listen: 1, speak: 2 }[S.profile.knows] || 0, S.profile.listener ? 1 : 0);
@@ -3699,6 +3703,12 @@ function sendUsage() {
   if (USAGE.length) usageTimer = setTimeout(sendUsage, 1000);
 }
 try { document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") sendUsage(); }); } catch (e) {}
+// The way to a plan, step by step (finished Level 3, saw the price, tapped a plan, went to the payment page), each
+// counted once per device so the stats show how many people get how far. Paying itself is counted by the server.
+function funnel(step) {
+  try { const k = "alefba-funnel", f = JSON.parse(localStorage.getItem(k) || "{}"); if (f[step]) return; f[step] = 1; localStorage.setItem(k, JSON.stringify(f)); } catch (e) { return; }
+  count("pay_" + step, true);
+}
 try { window.addEventListener("pagehide", () => sendUsage()); } catch (e) {}
 // A page that breaks on someone's phone: counted once per visit (just the number, nothing about the error or who),
 // so a problem only some browsers have still shows up. Errors from browser add-ons or other sites are left out.
@@ -4808,6 +4818,9 @@ function renderGamesTab() {
 const LEVEL_STICKERS = ["👋", "👪", "🍎", "🐈", "☀️", "🎨", "😊", "⏰", "🔢", "🎒", "🏃", "🍵", "❓", "📅", "🎉", "✈️"];
 const stickerOf = lv => LEVEL_STICKERS[lv.index] || "⭐";
 const hasSticker = lv => wordLessons(lv).length > 0 && wordLessons(lv).every(l => S.done[l.id]);
+function unitLearned(u) { return u.lessons.every(l => S.done[l.id]) && u.lessons.some(l => S.done[l.id] === true); } // a function: loadState uses it early
+// the letters someone has really learned: in the letter groups they finished themselves (not ones the level check skipped)
+function learnedLetters() { return ALPHA_UNITS.filter(unitLearned).reduce((n, u) => n + u.L.length, 0); }
 const storiesRead = () => STORIES.filter(st => S.done[`story-${st.level + 1}`]).length;
 const BADGES = [
   { id: "streak3", pic: "🔥", name: "3 days in a row", got: () => (S.best || 0) >= 3 },
@@ -4824,7 +4837,9 @@ const BADGES = [
 function newRewards() {
   const seen = S.rewardsSeen || (S.rewardsSeen = {}), out = [];
   // a level the level check skipped isn't "finished": its sticker pops up (and offers a share) only once a lesson in it is really done
-  LEVELS.forEach(lv => { const k = "lv" + lv.index; if (hasSticker(lv) && learnedLevel(lv) && !seen[k]) { seen[k] = 1; out.push({ pic: stickerOf(lv), name: `Level ${lv.index + 1} sticker: ${lv.title}`, lv }); } });
+  LEVELS.forEach(lv => { const k = "lv" + lv.index; if (hasSticker(lv) && learnedLevel(lv) && !seen[k]) { if (lv.index === FREE_LEVELS - 1) funnel("l3"); /* the last free level: next comes the paid part */ seen[k] = 1; out.push({ pic: stickerOf(lv), name: `Level ${lv.index + 1} sticker: ${lv.title}`, lv }); } });
+  // a letter group, all its lessons done (not only skipped by the level check): it can be shared too
+  ALPHA_UNITS.forEach(u => { const k = "u" + u.index; if (unitLearned(u) && !seen[k]) { seen[k] = 1; out.push({ pic: "✍️", name: `Letters: ${u.title}`, unit: u }); } });
   BADGES.forEach(b => { if (b.got() && !seen[b.id]) { seen[b.id] = 1; out.push({ pic: b.pic, name: `Badge: ${b.name}`, words: /^words/.test(b.id) }); } });
   return out;
 }
@@ -4899,8 +4914,8 @@ function celebrate(d) {
   got.slice(0, 4).forEach(r => { const c = el("div", "reward-item"); c.append(el("span", "reward-pic", r.pic), el("span", null, r.name)); row.append(c); });
   box.append(row);
   const open = el("button", "link-btn", "See my sticker book"); open.type = "button"; open.id = "rewardOpen"; open.addEventListener("click", () => { closeLesson(); openStickers(); });
-  const lvGot = got.find(r => r.lv), proud = lvGot || got.find(r => r.words);
-  if (proud && !d.querySelector("#shareBtn")) box.append(shareButton(lvGot ? lvGot.lv : null));
+  const lvGot = got.find(r => r.lv), unitGot = got.find(r => r.unit), proud = lvGot || unitGot || got.find(r => r.words);
+  if (proud && !d.querySelector("#shareBtn")) box.append(shareButton(lvGot ? lvGot.lv : unitGot ? { unit: unitGot.unit } : null));
   box.append(open);
   const h = d.querySelector("h2"); if (h) (h.nextElementSibling && h.nextElementSibling.tagName === "P" ? h.nextElementSibling : h).after(box); else d.append(box); // near the top, where it's seen
 }
@@ -4940,13 +4955,17 @@ function openStickers() {
 // ----- Sharing: a picture of what a learner can do, to send to family (a grandparent's WhatsApp, say) -----
 // Made on the device with a canvas: nothing is uploaded. The phone's share menu sends it; elsewhere it's saved.
 const shareName = () => { const p = activeProfile(); return p && p.name ? String(p.name).trim().slice(0, 24) : ""; };
+const shareUnit = lv => (lv && lv.unit && !lv.words ? lv.unit : null); // a letter group someone finished, not a level
 function shareWords(lv) {
+  const u = shareUnit(lv);
+  if (u) return u.L.slice(0, 6).map(L => ({ fa: L[0], m: L[1] })); // its letters, each with its name
   const known = lv ? lv.words.filter(knowsWord) : WORDS.filter(knowsWord);
   const list = (known.length >= 3 ? known : lv ? lv.words : known).filter(W => W.fa.length <= 9);
   return (lv ? list : list.slice(-12)).slice(0, 6);
 }
 function shareHeadline(lv, withName) {
   const n = ALL_WORDS().filter(knowsWord).length, who = withName && shareName();
+  if (shareUnit(lv)) { const k = learnedLetters(), what = `${k} Persian letter${k === 1 ? "" : "s"}`; return who ? `${who} can read ${what}!` : `I can read ${what}!`; }
   if (lv) {
     const what = lv.season ? `the ${lv.title} pack` : `Level ${lv.index + 1}: ${lv.title}`;
     return who ? `${who} finished ${what}!` : `I finished ${what}!`;
@@ -4969,7 +4988,7 @@ async function shareCanvas(lv, withName) {
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillStyle = "#f0b649"; g.font = "64px Lalezar, Vazirmatn, sans-serif"; g.fillText("الفبا", W / 2, 120);
   g.fillStyle = "rgba(255,255,255,0.75)"; g.font = "500 34px Lexend, sans-serif"; g.fillText("Alefba", W / 2, 180);
-  g.font = "150px 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif"; g.fillText(lv && !lv.season ? stickerOf(lv) : lv ? (lv.pic || "🍉") : "🌟", W / 2, 330);
+  g.font = "150px 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Emoji', sans-serif"; g.fillText(shareUnit(lv) ? "✍️" : lv && !lv.season ? stickerOf(lv) : lv ? (lv.pic || "🍉") : "🌟", W / 2, 330);
   g.fillStyle = "#ffffff"; g.font = "700 70px Lexend, sans-serif";
   const lines = wrapLines(g, shareHeadline(lv, withName), 920).slice(0, 3);
   lines.forEach((l, i) => g.fillText(l, W / 2, 490 + i * 84 - (lines.length - 1) * 42));
@@ -4982,7 +5001,7 @@ async function shareCanvas(lv, withName) {
     g.fillStyle = "#5b6478"; g.font = "500 30px Lexend, sans-serif"; g.fillText(Wd.m.length > 18 ? Wd.m.slice(0, 17) + "…" : Wd.m, x + cw / 2, y + 132, cw - 30);
   });
   const rows = Math.ceil(ws.length / cols), y2 = top + rows * (ch + gap) + 40;
-  const bits = [], n = ALL_WORDS().filter(knowsWord).length, sd = streakDays(), nl = LETTERS.filter(knowsLetter).length;
+  const bits = [], n = ALL_WORDS().filter(knowsWord).length, sd = streakDays(), nl = shareUnit(lv) ? learnedLetters() : LETTERS.filter(knowsLetter).length;
   if (n) bits.push(`${n} word${n === 1 ? "" : "s"}`); if (nl) bits.push(`${nl} letter${nl === 1 ? "" : "s"}`); if (sd > 1) bits.push(`${sd}-day streak`);
   g.fillStyle = "#f0b649"; g.font = "600 40px Lexend, sans-serif"; if (bits.length) g.fillText(bits.join("  ·  "), W / 2, Math.min(y2, 1150));
   g.fillStyle = "rgba(255,255,255,0.85)"; g.font = "500 34px Lexend, sans-serif"; g.fillText("Learn Persian with Alefba", W / 2, 1235);
@@ -5152,7 +5171,7 @@ function buildLessonCore(lesson) {
     const pool = before.length ? before : Ls;
     shuffle(pool).slice(0, 3).forEach(L => seq.push(pick([exLetterName, exNameLetter, exForm])(L, pool)));
   } else if (lesson.kind === "read") {
-    const u = lesson.unit, { words: Ws, pool } = readWords(u), only = readLetters(u);
+    const u = lesson.unit, { words: Ws, pool } = unitReadWords(u), only = readLetters(u);
     seq.push({ type: "tip", title: u.index ? "More words you can read" : "You can read words now!", art: Ws[0].fa, text: u.index
       ? "Your new letters make even more words. Sound each one out, letter by letter from right to left, then check yourself."
       : "These words use only the letters you've just learned. Say each letter's sound, from right to left. Persian usually leaves out the short vowels (a, e, o), so once you've sounded it out, listen for the little vowels in between." });
@@ -5797,13 +5816,15 @@ function showExercise() {
     const word = fa("div", "glyph word first-word tap-glyph", ""); word.id = "firstWordGlyph";
     Array.from(W.fa).forEach(ch => word.append(ch === "ا" ? el("span", "hl", ch) : document.createTextNode(ch)));
     const hint = el("p", "tap-hint", "👆 Tap the word to hear it"); hint.id = "firstTapHint";
+    // its Finglish (bâbâ) only once it's been heard: shown straight away, it gives away card 3 ("read it yourself")
+    const tr = el("p", "first-tr", W.tr); tr.id = "firstTr";
     if (hasAudio(ex.audio)) {
-      word.tabIndex = 0; word.setAttribute("role", "button"); word.setAttribute("aria-label", `Hear ${W.tr}`);
-      const tap = () => { word.classList.remove("tapped"); void word.offsetWidth; word.classList.add("tapped"); hint.classList.add("done"); speak(ex.audio); };
+      tr.hidden = true;
+      word.tabIndex = 0; word.setAttribute("role", "button"); word.setAttribute("aria-label", "Hear the word");
+      const tap = () => { word.classList.remove("tapped"); void word.offsetWidth; word.classList.add("tapped"); hint.classList.add("done"); tr.hidden = false; speak(ex.audio); };
       word.addEventListener("click", tap);
       word.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(); } });
     }
-    const tr = el("p", "first-tr", W.tr); tr.id = "firstTr";
     box.append(word, tr);
     if (hasAudio(ex.audio)) box.append(hint);
     const mean = el("p", "first-mean"); mean.id = "firstMean";
@@ -6210,7 +6231,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v177";
+const APP_VERSION = "v178";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
@@ -6371,6 +6392,8 @@ function tapMatch(b) {
 }
 function mainAction() {
   if (!R) return;
+  // (a second tap from the last card's Continue, a moment later, doesn't skip the finish screen into the next lesson)
+  if (R.finish && R.keepGoing) { if (Date.now() - R.finishAt < 800) return; const nx = R.keepGoing; count("cb_keep", true); closeLesson(); openLesson(nx); return; }
   if (R.finish) return closeLesson();
   const ex = current();
   if (ex.type === "readWord" && R.readReveal) { const show = R.readReveal; R.readReveal = null; return show(); }
@@ -6381,6 +6404,8 @@ function mainAction() {
   if (R.pos >= R.queue.length) return finishLesson();
   showExercise();
 }
+// About how long a lesson takes: its cards at about 15 seconds each (the 8-card first lesson takes about 2 minutes)
+function lessonMinutes(ls) { let n = 12; try { n = buildLesson(ls).length; } catch (e) {} return Math.max(2, Math.round(n * 15 / 60)); }
 function finishLesson() {
   if (R.testOut) return finishTestOut();
   const practice = !!(R.lesson && R.lesson.practice);
@@ -6464,7 +6489,11 @@ function finishLesson() {
   if (!practice) moveNudge(nextLesson()); // practice today: the reminder email moves to tomorrow
   if (!practice && (R.lesson || R.game)) celebrate(d); // confetti, a chime, and any new sticker or badge
   box.append(d);
-  setMain(practice ? "Back to the alphabet" : R.game ? "Back to games" : "Back to lessons", true);
+  // after the very first lesson, the big button goes straight on into the next one (not back to the list)
+  const nx1 = !practice && R.lesson && firstTime && Object.values(S.done).filter(v => v === true).length === 1 ? nextLesson() : null;
+  R.keepGoing = nx1 && nx1.kind !== "talk" && !lessonLocked(nx1) ? nx1 : null; R.finishAt = Date.now();
+  if (R.keepGoing) setMain(`Keep going: ${R.keepGoing.title}, about ${lessonMinutes(R.keepGoing)} minutes`, true);
+  else setMain(practice ? "Back to the alphabet" : R.game ? "Back to games" : "Back to lessons", true);
   renderAll();
 }
 let AFTER_LINK = null; // a game opened straight from a link (learnalefba.com/taarof): what to show once it closes
@@ -6912,7 +6941,7 @@ function openSpeakLocked(kind) {
     ? `${who} says each line out loud and you answer by speaking Persian. Slower plays a line again slowly, and Hint gives you ideas for what to say. After you speak, you see what was heard, in Finglish and in your language, so you can check it understood you.`
     : "Tap the microphone and say your reply in Persian instead of typing it. You see what was heard before it's sent, so you can fix it."));
   box.append(el("p", "note", "Free talks are typed. Everything else about them works the same."));
-  if (ACCT && ACCT.prices) box.append(el("p", "note", `Plans are ${planPrices(ACCT)}. They also open all ${LEVELS.length} levels.`));
+  if (ACCT && ACCT.prices) { box.append(el("p", "note", `Plans are ${planPrices(ACCT)}. They also open all ${LEVELS.length} levels.`)); funnel("price"); }
   const go = el("button", "btn primary wide", plansBtnText()); go.id = "speakPlans"; go.type = "button";
   go.addEventListener("click", () => { wrap.remove(); goPlans(() => { accountChanged(); if (voice && TK && canVoiceMode()) setVoiceMode(true); }); });
   const no = el("button", "btn quiet wide", "Not now"); no.id = "speakClose"; no.type = "button"; no.addEventListener("click", () => wrap.remove());
@@ -6940,7 +6969,7 @@ function renderPlansTab() {
   if (A.hearReady && A.voiceReady) adds.push([ICON.sound, "Voice mode in talks: the character speaks out loud and you answer by speaking Persian, with Slower and Hint buttons"]);
   if (A.hearReady) adds.push([MIC_ICON, "Speaking practice in lessons: say words out loud and compare your voice with the app's recording"]);
   list(hasPlan ? "Your plan includes" : "A plan adds", adds);
-  if (A.prices && !hasPlan) card.append(el("p", "plan-prices", `${planPrices(A)}.`));
+  if (A.prices && !hasPlan) { card.append(el("p", "plan-prices", `${planPrices(A)}.`)); funnel("price"); }
   if (A.prices && !hasPlan) card.append(el("p", "note", "Plans renew by themselves until you cancel, and you can cancel any time."));
   if (A.signedIn) card.append(el("p", "note talks-left", talksLeftText(A) + "."));
   if (ready && A.plans !== false) {
@@ -7788,8 +7817,9 @@ function renderAccountBody(body, wrap, after) {
           if (r.ok) return;
           say(r.error === "sign_in" ? "Please sign in again." : SIGN_ERRORS[r.error] || "The plan couldn't be changed right now. Try again later.");
         } else {
+          funnel("plan");
           const r = await apiPost("/checkout", { plan });
-          if (r.ok && r.data.url) { location.href = r.data.url; return; }
+          if (r.ok && r.data.url) { funnel("checkout"); sendUsage(); location.href = r.data.url; return; }
           if (r.error === "has_plan" && r.data.account) { ACCT = r.data.account; renderAccountBody(body, wrap, after); return; }
           say(r.error === "sign_in" ? "Please sign in again." : r.error === "busy" ? "Another payment page was just opened for this account. Finish it there, or try again in a moment." : "Payments aren't working right now. Try again later.");
         }
@@ -7798,6 +7828,7 @@ function renderAccountBody(body, wrap, after) {
       c.append(btn);
       return c;
     };
+    if (!A.plan) funnel("price");
     const perMonth = A.prices.yearly && /^\$[\d.]+$/.test(A.prices.yearly) ? `about $${(parseFloat(A.prices.yearly.slice(1)) / 12).toFixed(2)} a month` : "";
     body.append(card("basic", `${A.basicTalks} talks a month`, A.prices.basic, "Good for a few talks a week."),
       card("unlimited", "Unlimited talks", A.prices.unlimited, `Talk as much as you like, up to ${A.perDay} talks a day.`),
@@ -8667,7 +8698,7 @@ function openLocked(ls) {
   const h = el("h3", null, `Level ${ls.level.index + 1} comes with a plan`); h.id = "lockedTitle";
   const signed = !!(ACCT && ACCT.signedIn);
   box.append(h, el("p", null, `The alphabet and the first ${FREE_LEVELS} levels are free. A plan opens all ${LEVELS.length} levels (${WORDS.length} words and ${CONVS.length} conversations), the AI talks${ACCT && ACCT.hearReady ? (ACCT.voiceReady ? ", speaking practice and spoken conversations" : " and speaking practice") : ""}.`));
-  if (ACCT && ACCT.prices) box.append(el("p", "note", `${ACCT.prices.basic} a month, ${ACCT.prices.unlimited} a month for unlimited talks, or ${ACCT.prices.yearly} a year.`));
+  if (ACCT && ACCT.prices) { box.append(el("p", "note", `${ACCT.prices.basic} a month, ${ACCT.prices.unlimited} a month for unlimited talks, or ${ACCT.prices.yearly} a year.`)); funnel("price"); }
   const go = el("button", "btn primary wide", talksToYou() ? (signed ? "See the plans" : "Sign in to see the plans") : signed ? "Show a grown-up the plans" : "Ask a grown-up to sign in"); go.id = "lockedPlans"; go.type = "button";
   go.addEventListener("click", () => { wrap.remove(); (signed ? openAccount : openSignIn)(() => { renderAll(); if (!lessonLocked(ls)) openLesson(ls); }); });
   const no = el("button", "btn quiet wide", "Not now"); no.id = "lockedClose"; no.type = "button"; no.addEventListener("click", () => wrap.remove());
@@ -9013,7 +9044,9 @@ function nudgeCard(nx, fromSettings, chosen) { // chosen: opened from the come-b
   if (!WEB || !WEB.api || nudgeInfo() || (!fromSettings && !chosen && nudgeAsked())) return null;
   if (!fromSettings) { markNudgeAsked(); count("nudge_show"); } // offered once; it's in Settings after that
   // who's learning: an adult, a child, or not said yet (straight into the first lesson), when it doesn't assume either
-  const who = isAdult() ? "adult" : whoUnknown() ? "unknown" : "child", grown = who !== "child";
+  // only someone who said they're a teen or adult is asked for their own email; a child, or someone who hasn't said, is
+  // asked for a grown-up's
+  const who = isAdult() ? "adult" : whoUnknown() ? "unknown" : "child", grown = who === "adult";
   const c = el("div", "plan-card install nudge"); c.id = fromSettings ? "nudgeSetCard" : "nudgeCard";
   c.append(el("b", null, grown ? "Want an email when the next lesson is ready?" : "Grown-ups: want an email when the next lesson is ready?"));
   c.append(el("p", "note", "One short email the day after a lesson, so it's easy to come back for the next one. Nothing else, and you can stop it any time."));
@@ -9038,7 +9071,7 @@ function nudgeCard(nx, fromSettings, chosen) { // chosen: opened from the come-b
     const r = await apiPost("/nudge/start", { email, agree: true, next: nudgeNext(nx || nextLesson()) });
     go.disabled = false;
     if (!r.ok || !r.data.token) { msg.textContent = NUDGE_ERRORS[r.error] || "That didn't work. Please try again later."; return; }
-    setNudge({ token: r.data.token, email }); markNudgeAsked(); count("nudge_on");
+    setNudge({ token: r.data.token, email }); markNudgeAsked(); count("nudge_on"); if (chosen) count("cb_email");
     const done = el("b", null, "Done! We'll email you tomorrow when the next lesson is ready."); done.id = "nudgeDone";
     c.replaceChildren(done, el("p", "note", "It comes from Alefba (hello@learnalefba.com). If you don't see it, check your spam folder once and mark it “Not spam”. You can stop the emails any time in the Review tab."));
   });
@@ -9305,10 +9338,10 @@ function remindDates(time) {
   const e = Math.min(h * 60 + m + 10, 23 * 60 + 59), hm = (a, b) => String(a).padStart(2, "0") + String(b).padStart(2, "0"); // ends 10 minutes later, the same day
   return { day, start: `${day}T${hm(h, m)}00`, end: `${day}T${hm(Math.floor(e / 60), e % 60)}00`, hm: hm(h, m) };
 }
-function remindIcs(time) { // the same file the server makes, for when the page isn't on the website
+function remindIcs(time, once) { // the same file the server makes, for when the page isn't on the website; once: just tomorrow
   const t = remindDates(time), now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Alefba//Daily reminder//EN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
-    `UID:alefba-${Date.now()}@learnalefba.com`, `DTSTAMP:${now}`, `DTSTART:${t.start}`, "DURATION:PT10M", "RRULE:FREQ=DAILY",
+    `UID:alefba-${Date.now()}@learnalefba.com`, `DTSTAMP:${now}`, `DTSTART:${t.start}`, "DURATION:PT10M", ...(once ? [] : ["RRULE:FREQ=DAILY"]),
     `SUMMARY:${REMIND_TEXT}`, `DESCRIPTION:${REMIND_MORE}`, "URL:https://learnalefba.com/?ref=reminder",
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time for a little Persian!", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
 }
@@ -9317,30 +9350,50 @@ function remindIcs(time) { // the same file the server makes, for when the page 
 // once; both are in Settings (the Review tab) after that.
 const hm12 = v => { const [h, m] = v.split(":").map(Number); return `${(h % 12) || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
 const appleCal = () => { const u = navigator.userAgent; return isIOS() || (/Macintosh/.test(u) && /Safari/.test(u) && !/Chrome|Chromium|Edg|Firefox/.test(u)); };
+// The browser inside Instagram, Facebook, TikTok and the like: it can't open a calendar file (.ics), and Google
+// won't let anyone sign in inside it, so a calendar reminder there mostly fails without a word.
+function inAppBrowser() {
+  const u = navigator.userAgent || "";
+  if (/Instagram/i.test(u)) return "Instagram";
+  if (/FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(u)) return "Facebook";
+  if (/musical_ly|BytedanceWebview|TikTok/i.test(u)) return "TikTok";
+  if (/Snapchat|LinkedInApp|Twitter|Pinterest|; wv\)/i.test(u)) return "this app";
+  return "";
+}
 function comebackCard(nx) {
   S.prefs.comebackAsked = true; S.prefs.remindAsked = true; save(); markNudgeAsked(); count("comeback_show");
   const c = el("div", "plan-card comeback"); c.id = "comebackCard";
   c.append(el("b", "cb-title", "See you tomorrow? 🔥"), el("p", "note", nx ? `Next up: ${nx.title}. A few minutes a day is how Persian sticks.` : "A few minutes a day is how Persian sticks."));
+  // tomorrow, at about the time they finished (people tend to come back when they first practised)
   const now = new Date(), q = Math.round((now.getHours() * 60 + now.getMinutes()) / 15) * 15 % 1440;
   let hm = `${String(Math.floor(q / 60)).padStart(2, "0")}:${String(q % 60).padStart(2, "0")}`;
-  const apple = appleCal();
-  const main = document.createElement("a"); main.className = "btn primary wide"; main.id = "comebackCal";
+  const apple = appleCal(), app = inAppBrowser(), android = /Android/i.test(navigator.userAgent || ""), canEmail = !!(WEB && WEB.api);
+  // inside Instagram and the like, the email is the main way; on Android the calendar opens in Chrome; on an iPhone no
+  // calendar works from there, so it isn't offered (opening Safari would start the app over without this lesson)
+  const inApp = !!app && canEmail, noCal = inApp && !android;
+  const main = document.createElement("a"); main.className = inApp ? "btn quiet wide" : "btn primary wide"; main.id = "comebackCal";
   const other = document.createElement("a"); other.className = "link-btn"; other.id = "comebackCalOther";
   const ics = document.createElement("a"), g = document.createElement("a");
   const links = () => {
     const t = remindDates(hm);
-    if (WEB) { ics.href = `/api/reminder.ics?t=${t.hm}&d=${t.day}`; ics.removeAttribute("download"); }
-    else { try { if (ics.href.startsWith("blob:")) URL.revokeObjectURL(ics.href); } catch (e) {} ics.href = URL.createObjectURL(new Blob([remindIcs(hm)], { type: "text/calendar" })); ics.download = "alefba-reminder.ics"; }
-    g.href = "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE", text: REMIND_TEXT, details: REMIND_MORE, dates: `${t.start}/${t.end}`, recur: "RRULE:FREQ=DAILY" });
+    if (WEB) { ics.href = `/api/reminder.ics?t=${t.hm}&d=${t.day}&once=1`; ics.removeAttribute("download"); }
+    else { try { if (ics.href.startsWith("blob:")) URL.revokeObjectURL(ics.href); } catch (e) {} ics.href = URL.createObjectURL(new Blob([remindIcs(hm, true)], { type: "text/calendar" })); ics.download = "alefba-reminder.ics"; }
+    g.href = "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE", text: REMIND_TEXT, details: REMIND_MORE, dates: `${t.start}/${t.end}` });
+    if (inApp) { // Android: the same Google Calendar page, opened in Chrome (where they're signed in) instead of in here
+      main.href = `intent://${g.href.replace(/^https:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(g.href)};end`;
+      main.removeAttribute("target"); main.removeAttribute("download");
+      main.textContent = `📅 Or remind me tomorrow at ${hm12(hm)} (opens Chrome)`;
+      return;
+    }
     const [a, b] = apple ? [ics, g] : [g, ics]; // the phone's own calendar first: Apple's on an iPhone or a Mac, Google's elsewhere
     main.href = a.href; other.href = b.href;
     [[main, a], [other, b]].forEach(([x, y]) => { if (y === g) { x.target = "_blank"; x.rel = "noopener"; x.removeAttribute("download"); } else { x.removeAttribute("target"); if (y.download) x.download = y.download; else x.removeAttribute("download"); } });
-    main.textContent = `📅 Remind me daily at ${hm12(hm)}`;
+    main.textContent = `📅 Remind me tomorrow at ${hm12(hm)}`;
     other.textContent = apple ? "Use Google Calendar instead" : "Use another calendar app";
   };
   const chose = () => {
-    S.prefs.remind = hm; save(); count("cal_on");
-    setTimeout(() => c.replaceChildren(el("b", "cb-title", "Reminder added. See you tomorrow! 🔥"), el("p", "note", `Every day at ${hm12(hm)}. You can change it or add an email reminder in the Review tab.`)), 300);
+    S.prefs.remindOnce = hm; save(); count("cal_on"); count("cb_cal");
+    setTimeout(() => c.replaceChildren(el("b", "cb-title", "Reminder added. See you tomorrow! 🔥"), el("p", "note", `Tomorrow at ${hm12(hm)}. Want one every day? Add it in the Review tab.`)), 300);
   };
   main.addEventListener("click", chose); other.addEventListener("click", chose);
   const time = document.createElement("input"); time.type = "time"; time.className = "remind-time"; time.id = "comebackTime"; time.value = hm; time.hidden = true;
@@ -9349,14 +9402,16 @@ function comebackCard(nx) {
   const change = el("button", "link-btn", "Change the time"); change.type = "button"; change.id = "comebackChange";
   change.addEventListener("click", () => { time.hidden = false; change.hidden = true; time.focus(); });
   links();
-  const small = el("div", "cb-small"); small.append(change, time, other);
-  c.append(main, small);
-  if (WEB && WEB.api) {
-    const em = el("button", "btn quiet wide", "✉️ Email me tomorrow instead"); em.type = "button"; em.id = "comebackEmail";
+  const small = el("div", "cb-small"); small.append(change, time); if (!inApp) small.append(other);
+  let em = null;
+  if (canEmail) {
+    em = el("button", inApp ? "btn primary wide" : "btn quiet wide", inApp ? "✉️ Email me tomorrow" : "✉️ Email me tomorrow instead"); em.type = "button"; em.id = "comebackEmail";
     em.addEventListener("click", () => { const nc = nudgeCard(nx, false, true); if (nc) { nc.classList.add("in-comeback"); em.replaceWith(nc); nc.querySelector("input").focus(); } });
-    c.append(em);
   }
-  const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "comebackNo"; no.addEventListener("click", () => c.remove());
+  if (noCal) { c.append(em, el("p", "note cb-inapp", `A calendar reminder can't be added from inside ${app}, so an email is the way here.`)); }
+  else if (inApp) c.append(em, main, small);
+  else { c.append(main, small); if (em) c.append(em); }
+  const no = el("button", "link-btn", "No thanks"); no.type = "button"; no.id = "comebackNo"; no.addEventListener("click", () => { count("cb_no"); c.remove(); });
   c.append(no);
   return c;
 }

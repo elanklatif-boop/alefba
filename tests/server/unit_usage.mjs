@@ -54,7 +54,7 @@ const fr = Object.fromEntries((await db.prepare("SELECT name, n FROM usage WHERE
 check(`first-lesson cards are counted, and only cards 1 to 12 of the three kinds ${JSON.stringify(fr)}`, fr.first_new_1 === 4 && fr.first_new_2 === 2 && fr.first_new_done === 1 && fr.first_new_left === 1 && fr.first_heard_1 === 1 && !fr.first_new_13 && !fr.first_x_1, fr);
 r = await post(env(K), "a-long-secret-123456");
 const ft = r.text.slice(r.text.indexOf("Where people stop"));
-check("the stats page shows where people stop in their first lesson", ft.includes("Got to card 1</td><td>4 (100%) <small>alef</small></td><td>1 (100%) <small>hear bâbâ</small></td><td>0</td>") && ft.includes("Got to card 2</td><td>2 (50%) <small>be</small>") && ft.includes("Finished it</td><td>1 (25%)</td>") && ft.includes("Got to card 8</td>") && !ft.includes("Got to card 9</td>"), ft.slice(0, 900));
+check("the stats page shows where people stop in their first lesson", ft.includes("Got to card 1</td><td>4 (100%) <small>bâbâ: what it means</small></td><td>1 (100%) <small>hear bâbâ</small></td><td>0</td>") && ft.includes("Got to card 2</td><td>2 (50%) <small>be and alef</small>") && ft.includes("Finished it</td><td>1 (25%)</td>") && ft.includes("Got to card 8</td>") && !ft.includes("Got to card 9</td>"), ft.slice(0, 900));
 // the welcome's link for those who speak some, and a page that hit an error: counted and shown
 await call(env(), "/api/usage", { method: "POST", body: { e: ["ob_heard", "page_error", "page_error", "play_link"], d: today } });
 r = await post(env(K), "a-long-secret-123456");
@@ -63,6 +63,18 @@ const row = r.text.slice(r.text.indexOf(`<td>${today}</td>`)), vals = row.slice(
 check(`the stats page has "Hit an error" (2) and "Welcome: Already speak some" (1)`, vals[cells.indexOf("Hit an error")] === "2" && vals[cells.indexOf("Welcome: Already speak some")] === "1", [cells.indexOf("Hit an error"), vals.slice(0, 6)]);
 check(`the stats page has the classroom game link (1)`, vals[cells.indexOf("Classroom game link (learnalefba.com/play): opened")] === "1", cells.indexOf("Classroom game link (learnalefba.com/play): opened"));
 check("the first-lesson columns say how people started", ft.includes("<th>Start learning (new to Persian)</th><th>Already speak some Persian</th>"), ft.slice(0, 400));
+// what people chose after the first lesson, and the way to a plan (each step's share of the one above)
+await call(env(), "/api/usage", { method: "POST", body: { e: ["comeback_show", "comeback_show", "comeback_show", "comeback_show", "cb_keep", "cb_keep", "cb_cal", "cb_email", "cb_no", "pay_l3", "pay_l3", "pay_l3", "pay_l3", "pay_price", "pay_price", "pay_plan", "pay_checkout"], d: today } });
+r = await post(env(K), "a-long-secret-123456");
+const ab = r.text.slice(r.text.indexOf("<h2>After the first lesson"));
+check("the stats page shows what people chose after the first lesson", ab.includes("Tapped Keep going (straight into lesson 2)</td><td>2 (50%)") && ab.includes("Set a calendar reminder for tomorrow</td><td>1 (25%)") && ab.includes("Gave an email for tomorrow</td><td>1 (25%)") && ab.includes("Tapped No thanks</td><td>1 (25%)"), ab.slice(0, 900));
+const wp = r.text.slice(r.text.indexOf("<h2>The way to a plan"));
+check("and the way to a plan, step by step", wp.includes("Finished Level 3 (the last free level)</td><td>4</td>") && wp.includes("Saw the price</td><td>2 (50%)") && wp.includes("Tapped a plan</td><td>1 (50%)") && wp.includes("Went to the payment page</td><td>1 (100%)") && wp.includes("Paid</td><td>0 (0%)"), wp.slice(0, 900));
+// the calendar file: every day from Settings, just tomorrow after the first lesson
+r = await call(env(), "/api/reminder.ics?t=1930&d=20261127");
+check("the daily reminder repeats", r.text.includes("RRULE:FREQ=DAILY") && r.text.includes("DTSTART:20261127T193000"), r.text);
+r = await call(env(), "/api/reminder.ics?t=1930&d=20261127&once=1");
+check("the first lesson's reminder is just tomorrow", !r.text.includes("RRULE") && r.text.includes("DTSTART:20261127T193000") && r.text.includes("BEGIN:VALARM"), r.text);
 r = await post(env(K), "a-long-secret-123456", "https://evil.example");
 check("not from another website", r.status === 403 && !r.text.includes("Lessons finished"), r.status);
 r = await call(env(K), "/api/stats?key=a-long-secret-123456");

@@ -212,11 +212,12 @@ async function api(request, env, url, ctx) {
 // daily totals are kept: no names, no addresses, nothing that says who did what. The page that shows them needs the
 // STATS_KEY secret set in Cloudflare; without it the page doesn't exist.
 // A learner's first lesson, card by card (the app's FIRST_CARDS): which first lesson it was, and what each card is today.
-const FIRST_KINDS = [["new", "Start learning (new to Persian)", ["alef", "be", "question", "question", "tip", "read bâbâ", "tip", "read âb"]],
+const FIRST_KINDS = [["new", "Start learning (new to Persian)", ["bâbâ: what it means", "be and alef", "read bâbâ yourself", "hear a letter", "hear a letter", "tip: alef with a hat", "read âb"]],
   ["heard", "Already speak some Persian", ["hear bâbâ", "question", "hear mâmân", "question", "hear âb", "read nân", "new word bârân"]],
   ["other", "Came another way (Find my level, a class)", []]];
 const USAGE_EVENTS = ["open", "open_child", "open_adult", "open_unset", "new", "back_1", "back_2_7", "back_8_30", "back_31", "lesson_start", "lesson_done", "practice_done", "review_done", "game_done", "talk_start", "nudge_show", "nudge_on", "cal_on", "comeback_show", "from_email",
   "ob_start", "ob_heard", "page_error", "ob_demo", "ob_level", "ob_join", "ob_little", "ob_teacher", "ob_signin", "who_adult", "who_child", "who_little", "who_teacher", "join_done", "class_made", "name_open", "name_made", "name_share", "name_start", "books_open", "taarof_link", "taarof_share", "rally_link", "play_link", "game_lesson", "guide_open", "guide_start", "bingo_print", "bingo_call", "mic_fail", "yalda_open", "yalda_fal", "yalda_share", "yalda_big", "yalda_class", "yalda_start", "mic_muted",
+  "cb_keep", "cb_cal", "cb_email", "cb_no", "pay_l3", "pay_price", "pay_plan", "pay_checkout", "pay_paid",
   ...FIRST_KINDS.flatMap(([k]) => [...Array.from({ length: 12 }, (_, i) => `first_${k}_${i + 1}`), `first_${k}_done`, `first_${k}_left`])];
 async function countUsage(request, env, url, s) {
   if (!s.db || tooMany(request, "usage", 20, 300)) return reply({ ok: true }); // too many from one place: quietly not counted
@@ -266,22 +267,34 @@ form{display:flex;flex-wrap:wrap;gap:8px;max-width:420px}input{flex:1;min-width:
   const fBody = Array.from({ length: rowsTo }, (_, i) => `<tr><td>Got to card ${i + 1}</td>` + FIRST_KINDS.map(([k, , cards]) => cell(k, `first_${k}_${i + 1}`, cards[i] || "")).join("") + "</tr>").join("")
     + "<tr class=t><td>Finished it</td>" + FIRST_KINDS.map(([k]) => cell(k, `first_${k}_done`)).join("") + "</tr>"
     + "<tr><td>Tapped Leave</td>" + FIRST_KINDS.map(([k]) => cell(k, `first_${k}_left`)).join("") + "</tr>";
+  // Steps, each with its share: of the first row (what people chose after the first lesson), or of the row above (the
+  // way to a plan, where each step needs the one before it).
+  const steps = (title, rows, ofAbove) => `<tr><th>${esc(title)}</th><th>People</th></tr>` + rows.map(([key, label], i) => {
+    const n = total(key), base = i ? total(ofAbove ? rows[i - 1][0] : rows[0][0]) : 0;
+    return `<tr><td>${esc(label)}</td><td>${n}${i && base ? ` (${Math.round((n / base) * 100)}%)` : ""}</td></tr>`;
+  }).join("");
+  const cb = steps("After the first lesson", [["comeback_show", "Saw “See you tomorrow?”"], ["cb_keep", "Tapped Keep going (straight into lesson 2)"], ["cb_cal", "Set a calendar reminder for tomorrow"], ["cb_email", "Gave an email for tomorrow"], ["cb_no", "Tapped No thanks"]], false);
+  const pay = steps("The way to a plan", [["pay_l3", "Finished Level 3 (the last free level)"], ["pay_price", "Saw the price"], ["pay_plan", "Tapped a plan"], ["pay_checkout", "Went to the payment page"], ["pay_paid", "Paid"]], true);
   return page(`<h1>Alefba: how the app is used</h1><p>Daily totals only, by each learner's own date. "Opened the app" counts each learner once a day. "Back" says how long since that learner first opened it. Nothing here identifies anyone.</p>
 <div class=wrap><table>${head}${foot}${body || ""}</table></div>${body ? "" : "<p>Nothing counted yet.</p>"}
 <h2>Where people stop in their first lesson</h2><p>Last 30 days. Each row is how many reached that card, and in brackets their share of everyone who started. The biggest drop between two rows is where people stop. Anyone who closes the page just leaves, so “Tapped Leave” is only the people who used the button.</p>
-<div class=wrap><table>${fHead}${fBody}</table></div>`);
+<div class=wrap><table>${fHead}${fBody}</table></div>
+<h2>After the first lesson</h2><p>Last 30 days. What people chose on the screen at the end of their first lesson, and in brackets their share of everyone who saw it. Someone can do more than one (keep going and set a reminder). Anyone who closes the page just leaves.</p>
+<div class=wrap><table>${cb}</table></div>
+<h2>The way to a plan</h2><p>Last 30 days. Each step is counted once per device, and in brackets is its share of the step above, so the smallest number in brackets is where most people stop. The price also shows outside Level 3 (a locked level, the Review tab, the account), so a step can be bigger than the one above. “Paid” is a family's first plan, counted by the server, so it includes payments from your own tests.</p>
+<div class=wrap><table>${pay}</table></div>`);
 }
 
 // ---------- a daily reminder for the family's calendar ----------
 // The app's "Add to my calendar" opens this: an event at the chosen time (the phone's own time zone), repeating every
 // day, with an alert. Phones open it straight in their calendar app. Nothing is stored.
 function reminderIcs(url) {
-  const t = String(url.searchParams.get("t") || ""), d = String(url.searchParams.get("d") || "");
+  const t = String(url.searchParams.get("t") || ""), d = String(url.searchParams.get("d") || ""), once = url.searchParams.get("once") === "1"; // once: just tomorrow (after the first lesson)
   const hm = /^([01]\d|2[0-3])([0-5]\d)$/.exec(t) ? t : "1700";
   const day = /^20\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(d) ? d : new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Alefba//Daily reminder//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT",
-    `UID:alefba-${crypto.randomUUID()}@learnalefba.com`, `DTSTAMP:${now}`, `DTSTART:${day}T${hm}00`, "DURATION:PT10M", "RRULE:FREQ=DAILY",
+    `UID:alefba-${crypto.randomUUID()}@learnalefba.com`, `DTSTAMP:${now}`, `DTSTART:${day}T${hm}00`, "DURATION:PT10M", ...(once ? [] : ["RRULE:FREQ=DAILY"]),
     "SUMMARY:Persian practice with Alefba", `DESCRIPTION:A few minutes of Persian today: ${url.origin}/?ref=reminder`, `URL:${url.origin}/?ref=reminder`,
     "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time for a little Persian!", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
   return new Response(ics, { headers: { "content-type": "text/calendar; charset=utf-8", "content-disposition": 'inline; filename="alefba-reminder.ics"', "cache-control": "no-store" } });
@@ -1206,6 +1219,9 @@ async function refreshPlan(env, fam, force) {
   }
   const next = { plan: best ? best.plan : null, plan_status: best ? best.sub.status : null, sub_id: best ? best.sub.id : null, plan_checked: Date.now() };
   await env.DB.prepare("UPDATE families SET plan = ?, plan_status = ?, sub_id = ?, plan_checked = ? WHERE id = ?").bind(next.plan, next.plan_status, next.sub_id, next.plan_checked, fam.id).run();
+  // a family that had no plan and now has one has just paid: the last step on the stats page's way to a plan (a total
+  // for the day, like the app's own counts; it says nothing about who)
+  if (next.plan && !fam.plan && !fam.sub_id) await env.DB.prepare("INSERT INTO usage (day, name, n) VALUES (?, 'pay_paid', 1) ON CONFLICT(day, name) DO UPDATE SET n = n + 1").bind(dayKey(Date.now())).run().catch(() => {});
   return { ...fam, ...next };
 }
 async function ensureCustomer(env, fam) {

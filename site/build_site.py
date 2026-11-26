@@ -101,7 +101,7 @@ os.makedirs(os.path.join(OUT, "audio"))
 assert app.count("<title>Alefba الفبا</title>") == 1 and app.count("</main>") == 1
 app = app.replace("<title>Alefba الفبا</title>", f"<title>{TITLE}</title>").replace("</main>", "</main>\n" + ABOUT, 1)
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "yalda.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "spoken-vs-written-persian.html", "spoken-persian-verbs.html", "i-miss-you-in-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "yalda.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "spoken-vs-written-persian.html", "spoken-persian-verbs.html", "i-miss-you-in-persian.html", "guide.css", "guide.js", "nostats.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
 # the Yalda page carries its Hafez couplets inside it (from yalda-fal.json), so the fâl works at once, even offline
 _y = os.path.join(OUT, "yalda.html"); _yh = open(_y, encoding="utf-8").read()
@@ -124,6 +124,9 @@ for _f in sorted(os.listdir(OUT)):
     assert len(re.findall(r"<h1[ >]", _h)) == 1, (_f, "one h1")
     assert "noindex" not in _h.lower(), (_f, "noindex")
     assert f"<loc>{_url}</loc>" in _sitemap, (_f, "not in sitemap.xml")
+    # ?nostats works on every page, not only in the app (which has its own): this device left out of the stats
+    if _f != "index.html" and 'src="nostats.js"' not in _h:
+        _h = _h.replace("</head>", '<script src="nostats.js"></script>\n</head>', 1); open(_p, "w", encoding="utf-8").write(_h)
     if '"@type": "WebPage"' not in _h and _f != "index.html":
         _d = re.search(r'<meta name="description" content="([^"]*)">', _h).group(1)
         _ld = {"@context": "https://schema.org", "@type": "WebPage", "name": _html.unescape(_t), "url": _url, "description": _html.unescape(_d), "inLanguage": "en",

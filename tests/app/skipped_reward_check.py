@@ -1,6 +1,7 @@
 # After the level check skips Level 1's words (and the letters), finishing a letter lesson must not pop up
 # "Elan finished Level 1: Hello!" with a share card: that level wasn't finished, it was skipped. Doing a real
-# lesson in Level 1 later still gives its sticker and the share button.
+# lesson in Level 1 later still gives its sticker and the share button. Finishing the letter group itself gets a
+# card of its own ("Elan can read 5 Persian letters!").
 import json, sys
 from playwright.sync_api import sync_playwright
 URL = "http://127.0.0.1:8811/"
@@ -48,13 +49,21 @@ with sync_playwright() as p:
     check("a letter lesson finishes", finish(pg))
     txt = pg.inner_text("#exBox") if pg.is_visible("#exBox") else pg.inner_text("body")
     check("no 'Level 1 sticker' pops up for a level the check skipped", "Level 1 sticker" not in txt and "Level 2 sticker" not in txt, txt[:300])
-    check("and no share card claiming Level 1 was finished", not pg.is_visible("#shareBtn"))
+    check("the letter group they really finished gets its own card instead", "Letters: Alef and the boat letters" in txt, txt[:300])
+    pg.click("#shareBtn"); pg.wait_for_timeout(1200)
+    alt = pg.evaluate("document.getElementById('shareImg').alt")
+    check(f"and its share picture says the letters they learned, not Level 1 ({alt})", alt == "Elan can read 5 Persian letters!", alt)
+    pg.click("#shareClose")
     pg.evaluate("closeLesson()"); pg.wait_for_timeout(300)
     # then Elan really does a Level 1 words lesson: now the sticker (and share) comes, and it's true
     pg.evaluate(f"startLesson(LESSONS.find(l => l.id === {json.dumps(ids['lv1'][0])}))"); pg.wait_for_timeout(300)
     check("a Level 1 words lesson finishes", finish(pg))
     check("now the Level 1 sticker comes, with the share button", "Level 1 sticker" in pg.inner_text("body") and pg.is_visible("#shareBtn"))
     check("but not Level 2's, still only skipped", "Level 2 sticker" not in pg.inner_text("body"))
+    # every letter group's last lesson ("Read your first words", "Read new words") builds: a game's function with the
+    # same name had replaced the one it uses, so it stopped opening
+    built = pg.evaluate("ALPHA_UNITS.map(u => { try { return buildLesson(u.lessons[3]).length; } catch (e) { return String(e); } })")
+    check(f"every letter group's reading lesson opens ({built})", all(isinstance(n, int) and n >= 8 for n in built), built)
     check("no page errors", not errs, errs)
     b.close()
 print(f"{sum(OK)}/{len(OK)}")
