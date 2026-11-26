@@ -1,4 +1,5 @@
-# learnalefba.com/taarof: straight into the taarof game, for a first-time visitor and for a returning learner.
+# learnalefba.com/taarof: a page about the game (real text, for search engines), then one tap on Start goes straight
+# into the taarof game, for a first-time visitor and for a returning learner.
 import json, sys
 from playwright.sync_api import sync_playwright
 SHOT = sys.argv[1] if len(sys.argv) > 1 else "/tmp/"
@@ -16,7 +17,7 @@ with sync_playwright() as p:
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(FREE)))
     sent = []; c.route("**/api/usage*", lambda r: (sent.append(r.request.post_data or ""), r.fulfill(status=204, body=""))[1])
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
-    pg.goto("http://127.0.0.1:8811/taarof.html"); pg.wait_for_timeout(1800)
+    pg.goto("http://127.0.0.1:8811/taarof.html"); pg.wait_for_timeout(300); pg.click("a.cta[href='./#taarof']"); pg.wait_for_timeout(1800)
     check("the short link lands in the app, with the link tidied", pg.url.rstrip("/") == "http://127.0.0.1:8811", pg.url)
     check("a first-time visitor is in the game straight away", pg.is_visible("#exBox") and "What is taarof?" in pg.inner_text("#exBox"), pg.inner_text("body")[:200])
     pg.screenshot(path=SHOT + "link_new.png")
@@ -57,7 +58,7 @@ with sync_playwright() as p:
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(FREE)))
     sent = []; c.route("**/api/usage*", lambda r: (sent.append(r.request.post_data or ""), r.fulfill(status=204, body=""))[1])
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
-    pg.goto("http://127.0.0.1:8811/rally.html"); pg.wait_for_timeout(1800); pg.evaluate("RALLY_AUTO = false; if (R && R.rally) R.rally.auto = false")
+    pg.goto("http://127.0.0.1:8811/rally.html"); pg.wait_for_timeout(300); pg.click("a.cta[href='./#rally']"); pg.wait_for_timeout(1800); pg.evaluate("RALLY_AUTO = false; if (R && R.rally) R.rally.auto = false")
     check("learnalefba.com/rally opens the rally for a first-time visitor", pg.is_visible("#exBox") and "Keep the taarof going!" in pg.inner_text("#exBox") and pg.url.rstrip("/") == "http://127.0.0.1:8811", pg.inner_text("body")[:200])
     pg.click("#mainBtn"); pg.wait_for_timeout(300); pg.evaluate("R.rally.auto = false; clearTimeout(R.rally.to)")
     pg.click(f"#rally-{pg.evaluate('R.rally.opts.findIndex(o => o.blunt)')}"); pg.wait_for_timeout(250)

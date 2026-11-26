@@ -72,8 +72,8 @@ with sync_playwright() as p:
     c = b.new_context(viewport={"width": 390, "height": 844})
     c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(FREE)))
     sent = []; c.route("**/api/usage*", lambda r: (sent.append(r.request.post_data or ""), r.fulfill(status=204, body=""))[1])
-    pg = c.new_page(); pg.goto(BASE + "taarof.html"); pg.wait_for_timeout(6000)
-    check("learnalefba.com/taarof is still counted as taarof_link", any("taarof_link" in s for s in sent), sent); c.close()
+    pg = c.new_page(); pg.goto(BASE + "taarof.html"); pg.wait_for_timeout(300); pg.click("a.cta[href='./#taarof']"); pg.wait_for_timeout(6000)
+    check("learnalefba.com/taarof, then Start: counted as taarof_link", any("taarof_link" in s for s in sent), sent); c.close()
     b.close()
 
 lp = open(os.path.join(SITE, "learn-persian.html"), encoding="utf-8").read()

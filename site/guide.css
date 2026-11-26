@@ -66,3 +66,7 @@ footer { color: var(--muted); font-size: 0.9rem; }
 .abc tr.new td { background: var(--turq-soft); }
 @media (max-width: 420px) { .abc td, .abc th { padding-inline: 4px; } .abc .g { font-size: 1.75rem; inline-size: 2.4rem; } }
 .letters { font-family: var(--font-fa); font-size: 1.5rem; letter-spacing: 0.25em; }
+
+/* a second, small play button inside a phrase's note (the book form), and the start button at the top of a game page */
+.say .m .play { grid-column: auto; grid-row: auto; vertical-align: middle; margin-inline-start: 6px; }
+.box.start { justify-items: center; text-align: center; }

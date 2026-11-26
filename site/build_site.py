@@ -16,7 +16,7 @@ assert "googleapis" not in app and "gstatic" not in app
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c3780'/%3E"
            "%3Ctext x='32' y='46' font-size='40' text-anchor='middle' fill='%23f2b23c' font-family='Tahoma,sans-serif'%3E%D8%A7%3C/text%3E%3C/svg%3E")
 DESC = "Learn to read and speak Persian (Farsi) online, the way Iranians actually talk: the alphabet, real voices and practice conversations. For kids, families and adults. Free lessons to start."
-TITLE = "Alefba الفبا: Learn Persian (Farsi) Online, Free to Start"
+TITLE = "Alefba: Learn to Read and Speak Persian the Way Families Really Talk"
 # Questions and answers shown at the foot of the home page, and the same ones told to search engines (they must match what people can see).
 FAQ = [
  ("Is Alefba free?", "Yes, to start. The Persian alphabet, the first 3 levels, the Shab-e Yalda pack and the Taarof pack are free, with no account needed. Teacher mode is free for teachers. A plan opens all 16 levels, the stories, the games and the AI talks."),
@@ -30,11 +30,14 @@ FAQ = [
 ]
 import html as _html, json as _json
 LD = [
- {"@context": "https://schema.org", "@type": "WebSite", "name": "Alefba", "alternateName": "الفبا", "url": "https://learnalefba.com/"},
+ {"@context": "https://schema.org", "@type": "WebSite", "name": "Alefba", "alternateName": "الفبا", "url": "https://learnalefba.com/", "inLanguage": "en",
+  "description": "Alefba is a Persian (Farsi) learning site: learn to read and speak Persian the way Iranian families really talk.", "about": {"@type": "Language", "name": "Persian", "alternateName": "Farsi"}},
+ {"@context": "https://schema.org", "@type": "Organization", "name": "Alefba", "url": "https://learnalefba.com/", "logo": "https://learnalefba.com/icons/icon-512.png",
+  "description": "A Persian (Farsi) learning site for kids, families and adults.", "email": "hello@learnalefba.com"},
  {"@context": "https://schema.org", "@type": "WebApplication", "name": "Alefba", "url": "https://learnalefba.com/", "applicationCategory": "EducationalApplication", "operatingSystem": "Any (web browser)",
   "inLanguage": "en", "description": DESC, "image": "https://learnalefba.com/icons/og-image.png",
   "offers": [{"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "The alphabet and the first 3 levels are free"},
-            {"@type": "Offer", "price": "39", "priceCurrency": "USD", "description": "Yearly family plan: all 16 levels, stories, games and AI talks (about $3.25 a month)"}]},
+            {"@type": "Offer", "price": "39", "priceCurrency": "USD", "description": "Yearly family plan: all 16 levels, stories, games and AI talks"}]},
  {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]},
 ]
 LD_TAGS = "".join(f'<script type="application/ld+json">{_json.dumps(x, ensure_ascii=False)}</script>\n' for x in LD)
@@ -56,8 +59,9 @@ ABOUT = (
  '<li>A free Taarof pack: Persian manners, with a game</li><li>A little mode for ages 3 to 6</li><li>A free teacher mode for Persian schools</li></ul>'
  '<h3>Questions</h3>'
  + "".join(f"<details><summary>{_html.escape(q)}</summary><p>{_html.escape(a)}</p></details>" for q, a in FAQ) +
- '<p class="trust">No ads and no tracking. Payments are handled by Stripe. Made by a student in New York, with recordings by his family.</p>'
- '<p><b>Guides:</b> <a href="what-is-taarof">What is taarof?</a> · <a href="thank-you-in-persian">Thank you in Persian</a> · <a href="persian-alphabet">The Persian alphabet</a> · <a href="teach-your-child-persian">Teaching your child Persian</a></p>'
+ '<p class="trust">No ads and no tracking cookies. Payments are handled by Stripe. Made by a student in New York, with recordings by his family.</p>'
+ '<p><b>Guides:</b> <a href="spoken-vs-written-persian">Why nân becomes nun: spoken and written Persian</a> · <a href="spoken-persian-verbs">How Persian verbs get shorter when people talk</a> · <a href="persian-alphabet">The Persian alphabet</a> · <a href="thank-you-in-persian">Thank you in Persian</a> · <a href="i-miss-you-in-persian">I miss you in Persian</a> · <a href="what-is-taarof">What is taarof?</a> · <a href="teach-your-child-persian">Teaching your child Persian</a></p>'
+ '<p><b>Play:</b> <a href="yalda">Yalda night: fâl, bingo and a story</a> · <a href="taarof">The taarof test</a> · <a href="rally">Taarof rally</a> · <a href="play">Classroom bingo and balloons</a></p>'
  '<p><a href="learn-persian">Persian for kids</a> · <a href="learn-persian-adults">Persian for adults</a> · <a href="parents">For parents</a> · <a href="teachers">For teachers</a> · <a href="name">Your name in Persian</a> · <a href="about">Who made Alefba</a></p>'
  '</section>\n')
 HEAD = f"""<!doctype html>
@@ -97,12 +101,35 @@ os.makedirs(os.path.join(OUT, "audio"))
 assert app.count("<title>Alefba الفبا</title>") == 1 and app.count("</main>") == 1
 app = app.replace("<title>Alefba الفبا</title>", f"<title>{TITLE}</title>").replace("</main>", "</main>\n" + ABOUT, 1)
 open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(HEAD + app + "\n</body>\n</html>\n")
-for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "yalda.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
+for f in ("_worker.js", "_routes.json", "_headers", "parents.html","adults.html", "teachers.html", "about.html", "class-note.html", "name.html", "taarof.html", "rally.html", "play.html", "yalda.html", "learn-persian.html","learn-persian-adults.html", "what-is-taarof.html", "thank-you-in-persian.html", "persian-alphabet.html", "teach-your-child-persian.html", "spoken-vs-written-persian.html", "spoken-persian-verbs.html", "i-miss-you-in-persian.html", "guide.css", "guide.js", "robots.txt", "sitemap.xml", "manifest.webmanifest"):
     shutil.copyfile(os.path.join(HERE, f), os.path.join(OUT, f))
 # the Yalda page carries its Hafez couplets inside it (from yalda-fal.json), so the fâl works at once, even offline
 _y = os.path.join(OUT, "yalda.html"); _yh = open(_y, encoding="utf-8").read()
 assert _yh.count("/*FAL_DATA*/[]") == 1
 open(_y, "w", encoding="utf-8").write(_yh.replace("/*FAL_DATA*/[]", json.dumps(json.load(open(os.path.join(HERE, "yalda-fal.json"), encoding="utf-8")), ensure_ascii=False)))
+# What search engines see. Every public page must carry, in its own HTML: a title naming Alefba and Persian, a
+# description, a canonical link to itself, Open Graph tags, one main heading, no noindex, and a place in the sitemap.
+# Each page also says, as structured data, which site it belongs to (added here when the page doesn't say it already).
+_sitemap = open(os.path.join(HERE, "sitemap.xml"), encoding="utf-8").read()
+for _f in sorted(os.listdir(OUT)):
+    if not _f.endswith(".html"): continue
+    _p = os.path.join(OUT, _f); _h = open(_p, encoding="utf-8").read()
+    _slug = "" if _f == "index.html" else _f[:-5]
+    _url = "https://learnalefba.com/" + _slug
+    _t = re.search(r"<title>(.*?)</title>", _h, re.S).group(1)
+    assert "Alefba" in _t and "Persian" in _t, (_f, "title", _t)
+    assert re.search(r'<meta name="description" content="[^"]{50,}">', _h), (_f, "description")
+    assert f'<link rel="canonical" href="{_url}">' in _h, (_f, "canonical")
+    for _og in ("og:title", "og:description", "og:url", "og:image"): assert f'property="{_og}"' in _h, (_f, _og)
+    assert len(re.findall(r"<h1[ >]", _h)) == 1, (_f, "one h1")
+    assert "noindex" not in _h.lower(), (_f, "noindex")
+    assert f"<loc>{_url}</loc>" in _sitemap, (_f, "not in sitemap.xml")
+    if '"@type": "WebPage"' not in _h and _f != "index.html":
+        _d = re.search(r'<meta name="description" content="([^"]*)">', _h).group(1)
+        _ld = {"@context": "https://schema.org", "@type": "WebPage", "name": _html.unescape(_t), "url": _url, "description": _html.unescape(_d), "inLanguage": "en",
+               "isPartOf": {"@type": "WebSite", "name": "Alefba", "url": "https://learnalefba.com/"}, "about": {"@type": "Language", "name": "Persian", "alternateName": "Farsi"}}
+        _h = _h.replace("</head>", f'<script type="application/ld+json">{_json.dumps(_ld, ensure_ascii=False)}</script>\n</head>', 1)
+        open(_p, "w", encoding="utf-8").write(_h)
 shutil.copytree(os.path.join(HERE, "fonts"), os.path.join(OUT, "fonts"))
 shutil.copytree(os.path.join(HERE, "icons"), os.path.join(OUT, "icons"))
 shutil.copytree(os.path.join(HERE, "img"), os.path.join(OUT, "img"))  # screenshots for the teachers page

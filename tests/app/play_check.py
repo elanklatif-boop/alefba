@@ -21,7 +21,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     # ---- a classroom screen ----
     c, pg, errs, sent = ctx(b, 1366, 768)
-    pg.goto(BASE + "play.html"); pg.wait_for_timeout(1800)
+    pg.goto(BASE + "play.html"); pg.wait_for_timeout(300); pg.click("a.cta[href='./#play']"); pg.wait_for_timeout(1800)
     check("the short link lands in the app, with the link tidied away", pg.evaluate("location.pathname + location.hash") == "/", pg.url)
     check("no welcome in front of it", not pg.is_visible("#onboard"))
     check("the Games tab, with Balloons picked", pg.is_visible("#view-games") and pg.get_attribute("#gk-balloons", "aria-pressed") == "true")
@@ -93,7 +93,7 @@ with sync_playwright() as p:
 
     # ---- the same link on a phone: balloons as they always were ----
     c, pg, errs, sent = ctx(b, 390, 844)
-    pg.goto(BASE + "play.html"); pg.wait_for_timeout(1800); pg.click("#gw-1"); pg.wait_for_timeout(700)
+    pg.goto(BASE + "play.html"); pg.wait_for_timeout(300); pg.click("a.cta[href='./#play']"); pg.wait_for_timeout(1800); pg.click("#gw-1"); pg.wait_for_timeout(700)
     bw = pg.evaluate("document.querySelector('.balloon').getBoundingClientRect().width")
     check(f"on a phone the balloons are their usual size ({round(bw)}px)", bw <= 80, bw)
     pg.click("#quitBtn"); pg.wait_for_timeout(200)
