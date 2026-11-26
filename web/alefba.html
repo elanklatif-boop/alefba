@@ -368,7 +368,17 @@ a.btn { text-decoration: none; }
 .first-goal { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; text-align: center; padding: 10px 14px; border-radius: 14px; background: var(--saffron-soft); color: inherit; border: 1px solid color-mix(in srgb, #f0b649 55%, transparent); }
 .first-goal .goal-lead { flex-basis: 100%; font-weight: 600; font-size: 0.95rem; text-wrap: balance; }
 .first-goal .goal-word { font-family: var(--font-fa); font-weight: 700; font-size: 2.4rem; line-height: 1.3; }
-.first-goal .goal-word .hl { color: #c2304f; }
+.first-goal .goal-word .hl, .first-word .hl { color: #c2304f; }
+.first-mean { margin: 0; text-align: center; font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.first-mean .pic-inline { font-size: 1.8rem; line-height: 1; }
+.first-next { text-align: center; }
+.two-letters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; direction: rtl; }
+.two-letter { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px 12px; border-radius: 18px; border: 2px solid var(--line); background: var(--raised); color: inherit; font: inherit; cursor: pointer; }
+.two-letter.heard { border-color: var(--lapis-text); }
+.two-letter .tl-glyph { font-family: var(--font-fa); font-size: 4.2rem; line-height: 1.2; font-weight: 700; }
+.two-letter .tl-name { font-weight: 700; direction: ltr; }
+.two-letter .tl-sound { font-size: 0.85rem; color: var(--muted); direction: ltr; text-align: center; }
+.two-join { display: grid; gap: 4px; justify-items: center; text-align: center; }
 .first-goal .goal-tr { font-size: 0.9rem; color: var(--muted); }
 .tap-glyph { cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; transition: border-color .2s; }
 .tap-glyph:hover, .tap-glyph:focus-visible { border-color: var(--lapis-text); }
@@ -5050,13 +5060,17 @@ function exFindLetter(W, L, Ls) {
 function tasterNew(lesson) {
   const A = BY_GLYPH["ا"], B = BY_GLYPH["ب"], bb = wordByTr("bâbâ"), ab = wordByTr("âb");
   if (!bb || !ab) return null;
+  // The first win comes on card 3, not card 6: the word to aim for (dad, not yet how it sounds), its two letters on
+  // one card, then reading it yourself by picking its sound. The listening questions come after that win.
+  const sounds = shuffle(["bâbâ", "âbâ", "bâb"]);
   const seq = [
-    { type: "introLetter", L: A, audio: letterAudio(A), lite: true },
-    { type: "introLetter", L: B, audio: letterAudio(B), lite: true },
+    { type: "firstWord", W: bb },
+    { type: "twoLetters", Ls: [A, B] },
+    { type: "choice", title: "Now read it yourself", sub: "How does it sound? Use the two letters you just met, from right to left.", glyph: bb.fa, word: true,
+      options: sounds.map(t => ({ t })), answer: sounds.indexOf("bâbâ"), key: "read:bâbâ", audio: wordAudio(bb), firstRead: true,
+      reveal: [bb.fa, " is bâbâ, dad 👨"] },
     exHearLetter(B, [A, B]),
     exHearLetter(A, [A, B]),
-    { type: "tip", title: "Letters join together", art: "ب + ا = با", text: "Most letters join onto the letter after them. Here be joins onto alef and makes bâ. Persian is read from right to left." },
-    { type: "readWord", W: bb, audio: wordAudio(bb) },
     { type: "tip", title: "Alef with a hat", art: "آ", text: "At the start of a word, alef sometimes wears a little hat. Then it always says â, like the a in father." },
     { type: "readWord", W: ab, audio: wordAudio(ab) },
   ];
@@ -5733,33 +5747,12 @@ function showExercise() {
 
   if (ex.type === "introLetter" || ex.type === "introForms") {
     const L = ex.L;
-    // The very first card for someone new to Persian (a quarter of them used to leave here): it says where the
-    // 2 minutes lead, shows alef inside that word, puts the sound in plain words, and the letter itself is the
-    // thing to tap.
-    const firstCard = !!(R.first && R.first.k === "new" && R.pos === 0 && ex.type === "introLetter" && L[0] === "ا");
-    if (firstCard) {
-      const goal = el("div", "first-goal"); goal.id = "firstGoal";
-      const word = el("span", "goal-word"); word.lang = "fa"; word.dir = "rtl";
-      ["ب", "ا", "ب", "ا"].forEach(ch => { if (ch === "ا") word.append(el("span", "hl", ch)); else word.append(document.createTextNode(ch)); });
-      goal.append(el("span", "goal-lead", "In 2 minutes you'll read your first Persian word"), word, el("span", "goal-tr", "bâbâ, dad"));
-      box.append(goal);
-    }
     box.append(el("span", "ex-tag", ex.type === "introLetter" ? "New letter" : "Letter shapes"));
     box.append(el("h2", "ex-title", ex.type === "introLetter" ? `This is ${L[1]}` : `${L[1]} inside a word`));
-    const glyph = fa("div", "glyph", L[0]);
-    box.append(glyph);
-    if (firstCard && hasAudio(ex.audio)) {
-      glyph.classList.add("tap-glyph"); glyph.id = "firstGlyph"; glyph.tabIndex = 0;
-      glyph.setAttribute("role", "button"); glyph.setAttribute("aria-label", `Hear ${L[1]}`);
-      const tap = () => { glyph.classList.remove("tapped"); void glyph.offsetWidth; glyph.classList.add("tapped"); hint.classList.add("done"); speak(ex.audio); };
-      glyph.addEventListener("click", tap);
-      glyph.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(); } });
-      const hint = el("p", "tap-hint", "👆 Tap the letter to hear it"); hint.id = "firstTapHint";
-      box.append(hint);
-    }
+    box.append(fa("div", "glyph", L[0]));
     if (ex.type === "introLetter") {
       const facts = el("div", "facts");
-      [["Name", L[1]], ["Sound", firstCard ? "â, like the a in “father”" : L[2]]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
+      [["Name", L[1]], ["Sound", L[2]]].forEach(([k, v]) => { const f = el("div", "fact"); f.append(el("div", "k", k), el("div", "v", v)); facts.append(f); });
       box.append(facts);
       const W = LETTER_EXAMPLE[L[0]];
       if (W && !ex.lite) box.append(mixed(["", "Like in ", W.fa, endDot(` (${W.tr}), which means ${W.m}`)], "ex-sub letter-example"));
@@ -5771,7 +5764,42 @@ function showExercise() {
     }
     // a new letter: its name
     const after = ex.type === "introLetter" ? () => sayLetterHelp(L) : null;
-    if (hasAudio(ex.audio)) { if (!firstCard) box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
+    if (hasAudio(ex.audio)) { box.append(playButton(ex.audio, false, "Hear it", after)); speak(ex.audio, after); }
+    return setMain("Continue", true);
+  }
+  if (ex.type === "firstWord") {
+    // Card 1 of the very first lesson: the word you're about to read, and what it means, but not yet how it
+    // sounds, so card 3 is real reading. Its alefs are in red, the letter you meet first.
+    const W = ex.W;
+    const goal = el("div", "first-goal"); goal.id = "firstGoal";
+    goal.append(el("span", "goal-lead", "In 30 seconds you'll read this word yourself"));
+    box.append(el("span", "ex-tag", "Your first Persian word"), goal);
+    const word = fa("div", "glyph word first-word", ""); word.id = "firstWordGlyph";
+    Array.from(W.fa).forEach(ch => word.append(ch === "ا" ? el("span", "hl", ch) : document.createTextNode(ch)));
+    box.append(word);
+    const mean = el("p", "first-mean"); mean.id = "firstMean";
+    if (picOf(W)) mean.append(el("span", "pic-inline", picOf(W)));
+    mean.append(document.createTextNode(`It means “${W.m}”.`));
+    box.append(mean, el("p", "ex-sub first-next", "It's made of just 2 letters. Let's learn them."));
+    return setMain("Continue", true);
+  }
+  if (ex.type === "twoLetters") {
+    // Card 2: both letters side by side, each one tapped to hear it, and how they join (be + alef = bâ).
+    box.append(el("span", "ex-tag", "2 letters"), el("h2", "ex-title", "Meet alef and be"));
+    const row = el("div", "two-letters"); row.id = "twoLetters";
+    const sound = { "ا": "â, like the a in “father”", "ب": "b, like in “boy”" };
+    ex.Ls.forEach(L => {
+      const a = letterAudio(L), t = el("button", "two-letter tap-glyph"); t.type = "button"; t.id = "twoL-" + slug(lid(L));
+      t.setAttribute("aria-label", `Hear ${L[1]}`);
+      const g = fa("span", "tl-glyph", L[0]);
+      t.append(g, el("span", "tl-name", L[1]), el("span", "tl-sound", sound[L[0]] || L[2]));
+      t.addEventListener("click", () => { t.classList.remove("tapped"); void t.offsetWidth; t.classList.add("tapped"); t.classList.add("heard"); hint.classList.add("done"); if (hasAudio(a)) speak(a); });
+      row.append(t);
+    });
+    const hint = el("p", "tap-hint", "👆 Tap each letter to hear it"); hint.id = "twoTapHint";
+    const join = el("div", "two-join"); join.id = "twoJoin";
+    join.append(fa("div", "tip-art", "ب + ا = با"), el("p", "tip-text", "Letters join together, and Persian reads from right to left: be joins onto alef and makes bâ."));
+    box.append(row, hint, join);
     return setMain("Continue", true);
   }
   if (ex.type === "heardWord") {
@@ -6013,7 +6041,8 @@ function afterAnswer(ok, ex, gaveUp) {
   R.graded++;
   R.phase = "result";
   const idk = $("idkBtn"); if (idk) idk.hidden = true;
-  if (ok) feedback("good", ex.stage === "guided" ? pick(["You built it!", "Afarin! That's the word."]) : pick(["Correct!", "Well done!", "Afarin! That's right."]), ex.reveal);
+  if (ok && ex.firstRead) { feedback("good", "You just read your first Persian word! 🎉", ex.reveal); confetti(); chime(); }
+  else if (ok) feedback("good", ex.stage === "guided" ? pick(["You built it!", "Afarin! That's the word."]) : pick(["Correct!", "Well done!", "Afarin! That's right."]), ex.reveal);
   else {
     R.mistakes++;
     if (ex.reveal && ex.reveal[0] && !R.missed.includes(ex.reveal[0])) R.missed.push(ex.reveal[0]);
@@ -6150,7 +6179,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v172";
+const APP_VERSION = "v173";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
