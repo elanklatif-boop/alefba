@@ -4823,7 +4823,8 @@ const BADGES = [
 // What's new since last time: stickers and badges are announced once, on the finish screen.
 function newRewards() {
   const seen = S.rewardsSeen || (S.rewardsSeen = {}), out = [];
-  LEVELS.forEach(lv => { const k = "lv" + lv.index; if (hasSticker(lv) && !seen[k]) { seen[k] = 1; out.push({ pic: stickerOf(lv), name: `Level ${lv.index + 1} sticker: ${lv.title}`, lv }); } });
+  // a level the level check skipped isn't "finished": its sticker pops up (and offers a share) only once a lesson in it is really done
+  LEVELS.forEach(lv => { const k = "lv" + lv.index; if (hasSticker(lv) && learnedLevel(lv) && !seen[k]) { seen[k] = 1; out.push({ pic: stickerOf(lv), name: `Level ${lv.index + 1} sticker: ${lv.title}`, lv }); } });
   BADGES.forEach(b => { if (b.got() && !seen[b.id]) { seen[b.id] = 1; out.push({ pic: b.pic, name: `Badge: ${b.name}`, words: /^words/.test(b.id) }); } });
   return out;
 }
@@ -6209,7 +6210,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v176";
+const APP_VERSION = "v177";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
