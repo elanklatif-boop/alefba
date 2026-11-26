@@ -36,8 +36,8 @@ with sync_playwright() as p:
     check("Start learning opens the first lesson straight away, with no question first", pg.is_visible("#lesson") and not pg.is_visible("#onboard") and pg.evaluate("S.profile.first") == "new")
     q=pg.evaluate("R.queue.map(e => e.type)")
     check(f"new to Persian: the word, its two letters, then read it on card 3: {q}", q == ["firstWord","twoLetters","choice","choice","choice","tip","readWord"], q)
-    check("it's Meet the letters: card 1 is bâbâ (what it means, not how it sounds), card 2 is alef and be together",
-          pg.evaluate("R.lesson.id") == "a1-1" and pg.evaluate("R.queue[0].W.tr") == "bâbâ" and pg.evaluate("R.queue[1].Ls.map(L => L[0]).join('')") == "اب")
+    check("it's Meet the letters: card 1 is bâbâ (what it means, not how it sounds), card 2 is be and alef together (be first, on the right)",
+          pg.evaluate("R.lesson.id") == "a1-1" and pg.evaluate("R.queue[0].W.tr") == "bâbâ" and pg.evaluate("R.queue[1].Ls.map(L => L[0]).join('')") == "با")
     check("card 3 is reading بابا yourself: pick its sound, with a celebration", pg.evaluate("(() => { const e = R.queue[2]; return e.firstRead && e.glyph === 'بابا' && e.options[e.answer].t === 'bâbâ' && e.options.length === 3; })()"))
     check("then the listening questions, and the last word to read is âb", pg.evaluate("R.queue.slice(3, 5).every(e => e.listen)") and pg.evaluate("R.queue.filter(e => e.type === 'readWord').map(e => e.W.tr).join(',')") == "âb")
     check("it plays to the end", finish(pg))

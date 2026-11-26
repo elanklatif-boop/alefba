@@ -368,7 +368,9 @@ a.btn { text-decoration: none; }
 .first-goal { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 10px; text-align: center; padding: 10px 14px; border-radius: 14px; background: var(--saffron-soft); color: inherit; border: 1px solid color-mix(in srgb, #f0b649 55%, transparent); }
 .first-goal .goal-lead { flex-basis: 100%; font-weight: 600; font-size: 0.95rem; text-wrap: balance; }
 .first-goal .goal-word { font-family: var(--font-fa); font-weight: 700; font-size: 2.4rem; line-height: 1.3; }
-.first-goal .goal-word .hl, .first-word .hl { color: #c2304f; }
+.first-goal .goal-word .hl, .first-word .hl, .two-letter .tl-glyph.hl, .two-sum .hl { color: #c2304f; }
+.first-tr { margin: -4px 0 0; text-align: center; font-size: 1.3rem; font-weight: 700; color: var(--lapis-text); }
+.tip-art.two-sum { color: var(--ink); }
 .first-mean { margin: 0; text-align: center; font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .first-mean .pic-inline { font-size: 1.8rem; line-height: 1; }
 .first-next { text-align: center; }
@@ -458,7 +460,7 @@ a.btn { text-decoration: none; }
 .guide { margin: 0; text-align: center; font-weight: 600; color: var(--turq); }
 .pairs-answer { display: grid; gap: 4px; justify-items: center; margin-top: 10px; }
 .pairs-answer .fa { font-family: var(--font-fa); font-size: 1.3rem; font-weight: 600; }
-.tip-art { font-family: var(--font-fa); font-size: 2.8rem; text-align: center; color: var(--turq); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 8px 0 14px; direction: rtl; letter-spacing: 0.15em; }
+.tip-art { font-family: var(--font-fa); font-size: 2.8rem; text-align: center; color: var(--turq); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 8px 28px 14px; direction: rtl; letter-spacing: 0.15em; }
 .tip-text { margin: 0; font-size: 1.02rem; max-width: 60ch; }
 .feedback { border-radius: 12px; padding: 10px 14px; border-left: 4px solid var(--line); background: var(--raised); }
 .feedback strong { display: block; font-size: 1.05rem; }
@@ -5064,8 +5066,8 @@ function tasterNew(lesson) {
   // one card, then reading it yourself by picking its sound. The listening questions come after that win.
   const sounds = shuffle(["bâbâ", "âbâ", "bâb"]);
   const seq = [
-    { type: "firstWord", W: bb },
-    { type: "twoLetters", Ls: [A, B] },
+    { type: "firstWord", W: bb, audio: wordAudio(bb) },
+    { type: "twoLetters", Ls: [B, A] }, // be first: on the right, as in بابا
     { type: "choice", title: "Now read it yourself", sub: "How does it sound? Use the two letters you just met, from right to left.", glyph: bb.fa, word: true,
       options: sounds.map(t => ({ t })), answer: sounds.indexOf("bâbâ"), key: "read:bâbâ", audio: wordAudio(bb), firstRead: true,
       reveal: [bb.fa, " is bâbâ, dad 👨"] },
@@ -5768,15 +5770,25 @@ function showExercise() {
     return setMain("Continue", true);
   }
   if (ex.type === "firstWord") {
-    // Card 1 of the very first lesson: the word you're about to read, and what it means, but not yet how it
-    // sounds, so card 3 is real reading. Its alefs are in red, the letter you meet first.
+    // Card 1 of the very first lesson: the word you're about to read, how it sounds (tap it to hear it: heritage
+    // kids often know it already) and what it means. Its alefs are in red, be in the normal colour, the same as on
+    // card 2, so the two letters link back to the word.
     const W = ex.W;
     const goal = el("div", "first-goal"); goal.id = "firstGoal";
     goal.append(el("span", "goal-lead", "In 30 seconds you'll read this word yourself"));
     box.append(el("span", "ex-tag", "Your first Persian word"), goal);
-    const word = fa("div", "glyph word first-word", ""); word.id = "firstWordGlyph";
+    const word = fa("div", "glyph word first-word tap-glyph", ""); word.id = "firstWordGlyph";
     Array.from(W.fa).forEach(ch => word.append(ch === "ا" ? el("span", "hl", ch) : document.createTextNode(ch)));
-    box.append(word);
+    const hint = el("p", "tap-hint", "👆 Tap the word to hear it"); hint.id = "firstTapHint";
+    if (hasAudio(ex.audio)) {
+      word.tabIndex = 0; word.setAttribute("role", "button"); word.setAttribute("aria-label", `Hear ${W.tr}`);
+      const tap = () => { word.classList.remove("tapped"); void word.offsetWidth; word.classList.add("tapped"); hint.classList.add("done"); speak(ex.audio); };
+      word.addEventListener("click", tap);
+      word.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(); } });
+    }
+    const tr = el("p", "first-tr", W.tr); tr.id = "firstTr";
+    box.append(word, tr);
+    if (hasAudio(ex.audio)) box.append(hint);
     const mean = el("p", "first-mean"); mean.id = "firstMean";
     if (picOf(W)) mean.append(el("span", "pic-inline", picOf(W)));
     mean.append(document.createTextNode(`It means “${W.m}”.`));
@@ -5785,20 +5797,22 @@ function showExercise() {
   }
   if (ex.type === "twoLetters") {
     // Card 2: both letters side by side, each one tapped to hear it, and how they join (be + alef = bâ).
-    box.append(el("span", "ex-tag", "2 letters"), el("h2", "ex-title", "Meet alef and be"));
+    box.append(el("span", "ex-tag", "2 letters"), el("h2", "ex-title", "Meet be and alef"));
     const row = el("div", "two-letters"); row.id = "twoLetters";
     const sound = { "ا": "â, like the a in “father”", "ب": "b, like in “boy”" };
     ex.Ls.forEach(L => {
       const a = letterAudio(L), t = el("button", "two-letter tap-glyph"); t.type = "button"; t.id = "twoL-" + slug(lid(L));
       t.setAttribute("aria-label", `Hear ${L[1]}`);
-      const g = fa("span", "tl-glyph", L[0]);
+      const g = fa("span", "tl-glyph" + (L[0] === "ا" ? " hl" : ""), L[0]);
       t.append(g, el("span", "tl-name", L[1]), el("span", "tl-sound", sound[L[0]] || L[2]));
       t.addEventListener("click", () => { t.classList.remove("tapped"); void t.offsetWidth; t.classList.add("tapped"); t.classList.add("heard"); hint.classList.add("done"); if (hasAudio(a)) speak(a); });
       row.append(t);
     });
     const hint = el("p", "tap-hint", "👆 Tap each letter to hear it"); hint.id = "twoTapHint";
     const join = el("div", "two-join"); join.id = "twoJoin";
-    join.append(fa("div", "tip-art", "ب + ا = با"), el("p", "tip-text", "Letters join together, and Persian reads from right to left: be joins onto alef and makes bâ."));
+    const sum = fa("div", "tip-art two-sum", ""); sum.id = "twoSum";
+    [["ب"], [" + "], ["ا", 1], [" = "], ["ب"], ["ا", 1]].forEach(([t, red]) => sum.append(red ? el("span", "hl", t) : document.createTextNode(t)));
+    join.append(sum, el("p", "tip-text", "Letters join together, and Persian reads from right to left: be joins onto alef and makes bâ."));
     box.append(row, hint, join);
     return setMain("Continue", true);
   }
@@ -6179,7 +6193,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v174";
+const APP_VERSION = "v175";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
