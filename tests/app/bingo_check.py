@@ -16,7 +16,7 @@ with sync_playwright() as p:
         r.fulfill(status=200, body="{}")
     c.route("**/api/usage", got)
     pg = c.new_page(); errs = []; pg.on("pageerror", lambda x: errs.append(str(x)))
-    pg.goto(BASE + "play.html"); pg.wait_for_timeout(1800)
+    pg.goto(BASE + "#play"); pg.wait_for_timeout(1800)
     check("Bingo is a third game, and the teachers' note mentions it", pg.is_visible("#gk-bingo") and "Bingo" in pg.inner_text("#classPlayNote"))
     pg.click("#gk-bingo"); pg.wait_for_timeout(300)
     check("with Pictures and Read it under it, worded for cards", pg.get_attribute("#bm-pics", "aria-pressed") == "true" and "cards" in pg.inner_text("#bm-read"))
@@ -96,7 +96,7 @@ with sync_playwright() as p:
     c.close()
     # on a phone the game is still there (families can play it too), and nothing else changed
     c = b.new_context(viewport={"width": 390, "height": 844}); c.route("**/api/me*", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(FREE))); c.route("**/api/usage", lambda r: r.fulfill(status=200, body="{}"))
-    pg = c.new_page(); pg.goto(BASE + "play.html"); pg.wait_for_timeout(1800)
+    pg = c.new_page(); pg.goto(BASE + "#play"); pg.wait_for_timeout(1800)
     pg.click("#gk-bingo"); pg.wait_for_timeout(200); pg.click("#gw-1"); pg.wait_for_timeout(600)
     fits = pg.evaluate("(() => { const cd = document.querySelector('#bingoPreview .bingo-card').getBoundingClientRect(); return cd.right <= innerWidth && cd.width > 120; })()")
     check("on a phone the card preview fits the screen", fits)
