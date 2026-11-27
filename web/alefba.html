@@ -4093,30 +4093,64 @@ function heardMatches(heard, targets) {
 // The sound is taken straight from the microphone as it comes (pcmRecorder), not through MediaRecorder: Safari's
 // MediaRecorder makes a file in pieces, and only the first piece (about a second) could be read back, so the rest of
 // what was said was lost. MediaRecorder is only the fallback when the page can't run sound at all.
+// Three ways to record, because each browser trips on a different one: "pcm" (the sound collected directly, with a
+// sound context made at the tap: best, and needed by computers whose MediaRecorder loses words), "mr" (the browser's
+// own MediaRecorder) and "late" (collected directly, with the sound context made once the microphone is on: what an
+// iPhone's Safari can need, as it can refuse a context made before). If one won't start, the next is tried at once,
+// and the one that worked is remembered on this device. If one fails after the recording (turning it into sound),
+// the next tap uses the next one.
+const REC_MODES = ["pcm", "mr", "late"];
+let REC_MODE = (() => { try { const m = localStorage.getItem("alefba-recmode"); return REC_MODES.includes(m) ? m : "pcm"; } catch (e) { return "pcm"; } })();
+function setRecMode(m) { REC_MODE = m; try { localStorage.setItem("alefba-recmode", m); } catch (e) {} }
+const nextRecMode = m => REC_MODES[(REC_MODES.indexOf(m) + 1) % REC_MODES.length];
+const micBlocked = e => !!e && ["NotAllowedError", "SecurityError", "PermissionDeniedError", "NotFoundError", "DevicesNotFoundError"].includes(e.name);
 async function recordClip(maxMs, vad, onStart, raw) {
+  let mode = REC_MODE, first = null;
+  for (let i = 0; i < REC_MODES.length; i++) {
+    try {
+      const out = await recordClipWith(mode, maxMs, vad, onStart, raw);
+      if (mode !== REC_MODE) setRecMode(mode); // this one works here: keep it
+      // if this way fails while turning the recording into sound, the next tap tries the next way
+      out.done = out.done.catch(e => { setRecMode(nextRecMode(mode)); count("mic_rec_fail"); e.step = e.step || "convert"; throw e; });
+      return out;
+    } catch (e) {
+      if (micBlocked(e)) throw e; // the microphone is off or missing: another way won't help
+      first = first || e; if (!first.step) first.step = "start";
+      mode = nextRecMode(mode);
+    }
+  }
+  count("mic_rec_fail");
+  throw first;
+}
+async function recordClipWith(mode, maxMs, vad, onStart, raw) {
   const filters = !raw;
   // the sound context is made before waiting for the microphone, while the tap still counts (Safari only lets sound
-  // start from a tap); the talk's own running context is used when there is one
+  // start from a tap); the talk's own running context is used when there is one ("late": made afterwards)
   let pctx = null, ownCtx = false;
-  try {
-    if (vad && vad.ctx && vad.ctx.state === "running") pctx = vad.ctx;
-    else { const AC = window.AudioContext || window.webkitAudioContext; pctx = new AC(); ownCtx = true; if (pctx.state === "suspended") pctx.resume().catch(() => {}); }
-  } catch (e) { pctx = null; }
-  const dropCtx = () => { if (ownCtx && pctx) { try { pctx.close(); } catch (e) {} } };
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const makeCtx = () => { try { pctx = new AC(); ownCtx = true; if (pctx.state === "suspended") pctx.resume().catch(() => {}); } catch (e) { pctx = null; } };
+  if (mode === "pcm") {
+    if (vad && vad.ctx && vad.ctx.state === "running") pctx = vad.ctx; else makeCtx();
+  }
+  const dropCtx = () => { if (ownCtx && pctx) { try { const p = pctx.close(); if (p && p.catch) p.catch(() => {}); } catch (e) {} } };
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: filters, noiseSuppression: filters, autoGainControl: filters } }); }
   catch (e) { dropCtx(); throw e; }
-  if (pctx && pctx.state === "suspended") { try { await Promise.race([pctx.resume(), new Promise(r => setTimeout(r, 400))]); } catch (e) {} }
+  if (mode === "late") makeCtx();
+  if (pctx && pctx.state !== "running") { try { await Promise.race([pctx.resume(), new Promise(r => setTimeout(r, 400))]); } catch (e) {} }
   let rec;
-  try { rec = pctx && pctx.state === "running" && pctx.createScriptProcessor ? pcmRecorder(stream, pctx, ownCtx) : (dropCtx(), new MediaRecorder(stream)); }
-  catch (e) { dropCtx(); stream.getTracks().forEach(t => t.stop()); throw e; } // the microphone is switched off again if recording can't start
-  const chunks = [], out = { quiet: false, dropped: false, spoke: false };
+  try {
+    if (mode === "mr") { if (!window.MediaRecorder) throw Object.assign(new Error("no MediaRecorder"), { name: "NotSupportedError" }); rec = new MediaRecorder(stream); }
+    else if (pctx && pctx.state === "running" && pctx.createScriptProcessor) rec = pcmRecorder(stream, pctx, ownCtx);
+    else throw Object.assign(new Error("the sound context didn't start"), { name: "InvalidStateError" });
+  } catch (e) { dropCtx(); stream.getTracks().forEach(t => t.stop()); throw e; } // the microphone is switched off again if recording can't start
+  const chunks = [], out = { quiet: false, dropped: false, spoke: false, mode };
   let timer = null, watch = null, src = null;
   const stopNow = () => { if (rec.state === "recording") rec.stop(); };
   rec.onstart = () => { if (onStart) setTimeout(onStart, 120); };
   const done = new Promise((resolve, reject) => {
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-    rec.onerror = e => { clearInterval(watch); stream.getTracks().forEach(t => t.stop()); reject(e); };
+    rec.onerror = e => { clearInterval(watch); stream.getTracks().forEach(t => t.stop()); reject(e && e.error ? e.error : e); };
     rec.onstop = async () => {
       clearTimeout(timer); clearInterval(watch);
       try { if (src) src.disconnect(); } catch (e) {}
@@ -4125,7 +4159,7 @@ async function recordClip(maxMs, vad, onStart, raw) {
       try { resolve(rec.pcm ? pcmToWav(rec.pcm, rec.rate) : await toWav(new Blob(chunks, { type: rec.mimeType || "audio/webm" }))); } catch (e) { reject(e); }
     };
   });
-  try { rec.start(); } catch (e) { stream.getTracks().forEach(t => t.stop()); throw e; }
+  try { rec.start(); } catch (e) { dropCtx(); stream.getTracks().forEach(t => t.stop()); throw e; }
   timer = setTimeout(stopNow, maxMs);
   if (vad && vad.ctx && vad.ctx.state === "running") {
     try {
@@ -4210,7 +4244,7 @@ function pcmRecorder(stream, ctx, ownCtx) {
     let n = 0; parts.forEach(p => n += p.length);
     const pcm = new Float32Array(n); let o = 0; parts.forEach(p => { pcm.set(p, o); o += p.length; });
     r.pcm = pcm;
-    if (ownCtx) { try { ctx.close(); } catch (e) {} }
+    if (ownCtx) { try { const p = ctx.close(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
     setTimeout(() => { if (r.onstop) r.onstop(); }, 0);
   };
   return r;
@@ -4367,6 +4401,7 @@ function micTrouble(e) {
   if (name === "hear_failed") return { text: "The website's listening isn't working right now. You can type instead, and try the microphone again later.", stop: false };
   if (name === "paused") return { text: "Listening is paused on the website today. You can type instead.", stop: false };
   if (name === "network") return { text: "No connection just now. Check the internet and try again.", stop: false };
+  if (e && e.step) return { text: `That didn't record. Tap the microphone and try again. (${name && typeof name === "string" ? name : "error"}, ${e.step}, ${REC_MODE})`, stop: false }; // the next tap uses another way of recording
   return { text: `That couldn't be checked just now. Let's try again in a moment.${name && typeof name === "string" ? ` (${name})` : ""}`, stop: false }; // the code in brackets says why, for anyone writing in about it
 }
 
@@ -6231,7 +6266,7 @@ function compareVoices(ex) {
   playClip(R.say.mine, () => { if (hasAudio(ex.audio)) speak(ex.audio); });
 }
 let MINE_URL = null;
-const APP_VERSION = "v178";
+const APP_VERSION = "v179";
 function openMicTest() {
   const wrap = el("div", "sheet-wrap"); wrap.id = "micTest";
   const sheet = el("div", "sheet"), box = el("div", "shell gutter"); sheet.append(box); wrap.append(sheet);
