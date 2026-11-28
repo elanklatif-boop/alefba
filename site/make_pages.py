@@ -148,6 +148,7 @@ g1 = f"""    <div class="short"><p>In everyday Persian, a long <b>â</b> followe
     <section><h2>Should I learn the written or the spoken form?</h2><p>Both. Learn to read the written form, because that's how words are spelled in books, on signs and in the news. Say the spoken form when you talk. Saying nân isn't wrong, but in everyday conversation it sounds like reading aloud from a book, a bit like saying “I do not know” instead of “I don't know”.</p><p>You'll also hear the written forms out loud: in poetry, on the news, in speeches and in songs.</p></section>
     <section><h2>Is this only in Tehran?</h2><p>{E(g1_faq[3][1])}</p></section>
     <section><h2>Other ways spoken Persian is different</h2><p>The â-to-u change is only one difference. Verbs get shorter too: <b>mikhâham</b> (I want) is said <b>mikhâm</b>, and <b>khub ast</b> (it's good) is said <b>khube</b>. See <a href="spoken-persian-verbs">how Persian verbs get shorter when people talk</a>.</p></section>
+    <section><h2>Where to hear more everyday Persian</h2><p>The best way to pick up spoken forms is to listen to a lot of them. Once you can follow simple sentences, <a href="https://thefarsipod.com" rel="noopener">The Farsi Pod</a> has short podcasts in everyday colloquial Persian, each with a written guide to follow along.</p></section>
 """
 write("spoken-vs-written-persian", page(
     "spoken-vs-written-persian",
